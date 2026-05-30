@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <entry name="pollInterval" type="Int">
+            <default>2</default>
+        </entry>
+        <entry name="showPortCount" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="alertThreshold" type="String">
+            <default>WARNING</default>
+        </entry>
+        <entry name="knownSafePorts" type="String">
+            <default>22,80,443,631,5353</default>
+        </entry>
+        <entry name="tuiCommand" type="String">
+            <default>python3 ~/NetSentry/tui/netsentry_tui.py</default>
+        </entry>
+        <entry name="daemonEnabled" type="Bool">
+            <default>true</default>
+        </entry>
+    </group>
+
+</kcfg>

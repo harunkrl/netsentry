@@ -1,0 +1,26 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "netsentry@local",
+                "Name": "NetSentry"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Local network security and port monitor with real-time alerting",
+        "Icon": "security-high",
+        "Id": "com.netsentry.plasmoid",
+        "EnabledByDefault": true,
+        "License": "GPL3",
+        "Name": "NetSentry",
+        "KPackageStructure": [
+            "Plasma/Applet"
+        ],
+        "Version": "1.0.0",
+        "Website": "https://github.com/netsentry"
+    },
+    "X-KDE-ParentApp": "",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "X-Plasma-RemoteLocation": ""
+}

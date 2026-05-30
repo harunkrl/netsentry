@@ -1,0 +1,1 @@
+"""NetSentry TUI — widgets package."""

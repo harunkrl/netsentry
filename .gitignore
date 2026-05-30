@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# NetSentry runtime
+/tmp/netsentry-data.json
+*.tmp
+
+# Config (user-specific)
+baseline.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Research (local only)
+research/

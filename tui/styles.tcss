@@ -1,0 +1,28 @@
+/* NetSentry — Dark Security Theme for Textual */
+
+Screen {
+    background: $surface;
+    color: $text;
+}
+
+/* ── Main layout ──────────────────────────────────────────── */
+
+#port-table {
+    width: 1fr;
+    border: round $primary;
+    padding: 0 1;
+}
+
+#connection-log {
+    width: 2fr;
+    border: round $primary;
+    padding: 0 1;
+}
+
+#status-bar {
+    dock: bottom;
+    height: 1;
+    background: $primary;
+    color: $text;
+    content-align: center middle;
+}

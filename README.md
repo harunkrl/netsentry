@@ -94,7 +94,7 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/NetSentry.git
+git clone https://github.com/harunkrl/NetSentry.git
 cd NetSentry
 
 # Install
@@ -188,7 +188,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry-daemon.py
+ExecStart=/home/harunkrl/NetSentry/.venv/bin/python3 /home/harunkrl/NetSentry/backend/netsentry-daemon.py
 Restart=on-failure
 RestartSec=5
 
@@ -221,7 +221,7 @@ For full system-wide PID visibility, choose one:
 
 ```bash
 # Option A: sudoers rule
-echo "YOUR_USER ALL=(root) NOPASSWD: /usr/bin/ss -tulnp" | sudo tee /etc/sudoers.d/netsentry
+echo "harunkrl ALL=(root) NOPASSWD: /usr/bin/ss -tulnp" | sudo tee /etc/sudoers.d/netsentry
 
 # Option B: file capabilities on a helper binary
 sudo setcap cap_net_admin+ep /usr/local/bin/netsentry-helper

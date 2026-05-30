@@ -4,10 +4,14 @@ __pycache__/
 *.pyo
 .venv/
 *.egg-info/
+build/
+dist/
+.pytest_cache/
 
 # NetSentry runtime
 /tmp/netsentry-data.json
 *.tmp
+*.sock
 
 # Config (user-specific)
 baseline.json

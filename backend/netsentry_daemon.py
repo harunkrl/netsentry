@@ -114,6 +114,12 @@ def daemon_loop(args: argparse.Namespace) -> None:
     last_snapshot_hash: str = ""
     last_change_time = time.time()
     prev_baseline: frozenset = frozenset()
+    notified_alerts: set = set()
+
+    # Start Unix Socket Server
+    from backend.writers.unix_socket import UnixSocketServer
+    socket_server = UnixSocketServer()
+    socket_server.start()
 
     def handle_signal(signum: int, _frame) -> None:
         nonlocal running
@@ -139,6 +145,13 @@ def daemon_loop(args: argparse.Namespace) -> None:
             # 3. Classify listening vs established
             listening, established = classify_entries(entries)
 
+            # 3.5 GeoIP / rDNS lookup for remote IPs
+            from backend.parsers.rdns import get_hostname
+            for e in established:
+                # ignore local IPs
+                if e.remote_ip and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::")):
+                    e.remote_hostname = get_hostname(e.remote_ip)
+
             # 4. Run alert analysis on listening sockets
             alerts = alert_engine.analyze(listening)
 
@@ -163,8 +176,11 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 },
             )
 
-            # 7. Write snapshot atomically
+            # 7. Write snapshot atomically and broadcast over socket
             write_snapshot(snapshot)
+            if socket_server:
+                socket_server.broadcast(snapshot.to_json())
+            
             logger.debug(
                 "Snapshot: %d listening, %d established, %d alerts",
                 len(listening), len(established), len(alerts),
@@ -182,6 +198,27 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 interval = ALERT_POLL_INTERVAL
                 for a in alerts:
                     logger.info("ALERT [%s] %s", a.level, a.message)
+                    
+                    # Desktop notification for WARNING and CRITICAL
+                    if a.level in (AlertLevel.WARNING, AlertLevel.CRITICAL):
+                        alert_hash = f"{a.level}:{a.message}"
+                        # Only notify once per specific alert to avoid spam
+                        if alert_hash not in notified_alerts:
+                            try:
+                                import subprocess
+                                icon = "dialog-error" if a.level == AlertLevel.CRITICAL else "dialog-warning"
+                                subprocess.Popen([
+                                    "notify-send",
+                                    "-a", "NetSentry",
+                                    "-u", "critical" if a.level == AlertLevel.CRITICAL else "normal",
+                                    "-i", icon,
+                                    f"NetSentry: {a.level}",
+                                    a.message
+                                ])
+                                notified_alerts.add(alert_hash)
+                            except Exception as e:
+                                logger.error("Failed to send notification: %s", e)
+                                
             elif (time.time() - last_change_time) > IDLE_THRESHOLD_SECS:
                 interval = IDLE_POLL_INTERVAL
             else:
@@ -202,6 +239,8 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     # Save baseline on clean exit
     alert_engine.save_baseline()
+    if socket_server:
+        socket_server.stop()
 
     # Clean up PID file
     try:

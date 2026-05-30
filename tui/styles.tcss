@@ -1,4 +1,12 @@
-/* NetSentry — Dark Security Theme for Textual */
+/* NetSentry — Premium Dark Security Theme for Textual */
+
+$surface: #121212;
+$panel-bg: #1e1e2e;
+$primary: #00ff99;
+$secondary: #ff3366;
+$text: #e0e0e0;
+$warning: #ffcc00;
+$error: #ff3333;
 
 Screen {
     background: $surface;
@@ -7,22 +15,38 @@ Screen {
 
 /* ── Main layout ──────────────────────────────────────────── */
 
+#header-bar {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: #000000;
+    text-style: bold;
+}
+
 #port-table {
     width: 1fr;
-    border: round $primary;
+    border: solid $primary;
     padding: 0 1;
+    background: $panel-bg;
 }
 
 #connection-log {
     width: 2fr;
-    border: round $primary;
+    border: solid $primary;
     padding: 0 1;
+    background: $panel-bg;
 }
 
 #status-bar {
     dock: bottom;
-    height: 1;
-    background: $primary;
-    color: $text;
+    height: auto;
+    background: #003311;
+    color: $primary;
     content-align: center middle;
+    text-style: bold;
+    padding: 0 1;
+}
+
+.hidden {
+    display: none;
 }

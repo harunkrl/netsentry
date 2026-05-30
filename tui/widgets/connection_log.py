@@ -92,10 +92,15 @@ class ConnectionLog(RichLog):
         """Write a single connection entry to the log."""
         style, label = _STATE_COLOURS.get(e.state, ("white", e.state))
         proc = e.process_name or "unknown"
+        
+        # Show hostname if available, else just IP
+        remote_host = e.remote_hostname if e.remote_hostname else e.remote_ip
+        remote = f"{remote_host}:{e.remote_port}" if e.remote_port else remote_host
+        
         line = (
             f"  [{style}]{label:>14}[/]  "
             f"{e.local_ip}:{e.local_port} → "
-            f"{e.remote_ip}:{e.remote_port}  "
+            f"{remote}  "
             f"({proc})"
         )
         self.write(line)

@@ -1,0 +1,16 @@
+[Unit]
+Description=NetSentry Network Security Monitor
+After=network.target plasma-workspace.target
+
+[Service]
+Type=simple
+# Run the daemon in the foreground, systemd will handle daemonization
+ExecStart=%h/NetSentry/.venv/bin/netsentry-daemon --foreground
+WorkingDirectory=%h/NetSentry
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

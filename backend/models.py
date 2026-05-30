@@ -25,6 +25,7 @@ class SocketEntry:
     pid: Optional[int] = None
     process_name: Optional[str] = None
     cmdline: Optional[str] = None
+    remote_hostname: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SocketEntry:

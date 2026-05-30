@@ -25,7 +25,7 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 | **Terminal Analyzer (TUI)** | Deep inspection with split-pane layout, keyboard-driven navigation, and process kill support |
 | **Backend Daemon** | Lightweight `/proc/net` parser with alert engine and baseline learning |
 
-```
+```text
   ┌─────────────────────────────────────────────┐
   │               KERNEL (/proc)                │
   │   /proc/net/tcp  /proc/net/udp  /proc/*/fd  │
@@ -34,18 +34,17 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
           ┌────────────▼────────────┐
           │     BACKEND DAEMON      │
           │  • Parse /proc/net/*    │
-          │  • Inode → PID mapping  │
-          │  • Alert engine         │
-          │  • Adaptive polling     │
+          │  • GeoIP / rDNS Lookup  │
+          │  • Desktop Notifications│
           └─────┬────────────┬──────┘
-                │            │
+                │(Unix Sock) │(JSON)
     ┌───────────▼──┐   ┌────▼─────────────┐
     │   PLASMOID   │   │   TUI (Textual)  │
     │  🔒 Widget   │   │  ┌──────┬──────┐ │
-    │  Shield icon │   │  │Ports │Stream│ │
-    │  + badge     │   │  ├──────┴──────┤ │
-    │  + popup     │   │  │ Status Bar   │ │
-    └──────────────┘   │  └─────────────┘ │
+    │  Real-time   │   │  │Ports │Stream│ │
+    │  Kill Action │   │  ├──────┴──────┤ │
+    └──────────────┘   │  │ Status Bar   │ │
+                       │  └─────────────┘ │
                        └──────────────────┘
 ```
 
@@ -56,8 +55,9 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 ### Widget (Panel)
 - 🛡️ Dynamic shield icon — changes color based on threat level (green/yellow/red)
 - 🔢 Port count badge showing listening sockets at a glance
-- 📋 Popup with listening ports table (Process, PID, Proto, Port)
+- 📋 Popup with listening ports table (Process, PID, Proto, Port, Hostname)
 - ⚠️ Alert indicators for suspicious activity
+- 💀 Inline **Kill Process** button to terminate suspicious connections instantly
 - 🚀 One-click launch of the advanced TUI analyzer
 - ⚙️ Configurable polling interval, alert threshold, and safe ports whitelist
 
@@ -65,6 +65,7 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 - ⌨️ Keyboard-driven navigation (`q`uit, `k`ill, `r`efresh)
 - 📊 Split-pane layout — port table (left) + connection stream (right)
 - 🎨 Color-coded entries — green (safe), yellow (info), red (critical alert)
+- 🌍 Reverse DNS (rDNS) resolution for remote IPs
 - 💀 Kill process with confirmation dialog — SIGTERM (graceful) or SIGKILL (force)
 - 🔄 Auto-refresh every 2 seconds
 
@@ -72,14 +73,14 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 - 📡 Parses `/proc/net/{tcp,udp}{,6}` directly — zero dependencies, fast
 - 🔗 Maps socket inodes to PIDs via `/proc/[pid]/fd/` scanning
 - 🧠 Baseline learning — learns your normal ports during first 5 minutes
+- 🔔 **Native Desktop Notifications** for Warning and Critical alerts via `notify-send`
+- 🌍 **Asynchronous rDNS/Hostname resolution** with built-in caching
+- 🚀 **Unix Domain Socket** streaming via `netsentry-client` for zero-latency UI updates
 - 🚨 Alert rules:
   - Known malicious ports (4444, 5555, 31337, etc.) → **CRITICAL**
   - Unknown privileged ports (<1024) → **WARNING**
-  - New listening ports → **INFO**
-  - Processes with no cmdline → **WARNING**
   - Burst detection (3+ new ports) → **WARNING**
 - ⚡ Adaptive polling — 2s normal, 1s on alert, 10s when idle
-- 💾 Atomic JSON writes — no partial reads
 
 ---
 

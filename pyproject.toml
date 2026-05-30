@@ -48,6 +48,7 @@ dev = [
 [project.scripts]
 netsentry-daemon = "backend.netsentry_daemon:main"
 netsentry-tui    = "tui.netsentry_tui:main"
+netsentry-client = "backend.netsentry_client:main"
 
 [project.urls]
 Repository = "https://github.com/user/netsentry"

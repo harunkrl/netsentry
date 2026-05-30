@@ -11,7 +11,6 @@ Kirigami.FormLayout {
     property string cfg_alertThreshold: "WARNING"
     property alias cfg_knownSafePorts: knownSafePortsField.text
     property alias cfg_tuiCommand: tuiCommandField.text
-    property alias cfg_daemonEnabled: daemonEnabledCheck.checked
 
     SpinBox {
         id: pollIntervalSpin
@@ -64,12 +63,6 @@ Kirigami.FormLayout {
     TextField {
         id: tuiCommandField
         Kirigami.FormData.label: i18n("TUI launch command:")
-        placeholderText: "python3 ~/NetSentry/tui/netsentry_tui.py"
-    }
-
-    CheckBox {
-        id: daemonEnabledCheck
-        Kirigami.FormData.label: i18n("Daemon enabled:")
-        checked: true
+        placeholderText: "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
     }
 }

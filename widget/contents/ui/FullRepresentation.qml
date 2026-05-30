@@ -173,12 +173,29 @@ Item {
                     }
 
                     Label {
-                        text: entry.local_ip || ""
+                        text: entry.remote_hostname ? entry.remote_hostname : (entry.local_ip || "")
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                         color: Kirigami.Theme.disabledTextColor
                         Layout.fillWidth: true
                         Layout.minimumWidth: 80
                         elide: Text.ElideRight
+                        ToolTip.visible: t.hovered
+                        ToolTip.text: entry.local_ip
+                        HoverHandler { id: t }
+                    }
+
+                    Button {
+                        icon.name: "process-stop"
+                        text: ""
+                        visible: entry.pid > 0
+                        implicitWidth: 24
+                        implicitHeight: 24
+                        Layout.alignment: Qt.AlignVCenter
+                        ToolTip.text: "Kill Process"
+                        ToolTip.visible: hovered
+                        onClicked: {
+                            execSource.connectedSources = ["kill -15 " + entry.pid]
+                        }
                     }
                 }
             }

@@ -21,9 +21,6 @@
         <entry name="tuiCommand" type="String">
             <default></default>
         </entry>
-        <entry name="daemonEnabled" type="Bool">
-            <default>true</default>
-        </entry>
     </group>
 
 </kcfg>

@@ -56,7 +56,15 @@ echo "🔐 Setting permissions..."
 chmod +x "${SCRIPT_DIR}/widget/contents/scripts/launch-tui.sh"
 echo "   ✅ Scripts executable"
 
-# ── 6. Restart Plasma (optional) ─────────────────────────────
+# ── 6. Install systemd service ─────────────────────────────────
+echo "⚙️ Installing systemd user service..."
+mkdir -p "${HOME}/.config/systemd/user"
+cp "${SCRIPT_DIR}/systemd/netsentry.service" "${HOME}/.config/systemd/user/"
+systemctl --user daemon-reload
+systemctl --user enable netsentry.service
+echo "   ✅ Systemd service installed"
+
+# ── 7. Restart Plasma (optional) ─────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

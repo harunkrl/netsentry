@@ -82,9 +82,9 @@ PlasmoidItem {
 
     // Launch TUI — spawns konsole with the venv-activated TUI
     function launchTUI() {
-        execSource.connectedSources = [
-            "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
-        ]
+        var defaultCmd = "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
+        var cmd = root.tuiCommand ? root.tuiCommand : defaultCmd
+        execSource.connectedSources = [ cmd ]
     }
 
     Plasma5Support.DataSource {
@@ -94,5 +94,4 @@ PlasmoidItem {
         onNewData: (sourceName, data) => {
             connectedSources = []
         }
-    }
 }

@@ -101,8 +101,12 @@ cd netsentry
 chmod +x install.sh
 ./install.sh
 
-# Start the daemon (background)
-.venv/bin/python3 backend/netsentry-daemon.py &
+# Start the daemon via systemd (auto-starts at boot)
+systemctl --user daemon-reload
+systemctl --user enable --now netsentry
+
+# Or run manually in foreground
+.venv/bin/python3 backend/netsentry-daemon.py --foreground
 
 # Add widget to panel
 # Right-click panel → Add Widgets → search "NetSentry"
@@ -188,7 +192,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry-daemon.py
+ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry-daemon.py --foreground
 Restart=on-failure
 RestartSec=5
 

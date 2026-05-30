@@ -94,8 +94,8 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 
 ```bash
 # Clone
-git clone https://github.com/harunkrl/NetSentry.git
-cd NetSentry
+git clone https://github.com/harunkrl/netsentry.git
+cd netsentry
 
 # Install
 chmod +x install.sh

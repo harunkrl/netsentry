@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
-import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
 
 Item {
@@ -33,7 +31,7 @@ Item {
         color: root.threatLevel === "critical" ? "#e03030" :
                root.threatLevel === "warning" ? "#e0c030" :
                Kirigami.Theme.textColor
-        visible: root.listeningCount > 0
+        visible: root.listeningCount > 0 && root.showPortCount
     }
 
     MouseArea {

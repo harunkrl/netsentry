@@ -18,13 +18,6 @@ import sys
 import time
 from typing import List
 
-# Ensure project root is on sys.path
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-PARENT_ROOT = os.path.dirname(PROJECT_ROOT)
-for p in (PARENT_ROOT, PROJECT_ROOT):
-    if p not in sys.path:
-        sys.path.insert(0, p)
-
 from shared import (
     ALERT_POLL_INTERVAL,
     BASELINE_FILE,
@@ -33,6 +26,7 @@ from shared import (
     IDLE_POLL_INTERVAL,
     IDLE_THRESHOLD_SECS,
     KNOWN_SAFE_PORTS,
+    PID_FILE,
 )
 from backend.models import Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
@@ -208,7 +202,69 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     # Save baseline on clean exit
     alert_engine.save_baseline()
+
+    # Clean up PID file
+    try:
+        os.unlink(PID_FILE)
+    except OSError:
+        pass
+
     logger.info("NetSentry daemon stopped")
+
+
+def _daemonize() -> None:
+    """Double-fork daemonization with proper cleanup."""
+    import logging
+
+    # First fork
+    pid = os.fork()
+    if pid > 0:
+        print(f"NetSentry daemon started with PID {pid}")
+        sys.exit(0)
+
+    # Create new session
+    os.setsid()
+    os.chdir("/")
+
+    # Second fork
+    pid2 = os.fork()
+    if pid2 > 0:
+        sys.exit(0)
+
+    # Close inherited file descriptors (keep 0,1,2 for std streams)
+    try:
+        max_fd = os.sysconf("SC_OPEN_MAX")
+    except (AttributeError, ValueError):
+        max_fd = 1024
+    for fd in range(3, min(max_fd, 256)):  # Cap at 256 to avoid slowness
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+    # Redirect stdin/stdout/stderr to /dev/null
+    devnull = os.open(os.devnull, os.O_RDWR)
+    os.dup2(devnull, 0)  # stdin
+    os.dup2(devnull, 1)  # stdout
+    os.dup2(devnull, 2)  # stderr
+    if devnull > 2:
+        os.close(devnull)
+
+    # Reconfigure logging to use the new stderr (/dev/null)
+    # This prevents log messages from leaking to the launching terminal
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    root_logger.addHandler(handler)
+
+    # Write PID file so tools can find the daemon
+    try:
+        with open(PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass  # Best effort
 
 
 def main() -> None:
@@ -216,19 +272,7 @@ def main() -> None:
     setup_logging(args.verbose)
 
     if not args.foreground:
-        # Simple double-fork daemonization
-        pid = os.fork()
-        if pid > 0:
-            print(f"NetSentry daemon started with PID {pid}")
-            sys.exit(0)
-        os.setsid()
-        pid2 = os.fork()
-        if pid2 > 0:
-            sys.exit(0)
-        # Redirect stdin/stdout/stderr
-        sys.stdin.close()
-        sys.stdout = open(os.devnull, "w")
-        sys.stderr = open(os.devnull, "w")
+        _daemonize()
 
     daemon_loop(args)
 

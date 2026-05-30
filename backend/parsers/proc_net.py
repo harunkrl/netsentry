@@ -9,12 +9,8 @@ IPv6 addresses are 32-hex-char, stored as 4 × 32-bit words in little-endian.
 from __future__ import annotations
 
 import ipaddress
-import sys
 import os
 from typing import List
-
-# Ensure shared/ is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from shared import (
     PROC_TCP, PROC_TCP6, PROC_UDP, PROC_UDP6, TCP_STATES,
@@ -90,7 +86,7 @@ def parse_proc_net(path: str, proto: str) -> List[SocketEntry]:
     try:
         with open(path, "r") as fh:
             lines = fh.readlines()
-    except FileNotFoundError:
+    except (FileNotFoundError, PermissionError, OSError):
         return entries
 
     for line in lines:

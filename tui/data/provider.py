@@ -8,12 +8,8 @@ from __future__ import annotations
 import json
 import os
 import signal
-import sys
 import time
 from typing import Optional, Tuple
-
-# Ensure project root is importable
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from backend.models import Snapshot
 from shared import DATA_FILE

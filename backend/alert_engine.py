@@ -11,11 +11,8 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import time
 from typing import Dict, List, Optional, Set
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from shared import (
     AlertLevel,
@@ -41,7 +38,7 @@ class AlertEngine:
         self._baseline_ports: Set[int] = set()
         self._baseline_start: Optional[float] = None
         self._baseline_stable = False
-        self._last_ports: Set[int] = set()
+        self._last_ports: Optional[Set[int]] = None
 
     # ── Baseline management ────────────────────────────────────
 
@@ -66,7 +63,8 @@ class AlertEngine:
         elapsed = now - self._baseline_start
         if elapsed >= self.baseline_duration:
             # Check stability — no new ports in this cycle vs last
-            if current_ports == self._last_ports:
+            # Treat _last_ports=None as "first measurement" — always stable match
+            if self._last_ports is None or current_ports == self._last_ports:
                 self._baseline_stable = True
             self._last_ports = current_ports
 

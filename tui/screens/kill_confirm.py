@@ -8,16 +8,12 @@ from __future__ import annotations
 import asyncio
 import os
 import signal as sig
-import sys
 from typing import Optional
 
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Label, Static
-
-# Ensure project root is importable
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from backend.models import SocketEntry
 
@@ -66,6 +62,7 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
         pid = self.entry.pid or "—"
         addr = f"{self.entry.local_ip}:{self.entry.local_port}"
         proto = self.entry.proto.upper()
+        cmdline = self.entry.cmdline or "—"
 
         with Vertical(id="kill-dialog"):
             yield Label("[bold red]⚠  Kill Process[/]")
@@ -73,6 +70,7 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
             yield Static(f"  PID     : [bold]{pid}[/]")
             yield Static(f"  Port    : [bold]{addr}[/]")
             yield Static(f"  Proto   : [bold]{proto}[/]")
+            yield Static(f"  Cmdline : [dim]{cmdline}[/]")
             yield Label("")
             with Horizontal(id="kill-buttons"):
                 yield Button("SIGTERM (graceful)", variant="warning", id="btn-sigterm")
@@ -100,7 +98,7 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
     async def _do_kill_graceful(self) -> None:
         """Run SIGTERM→SIGKILL escalation in a thread to avoid blocking the TUI."""
         success, msg = await asyncio.to_thread(self.provider.kill_process, self.entry.pid)
-        self.dismiss((success, msg))
+        self._safe_dismiss((success, msg))
 
     async def _do_kill_force(self) -> None:
         """Run SIGKILL in a thread to avoid blocking the TUI."""
@@ -113,4 +111,15 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
             except PermissionError:
                 return False, f"Permission denied — cannot kill PID {self.entry.pid}"
         success, msg = await asyncio.to_thread(_kill)
-        self.dismiss((success, msg))
+        self._safe_dismiss((success, msg))
+
+    def _safe_dismiss(self, result: Optional[tuple[bool, str]]) -> None:
+        """Dismiss the modal, guarding against the screen already being popped.
+
+        If the user quit while the kill worker was running, the screen may
+        no longer be on the stack. Catching ScreenError prevents a crash.
+        """
+        try:
+            self.dismiss(result)
+        except Exception:
+            pass  # Screen already removed from stack

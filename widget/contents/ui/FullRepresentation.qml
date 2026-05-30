@@ -6,8 +6,17 @@ import org.kde.kirigami as Kirigami
 Item {
     id: fullRoot
 
+    Layout.preferredWidth: Kirigami.Units.gridUnit * 28
+    Layout.preferredHeight: Kirigami.Units.gridUnit * 22
+
     readonly property bool hasData: root.snapshotData !== null
     readonly property var listeningPorts: hasData ? (root.snapshotData.listening || []) : []
+
+    readonly property string headerIcon: {
+        if (root.threatLevel === "critical") return "security-low"
+        if (root.threatLevel === "warning") return "security-medium"
+        return "security-high"
+    }
 
     ColumnLayout {
         id: mainLayout
@@ -21,7 +30,7 @@ Item {
             spacing: Kirigami.Units.smallSpacing
 
             Kirigami.Icon {
-                source: "security-high"
+                source: fullRoot.headerIcon
                 implicitWidth: Kirigami.Units.iconSizes.small
                 implicitHeight: Kirigami.Units.iconSizes.small
             }
@@ -59,6 +68,51 @@ Item {
             model: fullRoot.listeningPorts
             spacing: 1
 
+            ScrollBar.vertical: ScrollBar {}
+
+            header: RowLayout {
+                width: portListView.width
+                spacing: Kirigami.Units.smallSpacing
+                visible: fullRoot.listeningPorts.length > 0
+                height: visible ? Kirigami.Units.gridUnit : 0
+
+                Label {
+                    text: i18n("Process")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 80
+                }
+                Label {
+                    text: i18n("PID")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.minimumWidth: 40
+                    Layout.preferredWidth: 50
+                }
+                Label {
+                    text: i18n("Proto")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.minimumWidth: 36
+                    Layout.preferredWidth: 42
+                }
+                Label {
+                    text: i18n("Port")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.minimumWidth: 36
+                    Layout.preferredWidth: 42
+                }
+                Label {
+                    text: i18n("IP Address")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 80
+                }
+            }
+
             delegate: Item {
                 id: listItem
                 width: portListView.width
@@ -91,27 +145,31 @@ Item {
                     Label {
                         text: entry.process_name || i18n("unknown")
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                        Layout.preferredWidth: parent.width * 0.25
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 80
                         elide: Text.ElideRight
                     }
 
                     Label {
                         text: entry.pid ? String(entry.pid) : "-"
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                        Layout.preferredWidth: parent.width * 0.12
+                        Layout.minimumWidth: 40
+                        Layout.preferredWidth: 50
                     }
 
                     Label {
                         text: (entry.proto || "?").toUpperCase()
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                        Layout.preferredWidth: parent.width * 0.1
+                        Layout.minimumWidth: 36
+                        Layout.preferredWidth: 42
                     }
 
                     Label {
                         text: entry.local_port ? String(entry.local_port) : "-"
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                         font.bold: matchingAlert !== null
-                        Layout.preferredWidth: parent.width * 0.1
+                        Layout.minimumWidth: 36
+                        Layout.preferredWidth: 42
                     }
 
                     Label {
@@ -119,6 +177,7 @@ Item {
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                         color: Kirigami.Theme.disabledTextColor
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 80
                         elide: Text.ElideRight
                     }
                 }
@@ -143,12 +202,23 @@ Item {
             Layout.fillWidth: true
         }
 
-        // Footer: launch button
-        Button {
+        // Footer: last updated + launch button
+        RowLayout {
             Layout.fillWidth: true
-            icon.name: "utilities-terminal"
-            text: i18n("Launch Advanced Network Analyzer")
-            onClicked: root.launchTUI()
+
+            Label {
+                text: root.lastUpdated ? i18n("Updated: %1", root.lastUpdated) : ""
+                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                color: Kirigami.Theme.disabledTextColor
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Button {
+                icon.name: "utilities-terminal"
+                text: i18n("Launch Analyzer")
+                onClicked: root.launchTUI()
+            }
         }
     }
 }

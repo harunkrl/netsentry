@@ -25,3 +25,8 @@ Thumbs.db
 
 # Research (local only)
 research/
+
+# Review / progress artifacts
+review-*.md
+progress.md
+netsentry-review-*.md

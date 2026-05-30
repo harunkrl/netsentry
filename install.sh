@@ -21,7 +21,12 @@ if ! command -v python3 &>/dev/null; then
     exit 1
 fi
 PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-echo "   ✅ Python ${PY_VERSION}"
+if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"; then
+    echo "   ✅ Python ${PY_VERSION}"
+else
+    echo "❌ Python 3.10+ required, found ${PY_VERSION}"
+    exit 1
+fi
 
 # ── 2. Create venv and install dependencies ──────────────────
 echo "📦 Setting up Python virtual environment..."
@@ -29,7 +34,10 @@ if [ ! -d "${SCRIPT_DIR}/.venv" ]; then
     python3 -m venv "${SCRIPT_DIR}/.venv"
 fi
 source "${SCRIPT_DIR}/.venv/bin/activate"
-pip install --quiet textual rich 2>/dev/null || pip3 install --quiet textual rich 2>/dev/null
+if ! pip install --quiet -e "${SCRIPT_DIR}" 2>&1; then
+    echo "⚠️  pip install from pyproject.toml failed, falling back to direct install..."
+    pip install --quiet textual rich
+fi
 echo "   ✅ Dependencies installed (textual, rich)"
 
 # ── 3. Install Plasma widget ─────────────────────────────────
@@ -55,16 +63,17 @@ echo ""
 echo "📌 Next steps:"
 echo ""
 echo "   1. Start the daemon:"
-echo "      ${SCRIPT_DIR}/.venv/bin/python3 ${SCRIPT_DIR}/backend/netsentry-daemon.py --foreground &"
+echo "      netsentry-daemon --foreground &"
+echo "      # Or use systemd: systemctl --user enable --now netsentry"
 echo ""
 echo "   2. Add the widget to your panel:"
 echo "      Right-click panel → Add Widgets → search 'NetSentry'"
 echo ""
 echo "   3. Or test the TUI directly:"
-echo "      ${SCRIPT_DIR}/.venv/bin/python3 ${SCRIPT_DIR}/tui/netsentry_tui.py"
+echo "      netsentry-tui"
 echo ""
-echo "   4. (Optional) Auto-start daemon with systemd:"
-echo "      See README.md for the systemd user service file"
+echo "   4. Run tests:"
+echo "      cd ${SCRIPT_DIR} && pytest tests/ -v"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

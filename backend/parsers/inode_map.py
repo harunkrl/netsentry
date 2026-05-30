@@ -8,10 +8,7 @@ Returns: {inode: (pid, process_name, cmdline)}
 from __future__ import annotations
 
 import os
-import sys
 from typing import Dict, Tuple, Optional
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _read_file_safe(path: str) -> Optional[str]:

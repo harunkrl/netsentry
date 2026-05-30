@@ -106,7 +106,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now netsentry
 
 # Or run manually in foreground
-.venv/bin/python3 backend/netsentry-daemon.py --foreground
+.venv/bin/python3 backend/netsentry_daemon.py --foreground
 
 # Add widget to panel
 # Right-click panel → Add Widgets → search "NetSentry"
@@ -134,7 +134,7 @@ NetSentry/
 │   ├── alert_engine.py           # Baseline learning + alert rules
 │   ├── writers/
 │   │   └── json_file.py          # Atomic JSON snapshot writer
-│   └── netsentry-daemon.py       # Main daemon loop
+│   └── netsentry_daemon.py       # Main daemon loop
 ├── widget/
 │   ├── metadata.json             # Plasma 6 plugin metadata
 │   └── contents/
@@ -192,7 +192,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry-daemon.py --foreground
+ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry_daemon.py --foreground
 Restart=on-failure
 RestartSec=5
 

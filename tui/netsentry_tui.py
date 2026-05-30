@@ -10,6 +10,8 @@ import sys
 
 # Ensure the project root is on sys.path so that ``shared``, ``backend``,
 # and ``tui`` are all importable regardless of cwd.
+# Only needed when running this file directly (``python tui/netsentry_tui.py``).
+# When installed as a package (``pip install .``), this is unnecessary.
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
@@ -36,6 +38,11 @@ class NetSentryTUI(App):
 
 
 # ── Entry point ───────────────────────────────────────────────
-if __name__ == "__main__":
+def main() -> None:
+    """Package entry point for ``netsentry-tui``."""
     app = NetSentryTUI()
     app.run()
+
+
+if __name__ == "__main__":
+    main()

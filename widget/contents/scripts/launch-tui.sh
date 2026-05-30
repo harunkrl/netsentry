@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-VENV_DIR="$HOME/NetSentry/.venv"
+# NetSentry TUI launcher — activates venv if present, then runs the TUI.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+
+VENV_DIR="$PROJECT_ROOT/.venv"
 if [ -d "$VENV_DIR" ]; then
     source "$VENV_DIR/bin/activate"
 fi
-export PYTHONPATH="$HOME/NetSentry${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 "$HOME/NetSentry/tui/netsentry_tui.py"
+export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 "$PROJECT_ROOT/tui/netsentry_tui.py"

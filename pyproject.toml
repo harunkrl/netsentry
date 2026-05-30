@@ -1,0 +1,70 @@
+# ── NetSentry — Network Security Monitor ──────────────────────
+#
+# Install (editable, dev extras):
+#   pip install -e ".[dev]"
+#
+# Run:
+#   netsentry-daemon --foreground
+#   netsentry-tui
+#
+# Test:
+#   pytest
+# ───────────────────────────────────────────────────────────────
+
+[project]
+name = "netsentry"
+version = "1.0.0"
+description = "KDE Plasma 6 network security monitor with daemon, TUI, and plasmoid widget"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "NetSentry Contributors"}]
+keywords = ["network", "security", "monitor", "kde", "plasma"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: KDE",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking :: Monitoring",
+]
+
+dependencies = [
+    "textual>=1.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+netsentry-daemon = "backend.netsentry_daemon:main"
+netsentry-tui    = "tui.netsentry_tui:main"
+
+[project.urls]
+Repository = "https://github.com/user/netsentry"
+
+# ── Build system ──────────────────────────────────────────────
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+# ── Setuptools: treat every top-level package as source ──────
+[tool.setuptools.packages.find]
+include = ["backend*", "tui*", "shared*"]
+
+# ── Pytest ────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

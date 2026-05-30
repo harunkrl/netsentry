@@ -19,7 +19,7 @@
             <default>22,80,443,631,5353</default>
         </entry>
         <entry name="tuiCommand" type="String">
-            <default>python3 ~/NetSentry/tui/netsentry_tui.py</default>
+            <default></default>
         </entry>
         <entry name="daemonEnabled" type="Bool">
             <default>true</default>

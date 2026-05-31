@@ -3,41 +3,53 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-Kirigami.FormLayout {
+ScrollView {
     id: configPage
+    contentWidth: availableWidth
 
     property alias cfg_pollInterval: pollIntervalSpin.value
     property alias cfg_showPortCount: showPortCountCheck.checked
     property string cfg_alertThreshold: "WARNING"
-    property alias cfg_knownSafePorts: knownSafePortsField.text
     property alias cfg_tuiCommand: tuiCommandField.text
+    property alias cfg_popupWidth: popupWidthSpin.value
+    property alias cfg_popupHeight: popupHeightSpin.value
+    property alias cfg_iconSize: iconSizeSpin.value
+    property alias cfg_badgeSize: badgeSizeSpin.value
+    property alias cfg_fontScale: fontScaleSpin.value
+
+    Kirigami.FormLayout {
+        width: configPage.availableWidth
+
+        Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Appearance") }
+
+    CheckBox {
+        id: showPortCountCheck
+        Kirigami.FormData.label: i18n("Badge:")
+        text: i18n("Show listening port count in panel")
+        checked: true
+    }
+
+    Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Monitoring Engine") }
 
     SpinBox {
         id: pollIntervalSpin
-        Kirigami.FormData.label: i18n("Poll interval (seconds):")
+        Kirigami.FormData.label: i18n("Refresh rate:")
         from: 1
         to: 30
         stepSize: 1
         value: 2
-
-        textFromValue: function(value) { return value + " s" }
-        valueFromText: function(text) { return Number(text.replace(" s", "")) }
-    }
-
-    CheckBox {
-        id: showPortCountCheck
-        Kirigami.FormData.label: i18n("Show port count badge:")
-        checked: true
+        textFromValue: function(value) { return value + " seconds" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
     }
 
     ComboBox {
         id: alertThresholdCombo
-        Kirigami.FormData.label: i18n("Alert threshold:")
+        Kirigami.FormData.label: i18n("Show alerts for:")
         textRole: "label"
         model: [
-            { label: i18n("INFO"), value: "INFO" },
-            { label: i18n("WARNING"), value: "WARNING" },
-            { label: i18n("CRITICAL"), value: "CRITICAL" }
+            { label: i18n("All events (INFO+)"), value: "INFO" },
+            { label: i18n("Suspicious activity (WARNING+)"), value: "WARNING" },
+            { label: i18n("Known threats only (CRITICAL)"), value: "CRITICAL" }
         ]
 
         Component.onCompleted: {
@@ -48,21 +60,81 @@ Kirigami.FormLayout {
                 }
             }
         }
-
         onActivated: {
             cfg_alertThreshold = model[currentIndex].value
         }
     }
 
-    TextField {
-        id: knownSafePortsField
-        Kirigami.FormData.label: i18n("Known safe ports:")
-        placeholderText: "22,80,443,631,5353"
+    Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Size & Layout") }
+
+    SpinBox {
+        id: iconSizeSpin
+        Kirigami.FormData.label: i18n("Panel icon size:")
+        from: 30
+        to: 100
+        stepSize: 5
+        value: 70
+        textFromValue: function(value) { return value + " %" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
     }
+
+    SpinBox {
+        id: badgeSizeSpin
+        Kirigami.FormData.label: i18n("Badge size:")
+        from: 30
+        to: 100
+        stepSize: 5
+        value: 60
+        textFromValue: function(value) { return value + " %" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
+    }
+
+    SpinBox {
+        id: fontScaleSpin
+        Kirigami.FormData.label: i18n("Text size scale:")
+        from: 50
+        to: 200
+        stepSize: 10
+        value: 100
+        textFromValue: function(value) { return value + " %" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
+    }
+
+    SpinBox {
+        id: popupWidthSpin
+        Kirigami.FormData.label: i18n("Popup width:")
+        from: 15
+        to: 100
+        stepSize: 1
+        value: 32
+        textFromValue: function(value) { return value + " units" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
+    }
+
+    SpinBox {
+        id: popupHeightSpin
+        Kirigami.FormData.label: i18n("Popup height:")
+        from: 10
+        to: 100
+        stepSize: 1
+        value: 22
+        textFromValue: function(value) { return value + " units" }
+        valueFromText: function(text) { return Number(text.replace(/[^0-9]/g, "")) }
+    }
+
+    Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Advanced Options") }
 
     TextField {
         id: tuiCommandField
-        Kirigami.FormData.label: i18n("TUI launch command:")
+        Kirigami.FormData.label: i18n("TUI command:")
         placeholderText: "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
+        Layout.fillWidth: true
+    }
+    Label {
+        Kirigami.FormData.label: ""
+        text: i18n("Command to execute when clicking 'Launch Analyzer'.")
+        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        color: Kirigami.Theme.disabledTextColor
+    }
     }
 }

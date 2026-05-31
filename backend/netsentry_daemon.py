@@ -16,6 +16,8 @@ import os
 import signal
 import sys
 import time
+import fcntl
+import atexit
 from typing import List
 
 from shared import (
@@ -27,12 +29,16 @@ from shared import (
     IDLE_THRESHOLD_SECS,
     KNOWN_SAFE_PORTS,
     PID_FILE,
+    AlertLevel,
 )
 from backend.models import Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
 from backend.parsers.inode_map import build_inode_to_pid_map
 from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
+from backend.parsers.rdns import get_hostname
+from backend.writers.unix_socket import UnixSocketServer
+import subprocess
 
 logger = logging.getLogger("netsentry")
 
@@ -110,6 +116,16 @@ def daemon_loop(args: argparse.Namespace) -> None:
         logger.info("No saved baseline — will learn for %.0f seconds",
                      alert_engine.baseline_duration)
 
+    # Task 3.10: SIGHUP handler
+    def reload_config(signum, frame):
+        logger.info("Received SIGHUP, reloading configuration and resetting baseline...")
+        alert_engine.reset_baseline()
+
+    try:
+        signal.signal(signal.SIGHUP, reload_config)
+    except AttributeError:
+        pass # Windows compatibility
+
     running = True
     last_snapshot_hash: str = ""
     last_change_time = time.time()
@@ -117,7 +133,6 @@ def daemon_loop(args: argparse.Namespace) -> None:
     notified_alerts: set = set()
 
     # Start Unix Socket Server
-    from backend.writers.unix_socket import UnixSocketServer
     socket_server = UnixSocketServer()
     socket_server.start()
 
@@ -146,7 +161,6 @@ def daemon_loop(args: argparse.Namespace) -> None:
             listening, established = classify_entries(entries)
 
             # 3.5 GeoIP / rDNS lookup for remote IPs
-            from backend.parsers.rdns import get_hostname
             for e in established:
                 # ignore local IPs
                 if e.remote_ip and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::")):
@@ -177,9 +191,10 @@ def daemon_loop(args: argparse.Namespace) -> None:
             )
 
             # 7. Write snapshot atomically and broadcast over socket
-            write_snapshot(snapshot)
+            snapshot_json = snapshot.to_json()
+            write_snapshot(snapshot_json)
             if socket_server:
-                socket_server.broadcast(snapshot.to_json())
+                socket_server.broadcast(snapshot_json)
             
             logger.debug(
                 "Snapshot: %d listening, %d established, %d alerts",
@@ -205,7 +220,6 @@ def daemon_loop(args: argparse.Namespace) -> None:
                         # Only notify once per specific alert to avoid spam
                         if alert_hash not in notified_alerts:
                             try:
-                                import subprocess
                                 icon = "dialog-error" if a.level == AlertLevel.CRITICAL else "dialog-warning"
                                 subprocess.Popen([
                                     "notify-send",
@@ -218,6 +232,11 @@ def daemon_loop(args: argparse.Namespace) -> None:
                                 notified_alerts.add(alert_hash)
                             except Exception as e:
                                 logger.error("Failed to send notification: %s", e)
+                                
+                    # Task 2.5: Limit notified_alerts growth
+                    if len(notified_alerts) > 1000:
+                        # Clear old alerts to avoid memory leak
+                        notified_alerts.clear()
                                 
             elif (time.time() - last_change_time) > IDLE_THRESHOLD_SECS:
                 interval = IDLE_POLL_INTERVAL
@@ -258,7 +277,6 @@ def _daemonize() -> None:
     # First fork
     pid = os.fork()
     if pid > 0:
-        print(f"NetSentry daemon started with PID {pid}")
         sys.exit(0)
 
     # Create new session
@@ -298,13 +316,6 @@ def _daemonize() -> None:
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     root_logger.addHandler(handler)
 
-    # Write PID file so tools can find the daemon
-    try:
-        with open(PID_FILE, "w") as f:
-            f.write(str(os.getpid()))
-    except OSError:
-        pass  # Best effort
-
 
 def main() -> None:
     args = parse_args()
@@ -312,6 +323,19 @@ def main() -> None:
 
     if not args.foreground:
         _daemonize()
+
+    # Prevent duplicate daemons and write PID file
+    try:
+        pid_fd = open(PID_FILE, "w")
+        fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        pid_fd.write(str(os.getpid()))
+        pid_fd.flush()
+    except BlockingIOError:
+        logger.error("Daemon is already running!")
+        sys.exit(1)
+    except OSError as e:
+        logger.error("Failed to create PID file: %s", e)
+        sys.exit(1)
 
     daemon_loop(args)
 

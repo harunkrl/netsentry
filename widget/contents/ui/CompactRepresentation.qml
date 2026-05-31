@@ -1,10 +1,14 @@
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 
 Item {
     id: compactRoot
-    anchors.fill: parent
+    
+    // Tell the Plasma Panel to expand the hover/click area to fit both items
+    Layout.minimumWidth: contentRow.implicitWidth + 8
+    Layout.preferredWidth: contentRow.implicitWidth + 8
 
     readonly property string shieldIcon: {
         if (root.threatLevel === "critical") return "security-low"
@@ -12,26 +16,44 @@ Item {
         return "security-high"
     }
 
-    Kirigami.Icon {
-        id: shieldIconItem
-        source: compactRoot.shieldIcon
+    Row {
+        id: contentRow
         anchors.centerIn: parent
-        width: Math.min(parent.width, parent.height) * 0.7
-        height: Math.min(parent.width, parent.height) * 0.7
-    }
+        spacing: 4
+        
+        Kirigami.Icon {
+            id: shieldIconItem
+            source: compactRoot.shieldIcon
+            width: Math.min(compactRoot.width, compactRoot.height) * (root.iconSize / 100.0)
+            height: Math.min(compactRoot.width, compactRoot.height) * (root.iconSize / 100.0)
+            anchors.verticalCenter: parent.verticalCenter
+        }
 
-    Label {
-        id: badge
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 2
-        text: root.listeningCount
-        font.pixelSize: Math.min(parent.width, parent.height) * 0.35
-        font.bold: true
-        color: root.threatLevel === "critical" ? "#e03030" :
-               root.threatLevel === "warning" ? "#e0c030" :
-               Kirigami.Theme.textColor
-        visible: root.listeningCount > 0 && root.showPortCount
+        // Badge Background
+        Rectangle {
+            id: badge
+            anchors.verticalCenter: parent.verticalCenter
+            
+            width: Math.max(height, badgeLabel.implicitWidth + 8)
+            height: Math.min(compactRoot.width, compactRoot.height) * (root.badgeSize / 100.0)
+            radius: height / 2
+            
+            // Premium KDE Colors
+            color: root.threatLevel === "critical" ? "#da4453" :
+                   root.threatLevel === "warning" ? "#f67400" :
+                   "#27ae60"
+            
+            visible: root.listeningCount > 0 && root.showPortCount
+            
+            Label {
+                id: badgeLabel
+                anchors.centerIn: parent
+                text: root.listeningCount
+                font.pixelSize: parent.height * 0.75
+                font.bold: true
+                color: "#ffffff" // Crisp white text on colored badge
+            }
+        }
     }
 
     MouseArea {

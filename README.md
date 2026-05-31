@@ -9,7 +9,7 @@
 ![KDE Plasma 6.6](https://img.shields.io/badge/Plasma-6.6-1d99f3?logo=kde)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python)
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
-![License](https://img.shields.io/badge/License-GPL--3.0-blue)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
 </div>
 
@@ -107,7 +107,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now netsentry
 
 # Or run manually in foreground
-.venv/bin/python3 backend/netsentry_daemon.py --foreground
+netsentry-daemon --foreground
 
 # Add widget to panel
 # Right-click panel → Add Widgets → search "NetSentry"
@@ -116,7 +116,8 @@ systemctl --user enable --now netsentry
 ### Run TUI Directly
 
 ```bash
-~/NetSentry/.venv/bin/python3 ~/NetSentry/tui/netsentry_tui.py
+# You can run the TUI from anywhere!
+netsentry
 ```
 
 ---
@@ -179,7 +180,7 @@ Widget settings accessible via **right-click → Configure**:
 | `pollInterval` | 2 | Seconds between data refreshes |
 | `alertThreshold` | WARNING | Minimum alert level to display |
 | `knownSafePorts` | 22,80,443,631,5353 | Comma-separated safe port list |
-| `tuiCommand` | `python3 ~/NetSentry/tui/netsentry_tui.py` | TUI launch command |
+| `tuiCommand` | `netsentry-tui` | TUI launch command |
 | `daemonEnabled` | true | Auto-start daemon |
 
 ### Auto-Start with systemd
@@ -274,7 +275,7 @@ sudo cp polkit/com.netsentry.helper.policy /usr/share/polkit-1/actions/
 
 ## 📄 License
 
-This project is licensed under the **GPL-3.0** License.
+This project is licensed under the **MIT** License.
 
 ---
 

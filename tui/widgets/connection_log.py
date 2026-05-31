@@ -46,6 +46,15 @@ class ConnectionLog(RichLog):
         self.highlight = True
         self.markup = True
         self._seen_keys: Set[str] = set()
+        self._filter_text: str = ""
+
+    def set_filter(self, text: str) -> None:
+        """Apply a filter. Clears the log so that only matching connections will be reprinted."""
+        new_filter = text.lower()
+        if self._filter_text != new_filter:
+            self._filter_text = new_filter
+            self.clear()
+            self._seen_keys.clear()
 
     def update_data(self, entries: List[SocketEntry]) -> None:
         """Incrementally log new and closed connections.
@@ -57,6 +66,13 @@ class ConnectionLog(RichLog):
         new_entries: List[SocketEntry] = []
 
         for e in entries:
+            # Task 3.6: ConnectionLog filtering
+            if self._filter_text:
+                proc = (e.process_name or "").lower()
+                remote = (e.remote_hostname or e.remote_ip or "").lower()
+                if self._filter_text not in proc and self._filter_text not in remote and self._filter_text not in str(e.local_port):
+                    continue
+
             key = f"{e.proto}-{e.inode}"
             current_keys.add(key)
             if key not in self._seen_keys:

@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import logging
 
+import asyncio
+
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
@@ -34,6 +37,8 @@ class MainScreen(Screen):
         Binding("r", "refresh", "Refresh", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
+        Binding("e", "export", "Export", show=True),
+        Binding("question_mark", "help", "Help", show=True),
         Binding("escape", "clear_filter", "Clear", show=False),
     ]
 
@@ -91,6 +96,9 @@ class MainScreen(Screen):
             try:
                 port_table = self.query_one("#port-table", PortTable)
                 port_table.set_filter(event.value)
+                
+                conn_log = self.query_one("#connection-log", ConnectionLog)
+                conn_log.set_filter(event.value)
             except Exception:
                 pass
 
@@ -100,9 +108,10 @@ class MainScreen(Screen):
             self._hide_search()
 
     # ── Data refresh ──────────────────────────────────────────
-    def refresh_data(self) -> None:
+    @work(exclusive=True)
+    async def refresh_data(self) -> None:
         """Fetch the latest snapshot and push data into widgets."""
-        snapshot = self.provider.fetch()
+        snapshot = await asyncio.to_thread(self.provider.fetch)
         if snapshot is None:
             self._consecutive_failures += 1
             if self._consecutive_failures == _DAEMON_DOWN_THRESHOLD:
@@ -117,19 +126,24 @@ class MainScreen(Screen):
 
         try:
             port_table = self.query_one("#port-table", PortTable)
-            port_table.update_data(snapshot.listening, snapshot.alerts)
+            listening = getattr(snapshot, "listening", []) or []
+            alerts = getattr(snapshot, "alerts", []) or []
+            port_table.update_data(listening, alerts)
         except Exception:
             log.debug("Widget update failed: port_table", exc_info=True)
 
         try:
             conn_log = self.query_one("#connection-log", ConnectionLog)
-            conn_log.update_data(snapshot.established)
+            established = getattr(snapshot, "established", []) or []
+            conn_log.update_data(established)
         except Exception:
             log.debug("Widget update failed: connection_log", exc_info=True)
 
         try:
             status_bar = self.query_one("#status-bar", StatusBar)
-            status_bar.update_display(snapshot.summary, snapshot.alerts)
+            summary = getattr(snapshot, "summary", {}) or {}
+            alerts = getattr(snapshot, "alerts", []) or []
+            status_bar.update_display(summary, alerts)
         except Exception:
             log.debug("Widget update failed: status_bar", exc_info=True)
 
@@ -160,6 +174,32 @@ class MainScreen(Screen):
             KillConfirmScreen(entry, self.provider),
             on_result,
         )
+
+    def action_export(self) -> None:
+        """Export current snapshot to JSON."""
+        snapshot = self.provider.fetch()
+        if snapshot:
+            try:
+                import json, os
+                path = os.path.expanduser("~/netsentry_export.json")
+                with open(path, "w") as f:
+                    f.write(snapshot.to_json())
+                self.app.notify(f"Exported to {path}", severity="information")
+            except Exception as e:
+                self.app.notify(f"Export failed: {e}", severity="error")
+
+    def action_help(self) -> None:
+        """Show the help screen."""
+        from tui.screens.help_screen import HelpScreen
+        self.app.push_screen(HelpScreen())
+
+    def on_data_table_row_selected(self, event) -> None:
+        """Show detail screen when a row is selected (Enter)."""
+        port_table = self.query_one("#port-table", PortTable)
+        entry = port_table.get_selected_entry()
+        if entry:
+            from tui.screens.detail_screen import DetailScreen
+            self.app.push_screen(DetailScreen(entry))
 
     def action_refresh(self) -> None:
         """Force an immediate data refresh."""

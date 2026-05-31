@@ -40,6 +40,13 @@ class AlertEngine:
         self._baseline_stable = False
         self._last_ports: Optional[Set[int]] = None
 
+    def reset_baseline(self) -> None:
+        """Reset the baseline to start learning again."""
+        self._baseline_ports.clear()
+        self._baseline_start = None
+        self._baseline_stable = False
+        self._last_ports = None
+
     # ── Baseline management ────────────────────────────────────
 
     def update_baseline(self, entries: List[SocketEntry]) -> None:

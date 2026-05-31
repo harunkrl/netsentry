@@ -12,7 +12,9 @@ from shared import DATA_FILE
 from backend.models import Snapshot
 
 
-def write_snapshot(snapshot: Snapshot, path: str = DATA_FILE) -> None:
+_dirs_created = set()
+
+def write_snapshot(snapshot_data: Snapshot | str, path: str = DATA_FILE) -> None:
     """Atomically write a Snapshot to a JSON file.
 
     Writes to a .tmp file first, then os.rename() for atomicity.
@@ -21,11 +23,15 @@ def write_snapshot(snapshot: Snapshot, path: str = DATA_FILE) -> None:
     tmp_path = path + ".tmp"
     # Ensure parent directory exists
     parent = os.path.dirname(path)
-    if parent:
+    if parent and parent not in _dirs_created:
         os.makedirs(parent, exist_ok=True)
+        _dirs_created.add(parent)
     try:
         with open(tmp_path, "w") as fh:
-            fh.write(snapshot.to_json())
+            if isinstance(snapshot_data, str):
+                fh.write(snapshot_data)
+            else:
+                fh.write(snapshot_data.to_json())
         os.replace(tmp_path, path)
     except OSError:
         # Clean up tmp on failure

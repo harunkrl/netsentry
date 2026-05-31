@@ -51,18 +51,25 @@ echo "📁 Creating config directory..."
 mkdir -p "${HOME}/.config/netsentry"
 echo "   ✅ ${HOME}/.config/netsentry"
 
-# ── 5. Make scripts executable ───────────────────────────────
+# ── 5. Make scripts executable & Create Symlinks ───────────────
 echo "🔐 Setting permissions..."
 chmod +x "${SCRIPT_DIR}/widget/contents/scripts/launch-tui.sh"
 echo "   ✅ Scripts executable"
+
+echo "🔗 Creating global symlinks in ~/.local/bin..."
+mkdir -p "${HOME}/.local/bin"
+ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-tui" "${HOME}/.local/bin/netsentry-tui"
+ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-daemon" "${HOME}/.local/bin/netsentry-daemon"
+ln -sf "${HOME}/.local/bin/netsentry-tui" "${HOME}/.local/bin/netsentry"
+echo "   ✅ Symlinks created (you can now run 'netsentry' anywhere)"
 
 # ── 6. Install systemd service ─────────────────────────────────
 echo "⚙️ Installing systemd user service..."
 mkdir -p "${HOME}/.config/systemd/user"
 cp "${SCRIPT_DIR}/systemd/netsentry.service" "${HOME}/.config/systemd/user/"
 systemctl --user daemon-reload
-systemctl --user enable netsentry.service
-echo "   ✅ Systemd service installed"
+systemctl --user enable --now netsentry.service
+echo "   ✅ Systemd service installed and started"
 
 # ── 7. Restart Plasma (optional) ─────────────────────────────
 echo ""
@@ -70,17 +77,18 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "📌 Next steps:"
 echo ""
-echo "   1. Start the daemon:"
-echo "      netsentry-daemon --foreground &"
-echo "      # Or use systemd: systemctl --user enable --now netsentry"
+echo "   1. Restart Plasma (to load the widget into the Add Widgets menu):"
+echo "      systemctl restart --user plasma-plasmashell.service"
 echo ""
 echo "   2. Add the widget to your panel:"
 echo "      Right-click panel → Add Widgets → search 'NetSentry'"
 echo ""
-echo "   3. Or test the TUI directly:"
+echo "   3. The daemon is already running via systemd."
+echo ""
+echo "   4. Or test the TUI directly:"
 echo "      netsentry-tui"
 echo ""
-echo "   4. Run tests:"
+echo "   5. Run tests:"
 echo "      cd ${SCRIPT_DIR} && pytest tests/ -v"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

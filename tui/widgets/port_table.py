@@ -6,11 +6,14 @@ sockets with colour-coded rows, sortable columns, and search/filter.
 from __future__ import annotations
 
 from typing import Dict, List, Optional
+import logging
 
 from textual.widgets import DataTable
 
 from backend.models import Alert, SocketEntry
 from shared import KNOWN_SAFE_PORTS
+
+log = logging.getLogger(__name__)
 
 # Column indices
 _COL_PROCESS = 0
@@ -96,88 +99,97 @@ class PortTable(DataTable):
 
     def _rebuild_table(self) -> None:
         """Clear and repopulate the table from stored data, applying filter & sort."""
-        entries = self._all_entries
-        alerts = self._all_alerts
+        try:
+            entries = self._all_entries or []
+            alerts = self._all_alerts or []
 
-        # Build a quick lookup of port→alert-level
-        alert_map: Dict[int, str] = {}
-        for a in alerts:
-            alert_map.setdefault(a.port, a.level)
+            # Build a quick lookup of port→alert-level
+            alert_map: Dict[int, str] = {}
+            for a in alerts:
+                if hasattr(a, 'port') and hasattr(a, 'level'):
+                    alert_map.setdefault(a.port, a.level)
 
-        self.clear()
-        self._row_pids.clear()
-        self._row_entries.clear()
+            self.clear()
+            self._row_pids.clear()
+            self._row_entries.clear()
 
-        if not self.columns:
-            self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
+            if not self.columns:
+                self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
 
-        # Empty state placeholder
-        if not entries:
-            self.add_row(
-                "[dim]No listening ports — daemon running?[/]",
-                "", "", "", "", "", "",
-                key="_empty",
-            )
-            return
+            # Empty state placeholder
+            if not entries:
+                self.add_row(
+                    "[dim]No listening ports — daemon running?[/]",
+                    "", "", "", "", "", "",
+                    key="_empty",
+                )
+                return
 
-        # Build row data
-        rows: List[tuple[str, SocketEntry]] = []
-        for entry in entries:
-            addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
-                    else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}")
-            pid_str = str(entry.pid) if entry.pid is not None else "—"
-            proc_str = entry.process_name or "unknown"
-            alert_level = alert_map.get(entry.local_port, "")
-            alert_str = alert_level if alert_level else ""
-            cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
-            colour = self._row_colour(entry, alert_level)
+            # Build row data
+            rows: List[tuple[str, SocketEntry]] = []
+            for entry in entries:
+                if self._filter_text:
+                    addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
+                            else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}")
+                    pid_str = str(entry.pid) if entry.pid is not None else "—"
+                    proc_str = entry.process_name or "unknown"
+                    alert_level = alert_map.get(entry.local_port, "")
+                    alert_str = alert_level if alert_level else ""
+                
+                    searchable = " ".join([
+                        proc_str, pid_str, entry.proto, addr,
+                        entry.state, alert_str, entry.cmdline or "",
+                    ]).lower()
+                    if self._filter_text not in searchable:
+                        continue
 
-            # Apply text filter
-            if self._filter_text:
-                searchable = " ".join([
-                    proc_str, pid_str, entry.proto, addr,
-                    entry.state, alert_str, entry.cmdline or "",
-                ]).lower()
-                if self._filter_text not in searchable:
-                    continue
+                row_key = f"{entry.proto}-{entry.inode}"
+                rows.append((row_key, entry))
 
-            row_key = f"{entry.proto}-{entry.inode}"
-            rows.append((row_key, entry))
+            # Sort before adding
+            if self._sort_column >= 0 and rows:
+                rows = self._sort_rows(rows, alert_map)
 
-            self.add_row(
-                f"[{colour}]{proc_str}[/]",
-                f"[{colour}]{pid_str}[/]",
-                f"[{colour}]{entry.proto}[/]",
-                f"[{colour}]{addr}[/]",
-                f"[{colour}]{entry.state}[/]",
-                f"[{colour}]{alert_str}[/]",
-                f"[dim]{cmdline_str}[/]",
-                key=row_key,
-            )
-            self._row_pids[row_key] = entry.pid
-            self._row_entries[row_key] = entry
+            # Add to table
+            for row_key, entry in rows:
+                addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
+                        else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}")
+                pid_str = str(entry.pid) if entry.pid is not None else "—"
+                proc_str = entry.process_name or "unknown"
+                alert_level = alert_map.get(entry.local_port, "")
+                alert_str = alert_level if alert_level else ""
+                cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
+                colour = self._row_colour(entry, alert_level)
 
-        # Apply column sort (DataTables sorts via move_cursor, but we sort row order)
-        # Sort is already applied — rows are in insertion order.
-        # For actual sort, we'd need to re-add rows in sorted order.
-        # Since Textual DataTable doesn't support reordering after add,
-        # we sort before adding (rebuild if sort is active).
-        if self._sort_column >= 0 and rows:
-            self._apply_sort(rows, alert_map)
+                self.add_row(
+                    f"[{colour}]{proc_str}[/]",
+                    f"[{colour}]{pid_str}[/]",
+                    f"[{colour}]{entry.proto}[/]",
+                    f"[{colour}]{addr}[/]",
+                    f"[{colour}]{entry.state}[/]",
+                    f"[{colour}]{alert_str}[/]",
+                    f"[dim]{cmdline_str}[/]",
+                    key=row_key,
+                )
+                self._row_pids[row_key] = entry.pid
+                self._row_entries[row_key] = entry
 
-        # Restore cursor position after repopulating
-        if self._last_row_key and self._last_row_key in self._row_entries:
-            try:
-                for row_idx in range(self.row_count):
-                    ck = self.coordinate_to_cell_key((row_idx, 0))
-                    if ck.row_key.value == self._last_row_key:
-                        self.move_cursor(row=row_idx, column=0)
-                        break
-            except Exception:
-                pass
+            # Restore cursor position after repopulating
+            if self._last_row_key and self._last_row_key in self._row_entries:
+                try:
+                    for row_idx in range(self.row_count):
+                        ck = self.coordinate_to_cell_key((row_idx, 0))
+                        if ck.row_key.value == self._last_row_key:
+                            self.move_cursor(row=row_idx, column=0)
+                            break
+                except Exception:
+                    pass
+        
+        except Exception as e:
+            log.error("Failed to rebuild table: %s", e, exc_info=True)
 
-    def _apply_sort(self, rows: List[tuple[str, SocketEntry]], alert_map: Dict[int, str]) -> None:
-        """Sort and re-add rows based on _sort_column. Called after initial add."""
+    def _sort_rows(self, rows: List[tuple[str, SocketEntry]], alert_map: Dict[int, str]) -> List[tuple[str, SocketEntry]]:
+        """Sort rows based on _sort_column."""
         col = self._sort_column
 
         def _sort_key(item: tuple[str, SocketEntry]) -> str:
@@ -198,37 +210,7 @@ class PortTable(DataTable):
                 return (entry.cmdline or "zzz").lower()
             return ""
 
-        sorted_rows = sorted(rows, key=_sort_key, reverse=self._sort_reverse)
-
-        # Rebuild table with sorted rows
-        self.clear()
-        self._row_pids.clear()
-        self._row_entries.clear()
-        if not self.columns:
-            self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
-
-        for row_key, entry in sorted_rows:
-            addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
-                    else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}")
-            pid_str = str(entry.pid) if entry.pid is not None else "—"
-            proc_str = entry.process_name or "unknown"
-            alert_level = alert_map.get(entry.local_port, "")
-            alert_str = alert_level if alert_level else ""
-            cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
-            colour = self._row_colour(entry, alert_level)
-
-            self.add_row(
-                f"[{colour}]{proc_str}[/]",
-                f"[{colour}]{pid_str}[/]",
-                f"[{colour}]{entry.proto}[/]",
-                f"[{colour}]{addr}[/]",
-                f"[{colour}]{entry.state}[/]",
-                f"[{colour}]{alert_str}[/]",
-                f"[dim]{cmdline_str}[/]",
-                key=row_key,
-            )
-            self._row_pids[row_key] = entry.pid
-            self._row_entries[row_key] = entry
+        return sorted(rows, key=_sort_key, reverse=self._sort_reverse)
 
     # ── Colour logic ──────────────────────────────────────────
     @staticmethod

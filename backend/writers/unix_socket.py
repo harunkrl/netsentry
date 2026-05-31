@@ -11,6 +11,7 @@ logger = logging.getLogger("netsentry.unix_socket")
 class UnixSocketServer:
     def __init__(self):
         self.clients: List[socket.socket] = []
+        self._clients_lock = threading.Lock()
         self.server: socket.socket | None = None
         self.running = False
         self.thread: threading.Thread | None = None
@@ -24,6 +25,7 @@ class UnixSocketServer:
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             self.server.bind(SOCKET_PATH)
+            os.chmod(SOCKET_PATH, 0o600)
             self.server.listen(5)
             self.running = True
             self.thread = threading.Thread(target=self._accept_loop, daemon=True)
@@ -37,7 +39,8 @@ class UnixSocketServer:
         while self.running and self.server:
             try:
                 client, _ = self.server.accept()
-                self.clients.append(client)
+                with self._clients_lock:
+                    self.clients.append(client)
             except OSError:
                 if self.running:
                     continue
@@ -46,14 +49,16 @@ class UnixSocketServer:
     def broadcast(self, json_data: str):
         dead_clients = []
         data = json_data.encode('utf-8') + b'\n'
-        for client in self.clients:
-            try:
-                client.sendall(data)
-            except OSError:
-                dead_clients.append(client)
-        
+        with self._clients_lock:
+            for client in self.clients:
+                try:
+                    client.sendall(data)
+                except OSError:
+                    dead_clients.append(client)
+            
+            for client in dead_clients:
+                self.clients.remove(client)
         for client in dead_clients:
-            self.clients.remove(client)
             try:
                 client.close()
             except OSError:
@@ -66,11 +71,13 @@ class UnixSocketServer:
                 self.server.close()
             except OSError:
                 pass
-        for client in self.clients:
-            try:
-                client.close()
-            except OSError:
-                pass
+        with self._clients_lock:
+            for client in self.clients:
+                try:
+                    client.close()
+                except OSError:
+                    pass
+            self.clients.clear()
         if os.path.exists(SOCKET_PATH):
             try:
                 os.unlink(SOCKET_PATH)

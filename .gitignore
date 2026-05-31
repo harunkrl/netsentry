@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+.coverage
 
 # NetSentry runtime
 /tmp/netsentry-data.json

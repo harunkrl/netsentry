@@ -113,6 +113,15 @@ netsentry-daemon --foreground
 # Right-click panel → Add Widgets → search "NetSentry"
 ```
 
+### Uninstallation
+
+To completely remove the daemon, widget, symlinks, and configuration from your system:
+
+```bash
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
 ### Run TUI Directly
 
 ```bash

@@ -25,14 +25,14 @@ Screen {
 
 #port-table {
     width: 1fr;
-    border: solid $primary;
+    border: round $primary;
     padding: 0 1;
     background: $panel-bg;
 }
 
 #connection-log {
     width: 2fr;
-    border: solid $primary;
+    border: round $primary;
     padding: 0 1;
     background: $panel-bg;
 }
@@ -49,4 +49,31 @@ Screen {
 
 .hidden {
     display: none;
+}
+
+Input {
+    border: round $primary;
+    background: $panel-bg;
+}
+
+DataTable {
+    background: $panel-bg;
+}
+DataTable > .datatable--cursor {
+    background: #005533;
+    color: white;
+}
+DataTable > .datatable--hover {
+    background: #004422;
+}
+
+ScrollBar {
+    background: $surface;
+    color: $primary;
+}
+ScrollBar > .scrollbar--thumb {
+    background: #008855;
+}
+ScrollBar > .scrollbar--thumb:hover {
+    background: $primary;
 }

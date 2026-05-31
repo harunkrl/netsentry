@@ -38,6 +38,7 @@ class MainScreen(Screen):
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
         Binding("e", "export", "Export", show=True),
+        Binding("c", "copy_row", "Copy", show=True),
         Binding("question_mark", "help", "Help", show=True),
         Binding("escape", "clear_filter", "Clear", show=False),
     ]
@@ -248,3 +249,19 @@ class MainScreen(Screen):
             search_input.add_class("hidden")
         except Exception:
             pass
+
+    def action_copy_row(self) -> None:
+        """Copy the selected row's connection info to the system clipboard."""
+        table = self.query_one(PortTable)
+        try:
+            if table.row_count > 0:
+                cell_key = table.coordinate_to_cell_key((table.cursor_row, 0))
+                entry = table._row_entries.get(cell_key.row_key.value)
+                if entry:
+                    addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
+                            else f"{entry.local_ip}:{entry.local_port} -> {entry.remote_ip}:{entry.remote_port}")
+                    text = f"{entry.process_name or 'unknown'} (PID: {entry.pid or '-'}) | {entry.proto} {addr} | State: {entry.state}"
+                    self.app.copy_to_clipboard(text)
+                    self.query_one(StatusBar).update(f"Copied: {text}")
+        except Exception as e:
+            self.query_one(StatusBar).update(f"Failed to copy: {e}")

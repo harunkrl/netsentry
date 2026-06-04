@@ -128,6 +128,11 @@ class AppConfig:
     # Daemon health
     heartbeat_file: str = ""  # empty = auto-derive from data_file
 
+    # Auto-update
+    update_enabled: bool = True
+    update_check_interval: float = 86400.0  # 24 hours
+    update_auto_apply: bool = False          # just notify, don't auto-apply
+
     # Source tracking
     config_path: Optional[str] = None  # None = defaults only
 
@@ -342,6 +347,21 @@ def load_config(path: Optional[str] = None) -> AppConfig:
             cfg.socket_path = str(paths["socket_path"])
         if "baseline_file" in paths:
             cfg.baseline_file = str(paths["baseline_file"])
+
+        # ── Auto-update ───────────────────────────
+        update = data.get("update", {})
+        if "enabled" in update:
+            v = update["enabled"]
+            if isinstance(v, bool):
+                cfg.update_enabled = v
+        if "check_interval" in update:
+            v = update["check_interval"]
+            if isinstance(v, (int, float)) and v > 0:
+                cfg.update_check_interval = float(v)
+        if "auto_apply" in update:
+            v = update["auto_apply"]
+            if isinstance(v, bool):
+                cfg.update_auto_apply = v
 
     _current_config = cfg
     return cfg

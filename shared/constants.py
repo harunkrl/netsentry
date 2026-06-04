@@ -88,4 +88,8 @@ TCP_STATES: dict[str, str] = {
 
 # ── App metadata ───────────────────────────────────────────────
 APP_NAME: str = "NetSentry"
-APP_VERSION: str = "1.0.0"
+APP_VERSION: str = "2.0.0"
+
+# ── Update paths ──────────────────────────────────────────────
+UPDATE_STATE_FILE: str = os.path.join(_RUNTIME_DIR, "netsentry-update.json")
+GITHUB_REPO: str = "harunkrl/netsentry"

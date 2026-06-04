@@ -11,6 +11,7 @@ from shared.constants import (  # explicit re-exports for type-checkers
     BASELINE_DIR,
     BASELINE_FILE,
     DATA_FILE,
+    GITHUB_REPO,
     KNOWN_SAFE_PORTS,
     MALICIOUS_PORTS,
     PID_FILE,
@@ -27,4 +28,5 @@ from shared.constants import (  # explicit re-exports for type-checkers
     DEFAULT_POLL_INTERVAL,
     IDLE_POLL_INTERVAL,
     IDLE_THRESHOLD_SECS,
+    UPDATE_STATE_FILE,
 )

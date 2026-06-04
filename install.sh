@@ -60,6 +60,7 @@ echo "🔗 Creating global symlinks in ~/.local/bin..."
 mkdir -p "${HOME}/.local/bin"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-tui" "${HOME}/.local/bin/netsentry-tui"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-daemon" "${HOME}/.local/bin/netsentry-daemon"
+ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-update" "${HOME}/.local/bin/netsentry-update"
 ln -sf "${HOME}/.local/bin/netsentry-tui" "${HOME}/.local/bin/netsentry"
 echo "   ✅ Symlinks created (you can now run 'netsentry' anywhere)"
 

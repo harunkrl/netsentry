@@ -41,6 +41,7 @@ from backend.parsers.rdns import get_hostname
 from backend.writers.unix_socket import UnixSocketServer
 from backend.history import HistoryRecorder
 from backend.risk_score import calculate_risk_score
+from backend.update import check_for_update, write_update_state, get_local_version
 import subprocess
 
 logger = logging.getLogger("netsentry")
@@ -205,6 +206,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     notified_alerts: dict[str, float] = {}  # alert_hash → timestamp
     notification_timestamps: list[float] = []  # for rate limiting
     _prev_traffic: Dict[str, Tuple[float, InterfaceStats]] = {}  # iface → (ts, stats)
+    _last_update_check: float = 0.0
 
     # Start Unix Socket Server
     socket_server = UnixSocketServer()
@@ -394,6 +396,23 @@ def daemon_loop(args: argparse.Namespace) -> None:
         except Exception:
             logger.exception("Error in daemon cycle")
             interval = args.interval
+
+        # Periodic update check (once per update_check_interval)
+        if cfg.update_enabled:
+            now_check = time.time()
+            if (now_check - _last_update_check) >= cfg.update_check_interval:
+                _last_update_check = now_check
+                try:
+                    new_version = check_for_update()
+                    write_update_state(
+                        current=get_local_version(),
+                        latest=new_version,
+                        update_available=new_version is not None,
+                    )
+                    if new_version:
+                        logger.info("Update available: %s → %s", get_local_version(), new_version)
+                except Exception:
+                    logger.debug("Update check failed", exc_info=True)
 
         # Sleep remaining interval
         elapsed = time.time() - cycle_start

@@ -1,11 +1,13 @@
 """NetSentry — Alert engine with baseline learning.
 
-Alert rules:
+Built-in alert rules:
+  0. Port in blacklist                    → CRITICAL
   1. Port in MALICIOUS_PORTS              → CRITICAL
   2. Port < 1024, not known-safe, not baseline → WARNING
   3. New listening port not in baseline   → INFO
   4. Process with no cmdline              → WARNING
-  5. 3+ new ports in one cycle            → WARNING
+  5. N+ new ports in one cycle            → WARNING
+  6. Custom user rules (from config)      → user-defined level
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from shared import (
     PRIVILEGED_PORT_MAX,
 )
 from backend.models import Alert, SocketEntry
+from shared.config import CustomRule
 
 
 class AlertEngine:
@@ -32,9 +35,23 @@ class AlertEngine:
         self,
         known_safe_ports: Optional[Dict[int, str]] = None,
         baseline_duration: float = 300.0,
+        malicious_ports: Optional[Set[int]] = None,
+        burst_threshold: int = 3,
+        privileged_port_max: int = PRIVILEGED_PORT_MAX,
+        custom_rules: Optional[List[CustomRule]] = None,
+        port_whitelist: Optional[Set[int]] = None,
+        port_blacklist: Optional[Set[int]] = None,
+        ip_blacklist: Optional[List[str]] = None,
     ) -> None:
         self.known_safe: Dict[int, str] = dict(known_safe_ports or KNOWN_SAFE_PORTS)
         self.baseline_duration = baseline_duration
+        self.malicious_ports: Set[int] = set(malicious_ports or MALICIOUS_PORTS)
+        self.burst_threshold = burst_threshold
+        self.privileged_port_max = privileged_port_max
+        self.custom_rules: List[CustomRule] = list(custom_rules or [])
+        self.port_whitelist: Set[int] = set(port_whitelist or set())
+        self.port_blacklist: Set[int] = set(port_blacklist or set())
+        self.ip_blacklist: List[str] = list(ip_blacklist or [])
         self._baseline_ports: Set[int] = set()
         self._baseline_start: Optional[float] = None
         self._baseline_stable = False
@@ -98,11 +115,21 @@ class AlertEngine:
         try:
             with open(path, "r") as fh:
                 data = json.load(fh)
-            self._baseline_ports = set(data.get("ports", []))
+
+            # Validate schema: must have "ports" as a list of ints
+            ports = data.get("ports")
+            if not isinstance(ports, list):
+                return False
+            validated_ports: Set[int] = set()
+            for p in ports:
+                if isinstance(p, int) and 0 <= p <= 65535:
+                    validated_ports.add(p)
+
+            self._baseline_ports = validated_ports
             self._baseline_stable = True
             self._baseline_start = data.get("timestamp", time.time())
             return True
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
+        except (FileNotFoundError, json.JSONDecodeError, OSError, TypeError):
             return False
 
     # ── Analysis ───────────────────────────────────────────────
@@ -127,8 +154,41 @@ class AlertEngine:
             is_known_safe = port in self.known_safe
             is_baseline = port in self._baseline_ports
 
+            # Skip whitelisted ports entirely
+            if port in self.port_whitelist:
+                continue
+
+            # Rule 0: Blacklisted port → always CRITICAL
+            if port in self.port_blacklist:
+                alerts.append(Alert(
+                    level=AlertLevel.CRITICAL,
+                    port=port,
+                    proto=entry.proto,
+                    process_name=entry.process_name,
+                    pid=entry.pid,
+                    message=f"Blacklisted port {port} detected ({entry.process_name or 'unknown'})",
+                    timestamp=now,
+                ))
+                continue
+
+            # Rule 0b: Blacklisted IP → always CRITICAL
+            if entry.remote_ip and self.ip_blacklist:
+                from fnmatch import fnmatch
+                for pattern in self.ip_blacklist:
+                    if fnmatch(entry.remote_ip, pattern):
+                        alerts.append(Alert(
+                            level=AlertLevel.CRITICAL,
+                            port=port,
+                            proto=entry.proto,
+                            process_name=entry.process_name,
+                            pid=entry.pid,
+                            message=f"Blacklisted IP {entry.remote_ip} connected on port {port}",
+                            timestamp=now,
+                        ))
+                        break
+
             # Rule 1: Malicious port
-            if port in MALICIOUS_PORTS:
+            if port in self.malicious_ports:
                 alerts.append(Alert(
                     level=AlertLevel.CRITICAL,
                     port=port,
@@ -153,7 +213,7 @@ class AlertEngine:
                 ))
 
             # Rule 2: Privileged port not known-safe and not in baseline
-            if port <= PRIVILEGED_PORT_MAX and not is_known_safe and not is_baseline:
+            if port <= self.privileged_port_max and not is_known_safe and not is_baseline:
                 alerts.append(Alert(
                     level=AlertLevel.WARNING,
                     port=port,
@@ -178,8 +238,8 @@ class AlertEngine:
                     timestamp=now,
                 ))
 
-        # Rule 5: Burst — 3+ new ports in one cycle
-        if self._baseline_stable and len(new_ports) >= 3:
+        # Rule 5: Burst — N+ new ports in one cycle
+        if self._baseline_stable and len(new_ports) >= self.burst_threshold:
             port_list = ", ".join(str(e.local_port) for e in new_ports[:10])
             alerts.append(Alert(
                 level=AlertLevel.WARNING,
@@ -190,5 +250,20 @@ class AlertEngine:
                 message=f"Burst: {len(new_ports)} new ports in one cycle ({port_list})",
                 timestamp=now,
             ))
+
+        # Rule 6: Custom user rules
+        for rule in self.custom_rules:
+            for entry in entries:
+                if rule.matches(entry):
+                    level = AlertLevel(rule.level)
+                    alerts.append(Alert(
+                        level=level,
+                        port=entry.local_port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=rule.message,
+                        timestamp=now,
+                    ))
 
         return alerts

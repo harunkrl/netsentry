@@ -16,7 +16,7 @@ def _read_file_safe(path: str) -> Optional[str]:
     try:
         with open(path, "r") as fh:
             return fh.read().strip()
-    except (PermissionError, FileNotFoundError, OSError):
+    except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
         return None
 
 
@@ -57,14 +57,14 @@ def build_inode_to_pid_map() -> Dict[int, Tuple[int, str, str]]:
         fd_dir = f"/proc/{pid}/fd"
         try:
             fds = os.listdir(fd_dir)
-        except (PermissionError, FileNotFoundError, OSError):
+        except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
             continue
 
         for fd_name in fds:
             fd_path = os.path.join(fd_dir, fd_name)
             try:
                 link_target = os.readlink(fd_path)
-            except (PermissionError, FileNotFoundError, OSError):
+            except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
                 continue
 
             if link_target.startswith("socket:["):

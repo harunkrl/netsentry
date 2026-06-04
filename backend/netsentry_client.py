@@ -5,19 +5,41 @@ import sys
 
 from shared import SOCKET_PATH
 
+CONNECT_TIMEOUT = 5.0  # seconds
+
+
 def main():
+    s = None
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(CONNECT_TIMEOUT)
         s.connect(SOCKET_PATH)
-        # Read lines endlessly and flush to stdout
+        # Switch to blocking reads with no timeout for streaming
+        s.settimeout(None)
         f = s.makefile('r', encoding='utf-8')
         for line in f:
             print(line.strip(), flush=True)
     except KeyboardInterrupt:
         sys.exit(0)
+    except socket.timeout:
+        print('{"error": "Timed out connecting to daemon — is netsentry running?"}')
+        sys.exit(1)
+    except FileNotFoundError:
+        print(f'{{"error": "Socket not found at {SOCKET_PATH} — is netsentry running?"}}')
+        sys.exit(1)
+    except ConnectionRefusedError:
+        print('{"error": "Daemon refused connection — may be starting up"}')
+        sys.exit(1)
     except Exception as e:
         print(f'{{"error": "Failed to connect to daemon socket: {e}"}}')
         sys.exit(1)
+    finally:
+        if s:
+            try:
+                s.close()
+            except Exception:
+                pass
+
 
 if __name__ == "__main__":
     main()

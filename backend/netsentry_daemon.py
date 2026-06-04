@@ -21,16 +21,14 @@ import atexit
 from typing import List
 
 from shared import (
-    ALERT_POLL_INTERVAL,
     BASELINE_FILE,
     DATA_FILE,
     DEFAULT_POLL_INTERVAL,
-    IDLE_POLL_INTERVAL,
-    IDLE_THRESHOLD_SECS,
     KNOWN_SAFE_PORTS,
     PID_FILE,
     AlertLevel,
 )
+from shared.config import load_config, get_config, apply_cli_overrides, AppConfig
 from backend.models import Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
 from backend.parsers.inode_map import build_inode_to_pid_map
@@ -38,9 +36,24 @@ from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
 from backend.parsers.rdns import get_hostname
 from backend.writers.unix_socket import UnixSocketServer
+from backend.history import HistoryRecorder
+from backend.risk_score import calculate_risk_score
 import subprocess
 
 logger = logging.getLogger("netsentry")
+
+
+def _write_heartbeat(path: str) -> None:
+    """Write a tiny JSON file with current timestamp for health checks."""
+    try:
+        import json as _json
+        data = _json.dumps({"ts": time.time()}).encode()
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+        os.replace(tmp, path)
+    except OSError:
+        pass  # heartbeat is best-effort
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,6 +75,12 @@ def parse_args() -> argparse.Namespace:
         "--foreground", "-f",
         action="store_true",
         help="Run in foreground (don't daemonize)",
+    )
+    parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default=None,
+        help="Path to config file (default: ~/.config/netsentry/config.toml)",
     )
     return parser.parse_args()
 
@@ -107,19 +126,42 @@ def classify_entries(
 
 def daemon_loop(args: argparse.Namespace) -> None:
     """Main daemon loop."""
-    alert_engine = AlertEngine(known_safe_ports=KNOWN_SAFE_PORTS)
+    # Load config and apply CLI overrides
+    cfg = load_config()
+    cfg = apply_cli_overrides(cfg, args)
+
+    # Propagate DNS cache limits to rdns module
+    from backend.parsers import rdns
+    rdns._MAX_CACHE_SIZE = cfg.dns_cache_size
+    rdns._MAX_PENDING = cfg.dns_max_pending
+
+    alert_engine = AlertEngine(
+        known_safe_ports=cfg.known_safe_ports,
+        baseline_duration=cfg.baseline_duration,
+        malicious_ports=set(cfg.malicious_ports),
+        burst_threshold=cfg.burst_threshold,
+        privileged_port_max=cfg.privileged_port_max,
+        custom_rules=cfg.custom_rules,
+        port_whitelist=set(cfg.port_whitelist),
+        port_blacklist=set(cfg.port_blacklist),
+        ip_blacklist=list(cfg.ip_blacklist),
+    )
 
     # Try loading a previously saved baseline
-    if alert_engine.load_baseline():
-        logger.info("Loaded saved baseline from %s", BASELINE_FILE)
+    if alert_engine.load_baseline(cfg.baseline_file):
+        logger.info("Loaded saved baseline from %s", cfg.baseline_file)
     else:
         logger.info("No saved baseline — will learn for %.0f seconds",
                      alert_engine.baseline_duration)
 
-    # Task 3.10: SIGHUP handler
+    # SIGHUP handler: reload config + reset baseline
     def reload_config(signum, frame):
+        nonlocal cfg
         logger.info("Received SIGHUP, reloading configuration and resetting baseline...")
+        cfg = load_config(cfg.config_path)
+        cfg = apply_cli_overrides(cfg, args)
         alert_engine.reset_baseline()
+        logger.info("Configuration reloaded")
 
     try:
         signal.signal(signal.SIGHUP, reload_config)
@@ -130,11 +172,15 @@ def daemon_loop(args: argparse.Namespace) -> None:
     last_snapshot_hash: str = ""
     last_change_time = time.time()
     prev_baseline: frozenset = frozenset()
-    notified_alerts: set = set()
+    notified_alerts: dict[str, float] = {}  # alert_hash → timestamp
+    notification_timestamps: list[float] = []  # for rate limiting
 
     # Start Unix Socket Server
     socket_server = UnixSocketServer()
     socket_server.start()
+
+    # Start history recorder
+    history = HistoryRecorder()
 
     def handle_signal(signum: int, _frame) -> None:
         nonlocal running
@@ -177,6 +223,16 @@ def daemon_loop(args: argparse.Namespace) -> None:
                     prev_baseline = current_baseline
 
             # 6. Build snapshot
+            risk_scores = {
+                e.local_port: calculate_risk_score(
+                    e,
+                    malicious_ports=alert_engine.malicious_ports,
+                    known_safe_ports=alert_engine.known_safe,
+                    baseline_ports=alert_engine._baseline_ports if alert_engine.is_baseline_complete() else None,
+                    port_blacklist=alert_engine.port_blacklist,
+                )
+                for e in listening
+            }
             snapshot = Snapshot(
                 timestamp=time.time(),
                 poll_interval_ms=int(interval * 1000),
@@ -187,6 +243,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                     "total_listening": len(listening),
                     "total_established": len(established),
                     "alert_count": len(alerts),
+                    "risk_scores": {str(k): v for k, v in risk_scores.items()},
                 },
             )
 
@@ -195,6 +252,14 @@ def daemon_loop(args: argparse.Namespace) -> None:
             write_snapshot(snapshot_json)
             if socket_server:
                 socket_server.broadcast(snapshot_json)
+
+            # 7b. Write heartbeat for daemon health monitoring
+            _write_heartbeat(cfg.effective_heartbeat_file)
+
+            # 7c. Record history
+            history.record_summary(snapshot)
+            for alert in alerts:
+                history.record_alert(alert)
             
             logger.debug(
                 "Snapshot: %d listening, %d established, %d alerts",
@@ -210,36 +275,56 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 last_change_time = time.time()
 
             if alerts:
-                interval = ALERT_POLL_INTERVAL
+                interval = cfg.alert_poll_interval
                 for a in alerts:
                     logger.info("ALERT [%s] %s", a.level, a.message)
                     
                     # Desktop notification for WARNING and CRITICAL
                     if a.level in (AlertLevel.WARNING, AlertLevel.CRITICAL):
                         alert_hash = f"{a.level}:{a.message}"
-                        # Only notify once per specific alert to avoid spam
-                        if alert_hash not in notified_alerts:
-                            try:
-                                icon = "dialog-error" if a.level == AlertLevel.CRITICAL else "dialog-warning"
-                                subprocess.Popen([
-                                    "notify-send",
-                                    "-a", "NetSentry",
-                                    "-u", "critical" if a.level == AlertLevel.CRITICAL else "normal",
-                                    "-i", icon,
-                                    f"NetSentry: {a.level}",
-                                    a.message
-                                ])
-                                notified_alerts.add(alert_hash)
-                            except Exception as e:
-                                logger.error("Failed to send notification: %s", e)
+                        last_notified = notified_alerts.get(alert_hash, 0)
+                        # Only notify if not recently notified (TTL-based dedup)
+                        if (time.time() - last_notified) > cfg.alert_ttl:
+                            # Rate limiting: max N notifications per window
+                            now_ts = time.time()
+                            notification_timestamps[:] = [
+                                t for t in notification_timestamps
+                                if (now_ts - t) < cfg.notification_rate_window
+                            ]
+                            if len(notification_timestamps) < cfg.notification_rate_limit:
+                                try:
+                                    icon = "dialog-error" if a.level == AlertLevel.CRITICAL else "dialog-warning"
+                                    subprocess.Popen(
+                                        [
+                                            "notify-send",
+                                            "-a", "NetSentry",
+                                            "-u", "critical" if a.level == AlertLevel.CRITICAL else "normal",
+                                            "-i", icon,
+                                            f"NetSentry: {a.level}",
+                                            a.message,
+                                        ],
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL,
+                                    )
+                                    notified_alerts[alert_hash] = time.time()
+                                    notification_timestamps.append(time.time())
+                                except FileNotFoundError:
+                                    logger.debug("notify-send not found — skipping notification")
+                                except OSError as e:
+                                    logger.warning("Failed to send notification: %s", e)
+                            else:
+                                logger.debug("Notification rate limited — skipping %s alert", a.level)
+
+                    # Evict expired alert hashes to bound memory
+                    if len(notified_alerts) > 500:
+                        now_ts = time.time()
+                        expired = [k for k, v in notified_alerts.items()
+                                   if (now_ts - v) > cfg.alert_ttl]
+                        for k in expired:
+                            del notified_alerts[k]
                                 
-                    # Task 2.5: Limit notified_alerts growth
-                    if len(notified_alerts) > 1000:
-                        # Clear old alerts to avoid memory leak
-                        notified_alerts.clear()
-                                
-            elif (time.time() - last_change_time) > IDLE_THRESHOLD_SECS:
-                interval = IDLE_POLL_INTERVAL
+            elif (time.time() - last_change_time) > cfg.idle_threshold_secs:
+                interval = cfg.idle_poll_interval
             else:
                 interval = args.interval
 
@@ -257,7 +342,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 time.sleep(min(0.5, end_time - time.time()))
 
     # Save baseline on clean exit
-    alert_engine.save_baseline()
+    alert_engine.save_baseline(cfg.baseline_file)
     if socket_server:
         socket_server.stop()
 
@@ -320,6 +405,9 @@ def _daemonize() -> None:
 def main() -> None:
     args = parse_args()
     setup_logging(args.verbose)
+
+    # Load config before daemonizing (so errors show in terminal)
+    load_config(args.config)
 
     if not args.foreground:
         _daemonize()

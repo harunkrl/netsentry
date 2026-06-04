@@ -1,0 +1,1 @@
+Run the full test suite with pytest. If any tests fail, analyze the failures and suggest fixes. Also run a quick import check on all top-level packages (backend, tui, shared) to catch import errors early.

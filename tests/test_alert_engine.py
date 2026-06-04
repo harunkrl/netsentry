@@ -7,6 +7,7 @@ import pytest
 from backend.alert_engine import AlertEngine
 from backend.models import Alert, SocketEntry
 from shared import AlertLevel, MALICIOUS_PORTS, KNOWN_SAFE_PORTS
+from shared.config import CustomRule
 
 
 # ── Helpers ────────────────────────────────────────────────────
@@ -389,3 +390,236 @@ class TestKnownSafePorts:
             info_new = [a for a in alerts if "new listening" in a.message.lower()]
             assert len(warning_priv) == 0, f"Port {port} should not trigger privileged-port warning"
             assert len(info_new) == 0, f"Port {port} should not trigger new-port info"
+
+
+# ── Rule 0: Whitelist — port skipped entirely ────────────────────
+
+class TestWhitelist:
+    def test_whitelisted_port_no_alerts(self):
+        """Whitelisted ports should produce zero alerts."""
+        engine = AlertEngine(baseline_duration=0, port_whitelist={4444})
+        engine._baseline_stable = True
+        engine._baseline_ports = set()
+        engine._baseline_start = time.time() - 1000
+
+        entry = _make_entry(port=4444)
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        assert len(alerts) == 0
+
+    def test_whitelisted_port_overrides_malicious(self):
+        """Even a malicious port is silenced if whitelisted."""
+        engine = AlertEngine(baseline_duration=0, port_whitelist={4444})
+        engine._baseline_stable = True
+        engine._baseline_ports = set()
+        engine._baseline_start = time.time() - 1000
+
+        entry = _make_entry(port=4444)
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        assert len(alerts) == 0
+
+
+# ── Rule 0b: Blacklist — always CRITICAL ──────────────────────────
+
+class TestBlacklist:
+    def test_blacklisted_port_triggers_critical(self):
+        """Blacklisted port should always trigger CRITICAL."""
+        engine = AlertEngine(baseline_duration=0, port_blacklist={9090})
+        engine._baseline_stable = True
+        engine._baseline_ports = {9090}
+        engine._baseline_start = time.time() - 1000
+
+        entry = _make_entry(port=9090)
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        crit = [a for a in alerts if a.level == AlertLevel.CRITICAL]
+        assert len(crit) == 1
+        assert "blacklisted" in crit[0].message.lower()
+
+    def test_ip_blacklist_triggers_critical(self):
+        """Connection from blacklisted IP should trigger CRITICAL."""
+        engine = AlertEngine(baseline_duration=0, ip_blacklist=["10.0.0.*"])
+        engine._baseline_stable = True
+        engine._baseline_ports = {80}
+        engine._baseline_start = time.time() - 1000
+
+        entry = SocketEntry(
+            proto="tcp", local_ip="0.0.0.0", local_port=80,
+            remote_ip="10.0.0.5", remote_port=12345,
+            state="ESTABLISHED", state_code="01",
+            uid=1000, inode=50000, pid=1,
+            process_name="test", cmdline="/test",
+        )
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        ip_alerts = [a for a in alerts if "blacklisted ip" in a.message.lower()]
+        assert len(ip_alerts) == 1
+
+    def test_ip_blacklist_no_match(self):
+        """Connection from non-blacklisted IP should not trigger IP alert."""
+        engine = AlertEngine(baseline_duration=0, ip_blacklist=["10.0.0.*"])
+        engine._baseline_stable = True
+        engine._baseline_ports = {80}
+        engine._baseline_start = time.time() - 1000
+
+        entry = SocketEntry(
+            proto="tcp", local_ip="0.0.0.0", local_port=80,
+            remote_ip="192.168.1.5", remote_port=12345,
+            state="ESTABLISHED", state_code="01",
+            uid=1000, inode=50000, pid=1,
+            process_name="test", cmdline="/test",
+        )
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        ip_alerts = [a for a in alerts if "blacklisted ip" in a.message.lower()]
+        assert len(ip_alerts) == 0
+
+
+# ── Rule 6: Custom rules ──────────────────────────────────────────
+
+class TestCustomRules:
+    def _stable_engine(self, **kwargs) -> AlertEngine:
+        engine = AlertEngine(baseline_duration=0, **kwargs)
+        engine._baseline_stable = True
+        engine._baseline_ports = {8080}
+        engine._baseline_start = time.time() - 1000
+        return engine
+
+    def test_custom_port_rule(self):
+        """Custom rule matching a specific port."""
+        rules = [CustomRule(port=8080, level="CRITICAL", message="Dev server detected")]
+        engine = self._stable_engine(custom_rules=rules)
+        entry = _make_entry(port=8080)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        custom = [a for a in alerts if a.message == "Dev server detected"]
+        assert len(custom) == 1
+        assert custom[0].level == AlertLevel.CRITICAL
+
+    def test_custom_process_name_glob(self):
+        """Custom rule with process_name glob pattern."""
+        rules = [CustomRule(process_name="ncat*", level="CRITICAL", message="Reverse shell")]
+        engine = self._stable_engine(custom_rules=rules)
+        entry = _make_entry(port=8080, process_name="ncat-linux")
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        custom = [a for a in alerts if a.message == "Reverse shell"]
+        assert len(custom) == 1
+
+    def test_custom_port_pattern(self):
+        """Custom rule with port glob pattern."""
+        rules = [CustomRule(port_pattern="808*", level="WARNING", message="8080 range")]
+        engine = self._stable_engine(custom_rules=rules)
+        entry = _make_entry(port=8081)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        custom = [a for a in alerts if a.message == "8080 range"]
+        assert len(custom) == 1
+
+    def test_custom_rule_no_match(self):
+        """Custom rule that doesn't match should produce no alert."""
+        rules = [CustomRule(port=9999, level="CRITICAL", message="Should not fire")]
+        engine = self._stable_engine(custom_rules=rules)
+        entry = _make_entry(port=8080)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        custom = [a for a in alerts if a.message == "Should not fire"]
+        assert len(custom) == 0
+
+    def test_custom_rule_proto_filter(self):
+        """Custom rule with proto filter only matches that protocol."""
+        rules = [CustomRule(port=8080, proto="udp", level="WARNING", message="UDP alert")]
+        engine = self._stable_engine(custom_rules=rules)
+        tcp_entry = _make_entry(port=8080, proto="tcp")
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([tcp_entry])
+
+        custom = [a for a in alerts if a.message == "UDP alert"]
+        assert len(custom) == 0  # TCP should not match UDP rule
+
+    def test_multiple_custom_rules(self):
+        """Multiple custom rules should each independently trigger."""
+        rules = [
+            CustomRule(port=8080, level="WARNING", message="Rule A"),
+            CustomRule(process_name="testproc", level="INFO", message="Rule B"),
+        ]
+        engine = self._stable_engine(custom_rules=rules)
+        entry = _make_entry(port=8080, process_name="testproc")
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(time, "time", lambda: 1700000000.0)
+            alerts = engine.analyze([entry])
+
+        messages = [a.message for a in alerts]
+        assert "Rule A" in messages
+        assert "Rule B" in messages
+
+
+# ── CustomRule.matches unit tests ──────────────────────────────────
+
+class TestCustomRuleMatches:
+    def test_port_match(self):
+        entry = _make_entry(port=8080)
+        rule = CustomRule(port=8080)
+        assert rule.matches(entry) is True
+
+    def test_port_no_match(self):
+        entry = _make_entry(port=9090)
+        rule = CustomRule(port=8080)
+        assert rule.matches(entry) is False
+
+    def test_port_pattern_match(self):
+        entry = _make_entry(port=8081)
+        rule = CustomRule(port_pattern="808*")
+        assert rule.matches(entry) is True
+
+    def test_remote_ip_match(self):
+        entry = SocketEntry(
+            proto="tcp", local_ip="0.0.0.0", local_port=80,
+            remote_ip="192.168.1.5", remote_port=443,
+            state="ESTABLISHED", state_code="01",
+            uid=1000, inode=50000,
+        )
+        rule = CustomRule(remote_ip="192.168.1.*")
+        assert rule.matches(entry) is True
+
+    def test_process_name_match(self):
+        entry = _make_entry(port=8080, process_name="python3")
+        rule = CustomRule(process_name="python*")
+        assert rule.matches(entry) is True
+
+    def test_and_logic_all_must_match(self):
+        entry = _make_entry(port=8080, proto="tcp", process_name="nginx")
+        # port matches, proto matches, but process doesn't
+        rule = CustomRule(port=8080, proto="tcp", process_name="apache*")
+        assert rule.matches(entry) is False
+
+    def test_no_conditions_matches_everything(self):
+        entry = _make_entry(port=8080)
+        rule = CustomRule()
+        assert rule.matches(entry) is True

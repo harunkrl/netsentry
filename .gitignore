@@ -35,3 +35,11 @@ research/
 review-*.md
 progress.md
 netsentry-review-*.md
+
+# Claude Code (dev-only)
+CLAUDE.md
+.claude/
+
+# Unnecessary docs for personal project
+CHANGELOG.md
+CONTRIBUTING.md

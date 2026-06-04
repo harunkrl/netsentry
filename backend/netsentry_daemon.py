@@ -18,7 +18,8 @@ import sys
 import time
 import fcntl
 import atexit
-from typing import List
+from dataclasses import asdict
+from typing import Dict, List, Tuple
 
 from shared import (
     BASELINE_FILE,
@@ -29,8 +30,9 @@ from shared import (
     AlertLevel,
 )
 from shared.config import load_config, get_config, apply_cli_overrides, AppConfig
-from backend.models import Snapshot, SocketEntry
+from backend.models import InterfaceStats, Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
+from backend.parsers.net_dev import parse_proc_net_dev
 from backend.parsers.inode_map import build_inode_to_pid_map
 from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
@@ -124,6 +126,33 @@ def classify_entries(
     return listening, established
 
 
+def compute_traffic_deltas(
+    current: List[InterfaceStats],
+    prev: Dict[str, Tuple[float, InterfaceStats]],
+    now: float,
+) -> Dict[str, InterfaceStats]:
+    """Compute per-second RX/TX rates from cumulative counters.
+
+    Args:
+        current: Freshly parsed interface stats.
+        prev: Previous cycle's {iface: (timestamp, InterfaceStats)}.
+        now: Current timestamp.
+
+    Returns:
+        Dict of {iface: InterfaceStats} with rx_rate/tx_rate filled.
+    """
+    result: Dict[str, InterfaceStats] = {}
+    for stats in current:
+        if stats.interface in prev:
+            prev_ts, prev_stats = prev[stats.interface]
+            elapsed = now - prev_ts
+            if elapsed > 0:
+                stats.rx_rate = max(0, (stats.rx_bytes - prev_stats.rx_bytes) / elapsed)
+                stats.tx_rate = max(0, (stats.tx_bytes - prev_stats.tx_bytes) / elapsed)
+        result[stats.interface] = stats
+    return result
+
+
 def daemon_loop(args: argparse.Namespace) -> None:
     """Main daemon loop."""
     # Load config and apply CLI overrides
@@ -174,6 +203,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     prev_baseline: frozenset = frozenset()
     notified_alerts: dict[str, float] = {}  # alert_hash → timestamp
     notification_timestamps: list[float] = []  # for rate limiting
+    _prev_traffic: Dict[str, Tuple[float, InterfaceStats]] = {}  # iface → (ts, stats)
 
     # Start Unix Socket Server
     socket_server = UnixSocketServer()
@@ -212,6 +242,26 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 if e.remote_ip and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::")):
                     e.remote_hostname = get_hostname(e.remote_ip)
 
+            # 3.6 Parse /proc/net/dev for traffic statistics
+            now_ts = time.time()
+            raw_traffic = parse_proc_net_dev()
+            traffic = compute_traffic_deltas(raw_traffic, _prev_traffic, now_ts)
+            # Store current readings for next cycle's delta computation
+            _prev_traffic = {
+                name: (now_ts, InterfaceStats(
+                    interface=stats.interface,
+                    rx_bytes=stats.rx_bytes,
+                    tx_bytes=stats.tx_bytes,
+                    rx_packets=stats.rx_packets,
+                    tx_packets=stats.tx_packets,
+                    rx_errors=stats.rx_errors,
+                    tx_errors=stats.tx_errors,
+                    rx_drops=stats.rx_drops,
+                    tx_drops=stats.tx_drops,
+                ))
+                for name, stats in traffic.items()
+            }
+
             # 4. Run alert analysis on listening sockets
             alerts = alert_engine.analyze(listening)
 
@@ -239,6 +289,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 listening=listening,
                 established=established,
                 alerts=alerts,
+                traffic=traffic,
                 summary={
                     "total_listening": len(listening),
                     "total_established": len(established),

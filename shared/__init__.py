@@ -20,6 +20,7 @@ from shared.constants import (  # explicit re-exports for type-checkers
     PROC_TCP6,
     PROC_UDP,
     PROC_UDP6,
+    PROC_NET_DEV,
     SOCKET_PATH,
     TCP_STATES,
     ALERT_POLL_INTERVAL,

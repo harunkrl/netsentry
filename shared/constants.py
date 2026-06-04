@@ -23,6 +23,7 @@ PROC_TCP6: str = "/proc/net/tcp6"
 PROC_UDP: str = "/proc/net/udp"
 PROC_UDP6: str = "/proc/net/udp6"
 PROC_PATHS: list[str] = [PROC_TCP, PROC_TCP6, PROC_UDP, PROC_UDP6]
+PROC_NET_DEV: str = "/proc/net/dev"
 
 # ── Polling intervals (seconds) ───────────────────────────────
 DEFAULT_POLL_INTERVAL: float = 2.0

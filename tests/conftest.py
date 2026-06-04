@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.models import Alert, AlertLevel, Snapshot, SocketEntry
+from backend.models import Alert, AlertLevel, InterfaceStats, Snapshot, SocketEntry
 
 
 # ── File paths ─────────────────────────────────────────────────
@@ -116,4 +116,40 @@ def proc_tcp_content() -> str:
         "   0: 0100007F:0050 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 12345 1 0000000000000000 100 0 0 10 0\n"
         "   1: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 67890 1 0000000000000000 100 0 0 10 0\n"
         "   2: 0100007F:0035 0100007F:0035 01 00000000:00000000 00:00000000 00000000  1000        0 0 1 0000000000000000 100 0 0 10 0\n"
+    )
+
+
+# ── /proc/net/dev content strings ──────────────────────────────
+
+@pytest.fixture
+def proc_net_dev_content() -> str:
+    """Return a realistic /proc/net/dev content string (2 header + 3 data lines).
+
+    Interfaces: lo (loopback), wlan0, eth0.
+    Parser should skip lo and return wlan0 + eth0.
+    """
+    return (
+        "Inter-|   Receive                                                |  Transmit\n"
+        " face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n"
+        "    lo:   97937    1151    0    0    0     0          0         0    97937    1151    0    0    0     0       0          0\n"
+        "  wlan0: 1493759338 1197161    0    0    0     0          0         0 201984858  354400    0   39    0     0       0          0\n"
+        "  eth0: 500000000 800000    1    2    0     0          0         0 300000000  600000    3    4    0     0       0          0\n"
+    )
+
+
+@pytest.fixture
+def sample_interface_stats() -> InterfaceStats:
+    """Return an InterfaceStats with wlan0 values."""
+    return InterfaceStats(
+        interface="wlan0",
+        rx_bytes=1493759338,
+        tx_bytes=201984858,
+        rx_packets=1197161,
+        tx_packets=354400,
+        rx_errors=0,
+        tx_errors=0,
+        rx_drops=0,
+        tx_drops=39,
+        rx_rate=1024.0,
+        tx_rate=512.0,
     )

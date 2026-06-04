@@ -9,6 +9,28 @@ from typing import Any, Dict, List, Optional
 from shared import AlertLevel
 
 
+# ── Interface traffic stats ────────────────────────────────────
+@dataclass
+class InterfaceStats:
+    """Per-interface network traffic counters from /proc/net/dev."""
+    interface: str          # "wlan0", "eth0"
+    rx_bytes: int           # cumulative received bytes
+    tx_bytes: int           # cumulative transmitted bytes
+    rx_packets: int
+    tx_packets: int
+    rx_errors: int
+    tx_errors: int
+    rx_drops: int
+    tx_drops: int
+    # Computed rates (bytes/sec, filled by daemon delta tracker)
+    rx_rate: float = 0.0
+    tx_rate: float = 0.0
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> InterfaceStats:
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
 # ── Socket entry ───────────────────────────────────────────────
 @dataclass
 class SocketEntry:
@@ -63,6 +85,7 @@ class Snapshot:
         "total_established": 0,
         "alert_count": 0,
     })
+    traffic: Dict[str, InterfaceStats] = field(default_factory=dict)
 
     # ── Serialisation ──────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:
@@ -73,6 +96,7 @@ class Snapshot:
             "established": [asdict(e) for e in self.established],
             "alerts": [asdict(a) for a in self.alerts],
             "summary": self.summary,
+            "traffic": {name: asdict(stats) for name, stats in self.traffic.items()},
         }
 
     def to_json(self) -> str:
@@ -80,6 +104,13 @@ class Snapshot:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Snapshot:
+        traffic_raw = d.get("traffic", {})
+        traffic: Dict[str, InterfaceStats] = {}
+        if isinstance(traffic_raw, dict):
+            for name, stats in traffic_raw.items():
+                if isinstance(stats, dict):
+                    traffic[name] = InterfaceStats.from_dict(stats)
+
         return cls(
             timestamp=d.get("timestamp", time.time()),
             poll_interval_ms=d.get("poll_interval_ms", 2000),
@@ -87,6 +118,7 @@ class Snapshot:
             established=[SocketEntry.from_dict(e) for e in d.get("established", [])],
             alerts=[Alert.from_dict(a) for a in d.get("alerts", [])],
             summary=d.get("summary", {}),
+            traffic=traffic,
         )
 
     @classmethod

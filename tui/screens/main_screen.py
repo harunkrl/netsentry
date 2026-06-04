@@ -19,6 +19,7 @@ from textual.widgets import Header, Footer, Input
 from tui.data.provider import DataProvider
 from tui.widgets.port_table import PortTable
 from tui.widgets.connection_log import ConnectionLog
+from tui.widgets.traffic_bar import TrafficBar
 from tui.widgets.status_bar import StatusBar
 from tui.screens.kill_confirm import KillConfirmScreen
 
@@ -58,6 +59,11 @@ class MainScreen(Screen):
     #search-input {
         width: 100%;
     }
+    #traffic-bar {
+        height: auto;
+        padding: 0 1;
+        background: $surface;
+    }
     """
 
     def __init__(self, **kwargs) -> None:
@@ -78,6 +84,7 @@ class MainScreen(Screen):
             with Horizontal(id="main-panes"):
                 yield PortTable(id="port-table")
                 yield ConnectionLog(id="connection-log")
+            yield TrafficBar(id="traffic-bar")
         yield StatusBar(id="status-bar")
         yield Footer()
 
@@ -147,6 +154,13 @@ class MainScreen(Screen):
             status_bar.update_display(summary, alerts)
         except Exception:
             log.debug("Widget update failed: status_bar", exc_info=True)
+
+        try:
+            traffic_bar = self.query_one("#traffic-bar", TrafficBar)
+            traffic = getattr(snapshot, "traffic", {}) or {}
+            traffic_bar.update_data(traffic)
+        except Exception:
+            log.debug("Widget update failed: traffic_bar", exc_info=True)
 
     # ── Actions ───────────────────────────────────────────────
     def action_quit(self) -> None:

@@ -11,6 +11,7 @@ HELP_MD = """
 - `q` : Quit the application
 - `k` : Kill the currently selected process (opens confirmation dialog)
 - `r` : Force an immediate data refresh
+- `t` : Open process tree view (hierarchical view of all running processes)
 - `/` : Open search/filter bar (filters both port table and connection log)
 - `f` : Toggle the search/filter bar visibility
 - `Esc` : Clear filter and hide search bar / Close this help screen / Close detail screen

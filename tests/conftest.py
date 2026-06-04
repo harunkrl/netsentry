@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.models import Alert, AlertLevel, InterfaceStats, Snapshot, SocketEntry
+from backend.models import Alert, AlertLevel, InterfaceStats, ProcessInfo, Snapshot, SocketEntry
 
 
 # ── File paths ─────────────────────────────────────────────────
@@ -153,3 +153,41 @@ def sample_interface_stats() -> InterfaceStats:
         rx_rate=1024.0,
         tx_rate=512.0,
     )
+
+
+# ── Process tree fixtures ─────────────────────────────────────
+
+@pytest.fixture
+def sample_inode_map() -> dict:
+    """Return a sample inode→(pid, name, cmdline) mapping.
+
+    PIDs 1 and 3034 own sockets (have network activity).
+    """
+    return {
+        12345: (1, "systemd", "/sbin/init"),
+        67890: (3034, "firefox", "/usr/lib/firefox/firefox"),
+    }
+
+
+@pytest.fixture
+def sample_process_tree():
+    """Return a sample process tree dict {pid: ProcessInfo}.
+
+    Tree structure:
+        1 (systemd) → 828 (firewalld), 2420 (sddm) → 3034 (firefox)
+        2 (kthreadd) → 100 (kworker)
+    """
+    return {
+        1: ProcessInfo(pid=1, ppid=0, name="systemd", cmdline="/sbin/init", state="S", uid=0,
+                       has_network=True, children=[828, 2420]),
+        2: ProcessInfo(pid=2, ppid=0, name="kthreadd", cmdline="", state="S", uid=0,
+                       has_network=False, children=[100]),
+        100: ProcessInfo(pid=100, ppid=2, name="kworker/0:1", cmdline="", state="S", uid=0,
+                         has_network=False, children=[]),
+        828: ProcessInfo(pid=828, ppid=1, name="firewalld", cmdline="/usr/bin/python3 /usr/bin/firewalld", state="S", uid=0,
+                         has_network=False, children=[]),
+        2420: ProcessInfo(pid=2420, ppid=1, name="sddm", cmdline="/usr/bin/sddm", state="S", uid=0,
+                          has_network=False, children=[3034]),
+        3034: ProcessInfo(pid=3034, ppid=2420, name="firefox", cmdline="/usr/lib/firefox/firefox", state="S", uid=1000,
+                          has_network=True, children=[]),
+    }

@@ -82,5 +82,5 @@ class StatusBar(Static):
             f"{listening} listening  |  "
             f"{established} established  |  "
             f"{alert_count} alerts  |  "
-            f"[dim][q]uit [k]ill [r]efresh[/]"
+            f"[dim][q]uit [k]ill [r]efresh [t]ree[/]"
         )

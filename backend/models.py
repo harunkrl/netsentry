@@ -9,6 +9,24 @@ from typing import Any, Dict, List, Optional
 from shared import AlertLevel
 
 
+# ── Process info (for tree view) ───────────────────────────────
+@dataclass
+class ProcessInfo:
+    """Single process entry from /proc/[pid]/stat."""
+    pid: int
+    ppid: int
+    name: str              # from /proc/[pid]/comm
+    cmdline: str           # from /proc/[pid]/cmdline
+    state: str             # single char: S, R, Z, T, etc.
+    uid: int               # from /proc/[pid]/status
+    has_network: bool = False  # True if process owns sockets
+    children: List[int] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ProcessInfo:
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
 # ── Interface traffic stats ────────────────────────────────────
 @dataclass
 class InterfaceStats:
@@ -86,6 +104,7 @@ class Snapshot:
         "alert_count": 0,
     })
     traffic: Dict[str, InterfaceStats] = field(default_factory=dict)
+    processes: Dict[str, dict] = field(default_factory=dict)  # flat {pid_str: ProcessInfo_dict}
 
     # ── Serialisation ──────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:
@@ -97,6 +116,7 @@ class Snapshot:
             "alerts": [asdict(a) for a in self.alerts],
             "summary": self.summary,
             "traffic": {name: asdict(stats) for name, stats in self.traffic.items()},
+            "processes": self.processes,
         }
 
     def to_json(self) -> str:
@@ -119,6 +139,7 @@ class Snapshot:
             alerts=[Alert.from_dict(a) for a in d.get("alerts", [])],
             summary=d.get("summary", {}),
             traffic=traffic,
+            processes=d.get("processes", {}) if isinstance(d.get("processes"), dict) else {},
         )
 
     @classmethod

@@ -34,6 +34,7 @@ from backend.models import InterfaceStats, Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
 from backend.parsers.net_dev import parse_proc_net_dev
 from backend.parsers.inode_map import build_inode_to_pid_map
+from backend.parsers.process_tree import build_process_tree
 from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
 from backend.parsers.rdns import get_hostname
@@ -231,7 +232,17 @@ def daemon_loop(args: argparse.Namespace) -> None:
             logger.debug("Parsed %d socket entries", len(entries))
 
             # 2. Resolve PIDs
-            merge_inode_map(entries)
+            inode_map = build_inode_to_pid_map()
+            for entry in entries:
+                info = inode_map.get(entry.inode)
+                if info:
+                    pid, proc_name, cmdline = info
+                    entry.pid = pid
+                    entry.process_name = proc_name
+                    entry.cmdline = cmdline
+
+            # 2.5 Build process tree (reuses inode_map for has_network flag)
+            process_tree = build_process_tree(inode_map)
 
             # 3. Classify listening vs established
             listening, established = classify_entries(entries)
@@ -290,6 +301,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 established=established,
                 alerts=alerts,
                 traffic=traffic,
+                processes={str(pid): asdict(info) for pid, info in process_tree.items()},
                 summary={
                     "total_listening": len(listening),
                     "total_established": len(established),

@@ -36,6 +36,7 @@ class MainScreen(Screen):
         Binding("q", "quit", "Quit", show=True),
         Binding("k", "kill", "Kill", show=True),
         Binding("r", "refresh", "Refresh", show=True),
+        Binding("t", "tree", "Procs", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
         Binding("e", "export", "Export", show=True),
@@ -207,6 +208,11 @@ class MainScreen(Screen):
         """Show the help screen."""
         from tui.screens.help_screen import HelpScreen
         self.app.push_screen(HelpScreen())
+
+    def action_tree(self) -> None:
+        """Open the process tree view."""
+        from tui.screens.process_tree_screen import ProcessTreeScreen
+        self.app.push_screen(ProcessTreeScreen())
 
     def on_data_table_row_selected(self, event) -> None:
         """Show detail screen when a row is selected (Enter)."""

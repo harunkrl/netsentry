@@ -29,4 +29,6 @@ from shared.constants import (  # explicit re-exports for type-checkers
     IDLE_POLL_INTERVAL,
     IDLE_THRESHOLD_SECS,
     UPDATE_STATE_FILE,
+    GEOIP_CACHE_DIR,
+    GEOIP_CACHE_FILE,
 )

@@ -10,6 +10,7 @@
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python)
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+![Tests](https://img.shields.io/badge/Tests-343%20passed-success)
 
 </div>
 
@@ -22,30 +23,43 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 | Component | Purpose |
 |-----------|---------|
 | **Plasma 6 Widget** | Real-time passive alerting in your panel — shield icon + port count badge |
-| **Terminal Analyzer (TUI)** | Deep inspection with split-pane layout, keyboard-driven navigation, and process kill support |
-| **Backend Daemon** | Lightweight `/proc/net` parser with alert engine and baseline learning |
+| **Terminal Analyzer (TUI)** | Deep inspection with split-pane layout, connection map, process tree, and keyboard-driven navigation |
+| **Backend Daemon** | Lightweight `/proc` parser with alert engine, GeoIP lookup, traffic stats, and baseline learning |
 
 ```text
-  ┌─────────────────────────────────────────────┐
-  │               KERNEL (/proc)                │
-  │   /proc/net/tcp  /proc/net/udp  /proc/*/fd  │
-  └────────────────────┬────────────────────────┘
-                       │
-          ┌────────────▼────────────┐
-          │     BACKEND DAEMON      │
-          │  • Parse /proc/net/*    │
-          │  • GeoIP / rDNS Lookup  │
-          │  • Desktop Notifications│
-          └─────┬────────────┬──────┘
-                │(Unix Sock) │(JSON)
-    ┌───────────▼──┐   ┌────▼─────────────┐
-    │   PLASMOID   │   │   TUI (Textual)  │
-    │  🔒 Widget   │   │  ┌──────┬──────┐ │
-    │  Real-time   │   │  │Ports │Stream│ │
-    │  Kill Action │   │  ├──────┴──────┤ │
-    └──────────────┘   │  │ Status Bar   │ │
-                       │  └─────────────┘ │
-                       └──────────────────┘
+  ┌──────────────────────────────────────────────────┐
+  │                   KERNEL (/proc)                  │
+  │  /proc/net/tcp  /proc/net/udp  /proc/*/fd        │
+  │  /proc/net/dev  /proc/[pid]/stat                  │
+  └────────────────────────┬─────────────────────────┘
+                           │
+            ┌──────────────▼──────────────┐
+            │       BACKEND DAEMON        │
+            │  • Parse /proc/net/*        │
+            │  • Inode → PID mapping      │
+            │  • GeoIP + rDNS lookup      │
+            │  • Alert engine + baseline  │
+            │  • Traffic stats + deltas    │
+            │  • Process tree builder     │
+            │  • Desktop notifications    │
+            │  • Auto-update checker      │
+            └──────┬──────────────┬───────┘
+                   │(Unix Socket) │(JSON)
+     ┌─────────────▼──┐    ┌─────▼──────────────┐
+     │   PLASMOID     │    │   TUI (Textual)     │
+     │  🔒 Widget     │    │  ┌────────────────┐ │
+     │  Real-time     │    │  │  Port Table    │ │
+     │  Kill Action   │    │  ├────────────────┤ │
+     │  Alert Badge   │    │  │  Connection Log│ │
+     └────────────────┘    │  ├────────────────┤ │
+                           │  │  Traffic Bar   │ │
+                           │  ├────────────────┤ │
+                           │  │  Status Bar    │ │
+                           │  └────────────────┘ │
+                           │  [m] Connection Map │
+                           │  [t] Process Tree   │
+                           │  [?] Help           │
+                           └─────────────────────┘
 ```
 
 ---
@@ -62,11 +76,16 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 - ⚙️ Configurable polling interval, alert threshold, and safe ports whitelist
 
 ### TUI (Terminal Analyzer)
-- ⌨️ Keyboard-driven navigation (`q`uit, `k`ill, `r`efresh)
-- 📊 Split-pane layout — port table (left) + connection stream (right)
+- ⌨️ Keyboard-driven navigation (`q`uit, `k`ill, `r`efresh, `t`ree, `m`ap)
+- 📊 Stacked layout — port table (top) + connection stream (bottom) + traffic bar, full-width data display
 - 🎨 Color-coded entries — green (safe), yellow (info), red (critical alert)
 - 🌍 Reverse DNS (rDNS) resolution for remote IPs
+- 🗺️ **Connection Map** — ASCII world map showing outbound connections by country + sortable detail table
+- 🌳 **Process Tree** — hierarchical view of all running processes, network-active processes highlighted
 - 💀 Kill process with confirmation dialog — SIGTERM (graceful) or SIGKILL (force)
+- 📋 Copy any row to clipboard from port table, connection log, or map table
+- 🔔 Persistent notification toggle — `n` key to mute/unmute TUI toasts, saved across sessions
+- 📤 Export current snapshot to JSON
 - 🔄 Auto-refresh every 2 seconds
 
 ### Backend Daemon
@@ -74,12 +93,21 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 - 🔗 Maps socket inodes to PIDs via `/proc/[pid]/fd/` scanning
 - 🧠 Baseline learning — learns your normal ports during first 5 minutes
 - 🔔 **Native Desktop Notifications** for Warning and Critical alerts via `notify-send`
-- 🌍 **Asynchronous rDNS/Hostname resolution** with built-in caching
+- 🌍 **Asynchronous rDNS + GeoIP resolution** with built-in caching
+- 🗺️ **GeoIP lookup** via ip-api.com with persistent offline cache (`~/.local/share/netsentry/geoip-cache.json`)
+- 📊 **Network traffic statistics** — per-interface RX/TX rates from `/proc/net/dev`
+- 🌳 **Process tree builder** — parent-child relationships with network activity flags
 - 🚀 **Unix Domain Socket** streaming via `netsentry-client` for zero-latency UI updates
+- 📈 **History recording** — daily JSON files with summary and alert history
+- 🎯 **Port risk scoring** — 0-100 score based on malicious ports, baseline, blacklist
+- 🔄 **Auto-update** — periodic GitHub release check with optional auto-apply
+- 💓 **Daemon heartbeat** — health monitoring via heartbeat JSON file
 - 🚨 Alert rules:
   - Known malicious ports (4444, 5555, 31337, etc.) → **CRITICAL**
   - Unknown privileged ports (<1024) → **WARNING**
   - Burst detection (3+ new ports) → **WARNING**
+  - **Custom rules** — user-defined patterns (port, process name, remote IP, protocol)
+  - **Whitelist/Blacklist** — per-port and per-IP glob patterns
 - ⚡ Adaptive polling — 2s normal, 1s on alert, 10s when idle
 
 ---
@@ -88,7 +116,7 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 
 ### Prerequisites
 - KDE Plasma 6.6+ (Wayland or X11)
-- Python 3.10+
+- Python 3.10+ (3.11+ recommended for `tomllib`)
 - `textual` and `rich` Python packages (auto-installed by install script)
 
 ### Installation
@@ -98,7 +126,10 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 git clone https://github.com/harunkrl/netsentry.git
 cd netsentry
 
-# Install
+# Install (editable mode with dev dependencies)
+pip install -e ".[dev]"
+
+# Or install system-wide (widget + systemd service + symlinks)
 chmod +x install.sh
 ./install.sh
 
@@ -115,19 +146,54 @@ netsentry-daemon --foreground
 
 ### Uninstallation
 
-To completely remove the daemon, widget, symlinks, and configuration from your system:
-
 ```bash
 chmod +x uninstall.sh
 ./uninstall.sh
 ```
 
-### Run TUI Directly
+### CLI Commands
 
 ```bash
-# You can run the TUI from anywhere!
+# Start the daemon (foreground, with verbose logging)
+netsentry-daemon --foreground --verbose
+
+# Launch the TUI analyzer
 netsentry
+
+# Stream live data via Unix socket
+netsentry-client
+
+# Export snapshot to JSON
+netsentry-export
+
+# Check for updates
+netsentry-update --check
+
+# Apply available update
+netsentry-update --apply
 ```
+
+---
+
+## 🎮 TUI Keyboard Shortcuts
+
+| Key | Action | Screen |
+|-----|--------|--------|
+| `q` | Quit | Global |
+| `k` | Kill selected process | Main, Process Tree |
+| `r` | Force data refresh | Main |
+| `t` | Open process tree view | Main |
+| `m` | Open connection map (GeoIP) | Main |
+| `n` | Toggle TUI notifications (persisted) | Global |
+| `/` | Search / filter | Main, Map, Tree |
+| `f` | Toggle filter bar | Main |
+| `s` | Cycle sort column | Map |
+| `e` | Export snapshot to JSON | Main |
+| `c` | Copy row to clipboard | Main, Map |
+| `Enter` | Show detail / expand node | Main, Tree |
+| `Esc` | Back / close screen | All |
+
+> **Tip:** Hold **Shift** + mouse drag to select text in the terminal (bypasses TUI mouse capture), then copy with `Ctrl+Shift+C` or middle-click.
 
 ---
 
@@ -136,16 +202,44 @@ netsentry
 ```
 NetSentry/
 ├── shared/
-│   └── constants.py              # Paths, alert levels, malicious ports
+│   ├── constants.py              # Paths, alert levels, malicious ports, version
+│   └── config.py                 # TOML config loader (AppConfig dataclass)
 ├── backend/
-│   ├── models.py                 # SocketEntry, Alert, Snapshot dataclasses
+│   ├── models.py                 # SocketEntry, Alert, Snapshot, ProcessInfo, InterfaceStats
 │   ├── parsers/
 │   │   ├── proc_net.py           # /proc/net/tcp,udp parser (IPv4+IPv6)
-│   │   └── inode_map.py          # Socket inode → PID mapping
-│   ├── alert_engine.py           # Baseline learning + alert rules
+│   │   ├── inode_map.py          # Socket inode → PID mapping
+│   │   ├── rdns.py               # Async rDNS lookup with LRU cache
+│   │   ├── geoip.py              # GeoIP lookup (ip-api.com + persistent cache)
+│   │   ├── net_dev.py            # /proc/net/dev traffic statistics
+│   │   └── process_tree.py       # /proc/[pid]/stat process tree builder
+│   ├── alert_engine.py           # Baseline learning + alert rules + custom rules
+│   ├── risk_score.py             # Port risk scoring (0-100)
+│   ├── history.py                # Daily history recording + export
+│   ├── export.py                 # CLI export entry point
+│   ├── update.py                 # GitHub release checker + auto-update
 │   ├── writers/
-│   │   └── json_file.py          # Atomic JSON snapshot writer
-│   └── netsentry_daemon.py       # Main daemon loop
+│   │   ├── json_file.py          # Atomic JSON snapshot writer
+│   │   └── unix_socket.py        # Unix domain socket streaming server
+│   ├── netsentry_daemon.py       # Main daemon loop
+│   └── netsentry_client.py       # Unix socket streaming client
+├── tui/
+│   ├── netsentry_tui.py          # Textual App entry point
+│   ├── screens/
+│   │   ├── main_screen.py        # Split-pane main layout
+│   │   ├── connection_map_screen.py  # GeoIP world map + country table
+│   │   ├── process_tree_screen.py    # Hierarchical process tree
+│   │   ├── detail_screen.py      # Connection detail modal
+│   │   ├── kill_confirm.py       # SIGTERM/SIGKILL modal
+│   │   └── help_screen.py        # Keyboard shortcuts help
+│   ├── widgets/
+│   │   ├── port_table.py         # DataTable of listening ports
+│   │   ├── connection_log.py     # RichLog of active connections
+│   │   ├── traffic_bar.py        # Per-interface RX/TX rate display
+│   │   └── status_bar.py         # Bottom status bar
+│   ├── data/
+│   │   └── provider.py           # JSON reader + process killer
+│   └── styles.tcss               # Premium dark security theme
 ├── widget/
 │   ├── metadata.json             # Plasma 6 plugin metadata
 │   └── contents/
@@ -160,21 +254,27 @@ NetSentry/
 │       │   └── main.xml          # KConfigXT schema
 │       └── scripts/
 │           └── launch-tui.sh     # Konsole launch wrapper
-├── tui/
-│   ├── netsentry_tui.py          # Textual App entry point
-│   ├── screens/
-│   │   ├── main_screen.py        # Split-pane main layout
-│   │   └── kill_confirm.py       # SIGTERM/SIGKILL modal
-│   ├── widgets/
-│   │   ├── port_table.py         # DataTable of listening ports
-│   │   ├── connection_log.py     # RichLog of active connections
-│   │   └── status_bar.py         # Bottom status bar
-│   ├── data/
-│   │   └── provider.py           # JSON reader + process killer
-│   └── styles.tcss               # Dark security theme
 ├── polkit/
 │   └── com.netsentry.helper.policy
+├── tests/
+│   ├── conftest.py               # Shared fixtures (SocketEntry, Snapshot, etc.)
+│   ├── test_geoip.py             # GeoIP module tests (45 tests)
+│   ├── test_proc_net.py          # /proc/net parser tests
+│   ├── test_alert_engine.py      # Alert engine + custom rules tests
+│   ├── test_config.py            # TOML config loader tests
+│   ├── test_models.py            # Data model + serialization tests
+│   ├── test_daemon.py            # Daemon classify + heartbeat tests
+│   ├── test_process_tree.py      # Process tree builder tests
+│   ├── test_net_dev.py           # Traffic statistics tests
+│   ├── test_rdns.py              # rDNS cache + lookup tests
+│   ├── test_risk_score.py        # Port risk scoring tests
+│   ├── test_history.py           # History recording tests
+│   ├── test_update.py            # Auto-update mechanism tests
+│   ├── test_unix_socket.py       # Unix socket server tests
+│   ├── test_provider.py          # TUI data provider tests
+│   └── test_json_file.py         # Atomic JSON writer tests
 ├── install.sh
+├── uninstall.sh
 └── README.md
 ```
 
@@ -182,7 +282,54 @@ NetSentry/
 
 ## ⚙️ Configuration
 
-Widget settings accessible via **right-click → Configure**:
+### TOML Config File
+
+All backend settings are configurable via `~/.config/netsentry/config.toml`.
+Generate an example config:
+
+```bash
+python -c "from shared.config import generate_example_config; generate_example_config('/tmp/netsentry-example.toml')"
+cat /tmp/netsentry-example.toml
+```
+
+#### Key Sections
+
+| Section | Key Settings |
+|---------|-------------|
+| `[polling]` | `interval`, `alert_interval`, `idle_interval`, `idle_threshold_secs` |
+| `[alerts]` | `baseline_duration`, `burst_threshold`, `malicious_ports`, `known_safe_ports` |
+| `[dns]` | `cache_size`, `max_pending` |
+| `[geoip]` | `enabled`, `api_url`, `cache_file`, `cache_max_entries`, `cache_ttl_days`, `batch_size`, `timeout` |
+| `[notifications]` | `enabled`, `min_level`, `alert_ttl`, `rate_limit`, `rate_window` |
+| `[update]` | `enabled`, `check_interval`, `auto_apply` |
+| `[tui]` | `notifications_enabled` — persist TUI notification toggle |
+| `[whitelist]` | `ports` — never alert on these |
+| `[blacklist]` | `ports`, `ips` — always CRITICAL |
+| `[[custom_rules]]` | `match`, `level`, `message` — user-defined alert rules |
+
+#### Example: Custom Alert Rule
+
+```toml
+[[custom_rules]]
+match = { process_name = "ncat*" }
+level = "CRITICAL"
+message = "Ncat detected — possible reverse shell"
+```
+
+#### Example: GeoIP Configuration
+
+```toml
+[geoip]
+enabled = true
+cache_max_entries = 4096
+cache_ttl_days = 7
+batch_size = 10
+timeout = 5.0
+```
+
+### Widget Settings
+
+Accessible via **right-click → Configure**:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -195,25 +342,14 @@ Widget settings accessible via **right-click → Configure**:
 ### Auto-Start with systemd
 
 ```bash
-# Create user service
-cat > ~/.config/systemd/user/netsentry.service << 'EOF'
-[Unit]
-Description=NetSentry Network Monitor Daemon
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/home/YOUR_USER/NetSentry/.venv/bin/python3 /home/YOUR_USER/NetSentry/backend/netsentry_daemon.py --foreground
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-
-# Enable and start
 systemctl --user daemon-reload
 systemctl --user enable --now netsentry
+
+# Check status
+systemctl --user status netsentry
+
+# View logs
+journalctl --user -u netsentry -f
 ```
 
 ---
@@ -227,8 +363,9 @@ systemctl --user enable --now netsentry
 | **System processes** | Shown as "unknown (system)" — root-owned `/proc/*/fd/` requires privilege escalation |
 | **Optional helper** | Polkit policy included for full PID visibility |
 | **Kill operations** | Only works for same-user processes by default |
-| **Data exposure** | JSON written to `/tmp/` — contains port/PID info only (no secrets) |
+| **Data exposure** | JSON written to `$XDG_RUNTIME_DIR/` — contains port/PID info only (no secrets) |
 | **Command injection** | Widget uses hardcoded paths — no user input in shell commands |
+| **GeoIP privacy** | Only public remote IPs are looked up; results cached locally; no tracking |
 
 ### Privilege Escalation (Optional)
 
@@ -257,6 +394,9 @@ sudo cp polkit/com.netsentry.helper.policy /usr/share/polkit-1/actions/
 | Textual for TUI | Modern Python TUI framework, Wayland-native, rich styling |
 | `Plasma5Support.DataSource` for widget | Standard Plasma 6 pattern for polling external data |
 | Adaptive polling intervals | Minimizes CPU when idle, maximizes responsiveness on alerts |
+| Stdlib-only daemon | No external dependencies for the core daemon process |
+| TOML config file | Human-readable, type-safe, standard Python (tomllib) |
+| GeoIP with persistent cache | Offline capability, respects API rate limits (45 req/min) |
 
 ---
 
@@ -265,8 +405,9 @@ sudo cp polkit/com.netsentry.helper.policy /usr/share/polkit-1/actions/
 - Non-root users can only resolve PIDs for their own processes
 - UDP "connections" are stateless — shown as UNCONN in the table
 - `TIME_WAIT`, `CLOSE_WAIT` etc. are grouped under "established" (active)
+- GeoIP accuracy depends on ip-api.com database — some IPs may return approximate locations
+- ASCII world map resolution is coarse (80×20) — small countries may overlap
 - The `executable` DataEngine is deprecated in future Plasma versions (6.7+)
-- Emoji in TUI status bar may not render in all terminal fonts
 
 ---
 
@@ -276,8 +417,10 @@ sudo cp polkit/com.netsentry.helper.policy /usr/share/polkit-1/actions/
 |-----------|-----------|
 | Widget | QML, Kirigami, Plasma 6 Plasma5Support |
 | TUI | Python Textual, Rich |
-| Backend | Python 3.10+ (stdlib only) |
-| IPC | JSON file via atomic rename |
+| Backend | Python 3.10+ (stdlib only — no external deps) |
+| Config | TOML (Python 3.11+ tomllib) |
+| IPC | JSON file via atomic rename + Unix domain socket |
+| GeoIP | ip-api.com (free tier) + persistent JSON cache |
 | Desktop | KDE Plasma 6.6, Qt 6, Wayland |
 
 ---

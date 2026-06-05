@@ -241,6 +241,17 @@ class TestExampleConfig:
         assert cfg.poll_interval == 2.0
         assert cfg.notifications_enabled is True
 
+    def test_generated_config_includes_geoip(self, tmp_path: Path):
+        path = str(tmp_path / "example-config.toml")
+        generate_example_config(path)
+
+        import tomllib
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        assert "geoip" in data
+        assert data["geoip"]["enabled"] is True
+        assert data["geoip"]["cache_max_entries"] == 4096
+
 
 # ── Reload / SIGHUP simulation ────────────────────────────────────
 
@@ -373,3 +384,74 @@ heartbeat_file = "/var/run/netsentry-heartbeat.json"
         # heartbeat_file is top-level, but we set it via data_file path
         # Let's test with the effective one
         assert cfg.effective_heartbeat_file.endswith("netsentry-heartbeat.json")
+
+
+# ── GeoIP config ────────────────────────────────────────────────────
+
+class TestGeoIPConfig:
+    def test_geoip_defaults(self, tmp_path: Path):
+        cfg = load_config(str(tmp_path / "nonexistent.toml"))
+        assert cfg.geoip_enabled is True
+        assert cfg.geoip_api_url == "http://ip-api.com/json/"
+        assert cfg.geoip_cache_max_entries == 4096
+        assert cfg.geoip_cache_ttl_days == 7
+        assert cfg.geoip_batch_size == 10
+        assert cfg.geoip_timeout == 5.0
+
+    def test_geoip_toml_override(self, config_file: Path):
+        config_file.write_text("""
+[geoip]
+enabled = false
+cache_max_entries = 1000
+cache_ttl_days = 14
+batch_size = 5
+timeout = 10.0
+""")
+        cfg = load_config(str(config_file))
+        assert cfg.geoip_enabled is False
+        assert cfg.geoip_cache_max_entries == 1000
+        assert cfg.geoip_cache_ttl_days == 14
+        assert cfg.geoip_batch_size == 5
+        assert cfg.geoip_timeout == 10.0
+
+    def test_geoip_custom_api_url(self, config_file: Path):
+        config_file.write_text("""
+[geoip]
+api_url = "http://custom-geo.example.com/lookup/"
+""")
+        cfg = load_config(str(config_file))
+        assert cfg.geoip_api_url == "http://custom-geo.example.com/lookup/"
+
+    def test_geoip_invalid_values_ignored(self, config_file: Path):
+        config_file.write_text("""
+[geoip]
+cache_max_entries = -1
+cache_ttl_days = 0
+batch_size = -5
+timeout = -1.0
+""")
+        cfg = load_config(str(config_file))
+        # All negative/zero values should be ignored → defaults
+        assert cfg.geoip_cache_max_entries == 4096
+        assert cfg.geoip_cache_ttl_days == 7
+        assert cfg.geoip_batch_size == 10
+        assert cfg.geoip_timeout == 5.0
+
+    def test_geoip_custom_cache_file(self, config_file: Path):
+        config_file.write_text("""
+[geoip]
+cache_file = "/tmp/test-geoip.json"
+""")
+        cfg = load_config(str(config_file))
+        assert cfg.geoip_cache_file == "/tmp/test-geoip.json"
+
+    def test_geoip_partial_override(self, config_file: Path):
+        config_file.write_text("""
+[geoip]
+enabled = false
+""")
+        cfg = load_config(str(config_file))
+        assert cfg.geoip_enabled is False
+        # Others stay default
+        assert cfg.geoip_cache_max_entries == 4096
+        assert cfg.geoip_timeout == 5.0

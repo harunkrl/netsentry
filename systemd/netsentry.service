@@ -22,8 +22,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/NetSentry/.venv/bin/python -m backend.netsentry_daemon --foreground
-WorkingDirectory=%h/NetSentry
+ExecStart=%h/Projects/NetSentry/.venv/bin/python -m backend.netsentry_daemon --foreground
+WorkingDirectory=%h/Projects/NetSentry
 Restart=on-failure
 RestartSec=5
 
@@ -34,7 +34,7 @@ StandardError=journal
 # Security hardening
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/.config/netsentry %t
+ReadWritePaths=%h/.config/netsentry %h/.local/share/netsentry %t
 PrivateTmp=true
 NoNewPrivileges=true
 

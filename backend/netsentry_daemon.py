@@ -38,6 +38,7 @@ from backend.parsers.process_tree import build_process_tree
 from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
 from backend.parsers.rdns import get_hostname
+from backend.parsers import geoip as geoip_mod
 from backend.writers.unix_socket import UnixSocketServer
 from backend.history import HistoryRecorder
 from backend.risk_score import calculate_risk_score
@@ -166,6 +167,17 @@ def daemon_loop(args: argparse.Namespace) -> None:
     rdns._MAX_CACHE_SIZE = cfg.dns_cache_size
     rdns._MAX_PENDING = cfg.dns_max_pending
 
+    # Initialise GeoIP module
+    if cfg.geoip_enabled:
+        geoip_mod.init({
+            "geoip_api_url": cfg.geoip_api_url,
+            "geoip_cache_file": cfg.geoip_cache_file,
+            "geoip_cache_max_entries": cfg.geoip_cache_max_entries,
+            "geoip_cache_ttl_days": cfg.geoip_cache_ttl_days,
+            "geoip_batch_size": cfg.geoip_batch_size,
+            "geoip_timeout": cfg.geoip_timeout,
+        })
+
     alert_engine = AlertEngine(
         known_safe_ports=cfg.known_safe_ports,
         baseline_duration=cfg.baseline_duration,
@@ -255,6 +267,24 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 if e.remote_ip and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::")):
                     e.remote_hostname = get_hostname(e.remote_ip)
 
+            # 3.5b GeoIP lookup for remote IPs
+            if cfg.geoip_enabled:
+                unique_ips = set()
+                for e in established:
+                    if (e.remote_ip
+                            and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::"))):
+                        unique_ips.add(e.remote_ip)
+                if unique_ips:
+                    geo_results = geoip_mod.lookup_batch(list(unique_ips))
+                    for e in established:
+                        geo = geo_results.get(e.remote_ip)
+                        if geo:
+                            e.remote_country = geo.get("country")
+                            e.remote_country_code = geo.get("countryCode")
+                            e.remote_city = geo.get("city")
+                            e.remote_lat = geo.get("lat")
+                            e.remote_lon = geo.get("lon")
+
             # 3.6 Parse /proc/net/dev for traffic statistics
             now_ts = time.time()
             raw_traffic = parse_proc_net_dev()
@@ -296,6 +326,17 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 )
                 for e in listening
             }
+
+            # 6b. Compute geo_stats from established connections
+            country_ips: Dict[str, set] = {}
+            for e in established:
+                cc = e.remote_country_code
+                if cc and e.remote_ip:
+                    country_ips.setdefault(cc, set()).add(e.remote_ip)
+            top_countries = sorted(
+                country_ips.items(), key=lambda x: len(x[1]), reverse=True
+            )[:10]
+
             snapshot = Snapshot(
                 timestamp=time.time(),
                 poll_interval_ms=int(interval * 1000),
@@ -309,6 +350,11 @@ def daemon_loop(args: argparse.Namespace) -> None:
                     "total_established": len(established),
                     "alert_count": len(alerts),
                     "risk_scores": {str(k): v for k, v in risk_scores.items()},
+                },
+                geo_stats={
+                    "countries_count": len(country_ips),
+                    "unique_ips_per_country": {cc: len(ips) for cc, ips in country_ips.items()},
+                    "top_countries": [(cc, len(ips)) for cc, ips in top_countries],
                 },
             )
 
@@ -425,6 +471,9 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     # Save baseline on clean exit
     alert_engine.save_baseline(cfg.baseline_file)
+    # Flush GeoIP cache to disk
+    if cfg.geoip_enabled:
+        geoip_mod.flush_cache()
     if socket_server:
         socket_server.stop()
 

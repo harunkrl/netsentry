@@ -89,6 +89,48 @@ class TestSocketEntry:
         assert entry.process_name is None
         assert entry.cmdline is None
 
+    def test_geo_fields_default_to_none(self):
+        """GeoIP fields default to None when not provided."""
+        entry = SocketEntry(
+            proto="tcp", local_ip="0.0.0.0", local_port=80,
+            remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
+            state_code="0A", uid=0, inode=12345,
+        )
+        assert entry.remote_country is None
+        assert entry.remote_country_code is None
+        assert entry.remote_city is None
+        assert entry.remote_lat is None
+        assert entry.remote_lon is None
+
+    def test_geo_fields_from_dict(self):
+        """GeoIP fields are correctly deserialized from dict."""
+        d = {
+            "proto": "tcp", "local_ip": "192.168.1.10", "local_port": 54321,
+            "remote_ip": "8.8.8.8", "remote_port": 443, "state": "ESTABLISHED",
+            "state_code": "01", "uid": 1000, "inode": 99999,
+            "remote_country": "United States",
+            "remote_country_code": "US",
+            "remote_city": "Mountain View",
+            "remote_lat": 37.386,
+            "remote_lon": -122.084,
+        }
+        entry = SocketEntry.from_dict(d)
+        assert entry.remote_country == "United States"
+        assert entry.remote_country_code == "US"
+        assert entry.remote_city == "Mountain View"
+        assert entry.remote_lat == 37.386
+        assert entry.remote_lon == -122.084
+
+    def test_geo_fields_in_to_dict(self, sample_geo_entry):
+        """GeoIP fields are included in asdict() serialization."""
+        from dataclasses import asdict
+        d = asdict(sample_geo_entry)
+        assert d["remote_country"] == "United States"
+        assert d["remote_country_code"] == "US"
+        assert d["remote_city"] == "Mountain View"
+        assert d["remote_lat"] == 37.386
+        assert d["remote_lon"] == -122.084
+
 
 # ── Alert ──────────────────────────────────────────────────────
 
@@ -178,6 +220,7 @@ class TestSnapshot:
         assert len(d["alerts"]) == 1
         assert d["alerts"][0]["port"] == 500
         assert d["summary"]["total_listening"] == 2
+        assert "geo_stats" in d
 
     def test_from_dict_roundtrip(self, sample_snapshot):
         """Snapshot → to_dict → from_dict produces an equivalent Snapshot."""
@@ -264,3 +307,44 @@ class TestSnapshot:
         restored = Snapshot.from_dict(d)
         assert len(restored.listening) == 3
         assert [e.local_port for e in restored.listening] == [22, 80, 443]
+
+    def test_geo_stats_default(self):
+        """Default Snapshot has empty geo_stats."""
+        snap = Snapshot()
+        assert snap.geo_stats["countries_count"] == 0
+        assert snap.geo_stats["unique_ips_per_country"] == {}
+        assert snap.geo_stats["top_countries"] == []
+
+    def test_geo_stats_to_dict(self):
+        """geo_stats is included in to_dict()."""
+        snap = Snapshot(geo_stats={
+            "countries_count": 2,
+            "unique_ips_per_country": {"US": 3, "DE": 1},
+            "top_countries": [("US", 3), ("DE", 1)],
+        })
+        d = snap.to_dict()
+        assert d["geo_stats"]["countries_count"] == 2
+        assert d["geo_stats"]["unique_ips_per_country"]["US"] == 3
+
+    def test_geo_stats_from_dict_roundtrip(self):
+        """geo_stats survives to_dict → from_dict roundtrip."""
+        snap = Snapshot(geo_stats={
+            "countries_count": 1,
+            "unique_ips_per_country": {"TR": 5},
+            "top_countries": [("TR", 5)],
+        })
+        d = snap.to_dict()
+        restored = Snapshot.from_dict(d)
+        assert restored.geo_stats["countries_count"] == 1
+        assert restored.geo_stats["unique_ips_per_country"]["TR"] == 5
+
+    def test_geo_stats_from_dict_missing_uses_empty(self):
+        """Missing geo_stats in dict defaults to empty dict."""
+        snap = Snapshot.from_dict({"timestamp": 1700000000.0})
+        # geo_stats gets {} from from_dict, which differs from default factory
+        assert isinstance(snap.geo_stats, dict)
+
+    def test_geo_stats_from_dict_non_dict_uses_empty(self):
+        """Non-dict geo_stats value falls back to empty dict."""
+        snap = Snapshot.from_dict({"geo_stats": "not a dict"})
+        assert isinstance(snap.geo_stats, dict)

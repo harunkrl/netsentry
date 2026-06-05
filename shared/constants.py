@@ -86,9 +86,13 @@ TCP_STATES: dict[str, str] = {
     "0C": "NEW_SYN_RECV",  # SYN cookie reply (kernel ≥ 4.4)
 }
 
+# ── GeoIP cache paths ──────────────────────────────────────────
+GEOIP_CACHE_DIR: str = os.path.expanduser("~/.local/share/netsentry")
+GEOIP_CACHE_FILE: str = os.path.join(GEOIP_CACHE_DIR, "geoip-cache.json")
+
 # ── App metadata ───────────────────────────────────────────────
 APP_NAME: str = "NetSentry"
-APP_VERSION: str = "2.0.0"
+APP_VERSION: str = "2.1.0"
 
 # ── Update paths ──────────────────────────────────────────────
 UPDATE_STATE_FILE: str = os.path.join(_RUNTIME_DIR, "netsentry-update.json")

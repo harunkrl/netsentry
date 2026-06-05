@@ -71,6 +71,11 @@ def sample_snapshot(
         pid=1234,
         process_name="firefox",
         cmdline="/usr/lib/firefox/firefox",
+        remote_country="United States",
+        remote_country_code="US",
+        remote_city="Mountain View",
+        remote_lat=37.386,
+        remote_lon=-122.084,
     )
     listening_extra = SocketEntry(
         proto="tcp",
@@ -191,3 +196,30 @@ def sample_process_tree():
         3034: ProcessInfo(pid=3034, ppid=2420, name="firefox", cmdline="/usr/lib/firefox/firefox", state="S", uid=1000,
                           has_network=True, children=[]),
     }
+
+
+# ── GeoIP fixtures ──────────────────────────────────────────────
+
+@pytest.fixture
+def sample_geo_entry() -> SocketEntry:
+    """Return a SocketEntry with populated GeoIP fields (established, non-local)."""
+    return SocketEntry(
+        proto="tcp",
+        local_ip="192.168.1.10",
+        local_port=54321,
+        remote_ip="142.250.80.14",
+        remote_port=443,
+        state="ESTABLISHED",
+        state_code="01",
+        uid=1000,
+        inode=99999,
+        pid=1234,
+        process_name="firefox",
+        cmdline="/usr/lib/firefox/firefox",
+        remote_hostname="sea30s12-in-f14.1e100.net",
+        remote_country="United States",
+        remote_country_code="US",
+        remote_city="Mountain View",
+        remote_lat=37.386,
+        remote_lon=-122.084,
+    )

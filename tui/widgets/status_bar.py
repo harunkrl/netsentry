@@ -30,6 +30,10 @@ def _check_daemon_alive() -> bool:
 class StatusBar(Static):
     """Bottom status bar with daemon health, alert summary and keyboard hints."""
 
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._notifications_enabled: bool = True
+
     def on_mount(self) -> None:
         self.update("[dim]... Waiting for data ...[/]")
 
@@ -40,6 +44,10 @@ class StatusBar(Static):
             "[dim]Start: netsentry-daemon --foreground[/]  |  "
             "[q]uit [r]efresh"
         )
+
+    def set_notification_state(self, enabled: bool) -> None:
+        """Update the notification indicator."""
+        self._notifications_enabled = enabled
 
     def update_display(
         self,
@@ -76,11 +84,14 @@ class StatusBar(Static):
                 icon = "[yellow]?[/]"
                 status = "[yellow]Warning[/]"
 
+        notif_icon = "[green]on[/]" if self._notifications_enabled else "[dim red]off[/]"
+
         self.update(
             f"{daemon_indicator} daemon  |  "
             f"{icon} {status}  |  "
             f"{listening} listening  |  "
             f"{established} established  |  "
             f"{alert_count} alerts  |  "
-            f"[dim][q]uit [k]ill [r]efresh [t]ree[/]"
+            f"notif {notif_icon}  |  "
+            f"[dim][q]uit [k]ill [r]efresh [t]ree [m]ap [n]otif[/]"
         )

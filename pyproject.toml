@@ -13,7 +13,7 @@
 
 [project]
 name = "netsentry"
-version = "2.0.0"
+version = "2.1.0"
 description = "KDE Plasma 6 network security monitor with daemon, TUI, and plasmoid widget"
 readme = "README.md"
 license = {text = "MIT"}

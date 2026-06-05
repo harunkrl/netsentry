@@ -41,6 +41,7 @@ class PortTable(DataTable):
         self._row_pids: Dict[str, Optional[int]] = {}
         self._row_entries: Dict[str, SocketEntry] = {}
         self._last_row_key: Optional[str] = None
+        self._last_scroll_x: float = 0.0
         # Filter state
         self._filter_text: str = ""
         self._all_entries: List[SocketEntry] = []
@@ -83,8 +84,8 @@ class PortTable(DataTable):
     def update_data(self, entries: List[SocketEntry], alerts: List[Alert]) -> None:
         """Store data and rebuild the table.
 
-        Preserves cursor position across refreshes so the user's
-        selection is not lost every 2 seconds.
+        Preserves cursor position and horizontal scroll across refreshes
+        so the user's selection and view are not lost every 2 seconds.
         """
         # Save cursor position before clearing
         try:
@@ -92,6 +93,9 @@ class PortTable(DataTable):
             self._last_row_key = cell_key.row_key.value
         except Exception:
             self._last_row_key = None
+
+        # Save horizontal scroll position
+        self._last_scroll_x = self.scroll_x
 
         self._all_entries = entries
         self._all_alerts = alerts
@@ -180,8 +184,16 @@ class PortTable(DataTable):
                     for row_idx in range(self.row_count):
                         ck = self.coordinate_to_cell_key((row_idx, 0))
                         if ck.row_key.value == self._last_row_key:
-                            self.move_cursor(row=row_idx, column=0)
+                            if self.has_focus:
+                                self.move_cursor(row=row_idx, column=0)
                             break
+                except Exception:
+                    pass
+
+            # Restore horizontal scroll position
+            if self._last_scroll_x:
+                try:
+                    self.scroll_x = self._last_scroll_x
                 except Exception:
                     pass
         

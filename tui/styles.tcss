@@ -24,17 +24,19 @@ Screen {
 }
 
 #port-table {
-    width: 1fr;
+    height: 3fr;
     border: round $primary;
     padding: 0 1;
     background: $panel-bg;
+    overflow-y: auto;
 }
 
 #connection-log {
-    width: 2fr;
+    height: 2fr;
     border: round $primary;
     padding: 0 1;
     background: $panel-bg;
+    overflow-y: auto;
 }
 
 #status-bar {

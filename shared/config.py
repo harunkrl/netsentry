@@ -32,6 +32,7 @@ from shared.constants import (
     BASELINE_FILE,
     DATA_FILE,
     DEFAULT_POLL_INTERVAL,
+    GEOIP_CACHE_FILE,
     IDLE_POLL_INTERVAL,
     IDLE_THRESHOLD_SECS,
     KNOWN_SAFE_PORTS,
@@ -132,6 +133,18 @@ class AppConfig:
     update_enabled: bool = True
     update_check_interval: float = 86400.0  # 24 hours
     update_auto_apply: bool = False          # just notify, don't auto-apply
+
+    # GeoIP
+    geoip_enabled: bool = True
+    geoip_api_url: str = "http://ip-api.com/json/"
+    geoip_cache_file: str = GEOIP_CACHE_FILE
+    geoip_cache_max_entries: int = 4096
+    geoip_cache_ttl_days: int = 7
+    geoip_batch_size: int = 10
+    geoip_timeout: float = 5.0
+
+    # TUI preferences
+    tui_notifications_enabled: bool = True
 
     # Source tracking
     config_path: Optional[str] = None  # None = defaults only
@@ -363,6 +376,42 @@ def load_config(path: Optional[str] = None) -> AppConfig:
             if isinstance(v, bool):
                 cfg.update_auto_apply = v
 
+        # ── GeoIP ──────────────────────────────
+        geoip = data.get("geoip", {})
+        if "enabled" in geoip:
+            v = geoip["enabled"]
+            if isinstance(v, bool):
+                cfg.geoip_enabled = v
+        if "api_url" in geoip:
+            v = geoip["api_url"]
+            if isinstance(v, str) and v:
+                cfg.geoip_api_url = v
+        if "cache_file" in geoip:
+            cfg.geoip_cache_file = str(geoip["cache_file"])
+        if "cache_max_entries" in geoip:
+            v = geoip["cache_max_entries"]
+            if isinstance(v, int) and v > 0:
+                cfg.geoip_cache_max_entries = v
+        if "cache_ttl_days" in geoip:
+            v = geoip["cache_ttl_days"]
+            if isinstance(v, int) and v > 0:
+                cfg.geoip_cache_ttl_days = v
+        if "batch_size" in geoip:
+            v = geoip["batch_size"]
+            if isinstance(v, int) and v > 0:
+                cfg.geoip_batch_size = v
+        if "timeout" in geoip:
+            v = geoip["timeout"]
+            if isinstance(v, (int, float)) and v > 0:
+                cfg.geoip_timeout = float(v)
+
+        # ── TUI preferences ─────────────────────
+        tui = data.get("tui", {})
+        if "notifications_enabled" in tui:
+            v = tui["notifications_enabled"]
+            if isinstance(v, bool):
+                cfg.tui_notifications_enabled = v
+
     _current_config = cfg
     return cfg
 
@@ -465,8 +514,68 @@ rate_window = 60.0
 # socket_path = "/run/user/1000/netsentry.sock"
 # Baseline file (learned ports)
 # baseline_file = "~/.config/netsentry/baseline.json"
+
+[geoip]
+# Enable GeoIP lookup for outbound connections
+enabled = true
+# ip-api.com endpoint (free tier: 45 req/min)
+# api_url = "http://ip-api.com/json/"
+# Persistent cache file for offline lookups
+# cache_file = "~/.local/share/netsentry/geoip-cache.json"
+# Maximum cached IP entries (LRU eviction)
+cache_max_entries = 4096
+# Days before cached entry is considered stale
+cache_ttl_days = 7
+# Max IPs to look up per daemon cycle
+batch_size = 10
+# HTTP request timeout in seconds
+timeout = 5.0
+
+[tui]
+# TUI toast notifications (the pop-up messages in the terminal)
+# Toggle at runtime with the 'n' key — saved persistently here.
+notifications_enabled = true
 """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
         fh.write(example)
     logger.info("Generated example config at %s", path)
+
+
+def save_tui_setting(key: str, value: object) -> None:
+    """Persist a single TUI setting to the config file.
+
+    Reads the existing config, updates the [tui] section, and writes back.
+    Creates the file/section if they don't exist.
+    """
+    path = CONFIG_FILE
+    raw = ""
+    if os.path.isfile(path):
+        try:
+            with open(path, "r") as fh:
+                raw = fh.read()
+        except OSError:
+            return
+
+    # Build the new [tui] section content
+    line = f"{key} = {'true' if value is True else 'false' if value is False else repr(value)}\n"
+
+    if "[tui]" in raw:
+        # Update existing key or append to section
+        import re
+        pattern = rf"(\[tui\][^\[]*?)({key}\s*=\s*\S+\n)"
+        if re.search(pattern, raw, re.DOTALL):
+            raw = re.sub(pattern, rf"\1{key} = {line.strip()}\n", raw, count=1)
+        else:
+            # Key doesn't exist yet — append after [tui] line
+            raw = raw.replace("[tui]", f"[tui]\n{line}", 1)
+    else:
+        # No [tui] section — append one
+        raw = raw.rstrip() + "\n\n[tui]\n" + line
+
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write(raw)
+    except OSError:
+        logger.debug("Failed to save TUI setting to %s", path, exc_info=True)

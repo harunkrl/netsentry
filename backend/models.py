@@ -66,6 +66,12 @@ class SocketEntry:
     process_name: Optional[str] = None
     cmdline: Optional[str] = None
     remote_hostname: Optional[str] = None
+    # GeoIP data (filled by backend.parsers.geoip)
+    remote_country: Optional[str] = None
+    remote_country_code: Optional[str] = None
+    remote_city: Optional[str] = None
+    remote_lat: Optional[float] = None
+    remote_lon: Optional[float] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SocketEntry:
@@ -105,6 +111,11 @@ class Snapshot:
     })
     traffic: Dict[str, InterfaceStats] = field(default_factory=dict)
     processes: Dict[str, dict] = field(default_factory=dict)  # flat {pid_str: ProcessInfo_dict}
+    geo_stats: Dict[str, Any] = field(default_factory=lambda: {
+        "countries_count": 0,
+        "unique_ips_per_country": {},
+        "top_countries": [],
+    })
 
     # ── Serialisation ──────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:
@@ -117,6 +128,7 @@ class Snapshot:
             "summary": self.summary,
             "traffic": {name: asdict(stats) for name, stats in self.traffic.items()},
             "processes": self.processes,
+            "geo_stats": self.geo_stats,
         }
 
     def to_json(self) -> str:
@@ -140,6 +152,7 @@ class Snapshot:
             summary=d.get("summary", {}),
             traffic=traffic,
             processes=d.get("processes", {}) if isinstance(d.get("processes"), dict) else {},
+            geo_stats=d.get("geo_stats", {}) if isinstance(d.get("geo_stats"), dict) else {},
         )
 
     @classmethod

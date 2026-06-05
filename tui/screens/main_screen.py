@@ -37,6 +37,7 @@ class MainScreen(Screen):
         Binding("k", "kill", "Kill", show=True),
         Binding("r", "refresh", "Refresh", show=True),
         Binding("t", "tree", "Procs", show=True),
+        Binding("m", "geo_map", "Map", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
         Binding("e", "export", "Export", show=True),
@@ -52,13 +53,11 @@ class MainScreen(Screen):
     #main-panes {
         height: 1fr;
     }
-    #search-bar {
-        height: auto;
-        display: none;
-        margin: 0 1;
-    }
     #search-input {
         width: 100%;
+    }
+    .is-hidden {
+        display: none;
     }
     #traffic-bar {
         height: auto;
@@ -81,8 +80,9 @@ class MainScreen(Screen):
             yield Input(
                 placeholder="Search: type to filter rows (Esc to close)...",
                 id="search-input",
+                classes="is-hidden",
             )
-            with Horizontal(id="main-panes"):
+            with Vertical(id="main-panes"):
                 yield PortTable(id="port-table")
                 yield ConnectionLog(id="connection-log")
             yield TrafficBar(id="traffic-bar")
@@ -93,6 +93,12 @@ class MainScreen(Screen):
     def on_mount(self) -> None:
         self.refresh_data()
         self._refresh_handle = self.set_interval(2.0, self.refresh_data)
+        # Focus the port table on startup — don't let Input steal focus
+        self.query_one("#port-table", PortTable).focus()
+
+    def on_screen_resume(self) -> None:
+        """Restore focus to port table when returning from a sub-screen."""
+        self.query_one("#port-table", PortTable).focus()
 
     def on_unmount(self) -> None:
         if self._refresh_handle is not None:
@@ -133,6 +139,9 @@ class MainScreen(Screen):
 
         self._consecutive_failures = 0
 
+        # Save which widget currently has focus before updating
+        focused = self.focused
+
         try:
             port_table = self.query_one("#port-table", PortTable)
             listening = getattr(snapshot, "listening", []) or []
@@ -162,6 +171,10 @@ class MainScreen(Screen):
             traffic_bar.update_data(traffic)
         except Exception:
             log.debug("Widget update failed: traffic_bar", exc_info=True)
+
+        # Restore focus if it was stolen during the update cycle
+        if focused and self.focused is not focused:
+            focused.focus()
 
     # ── Actions ───────────────────────────────────────────────
     def action_quit(self) -> None:
@@ -214,6 +227,11 @@ class MainScreen(Screen):
         from tui.screens.process_tree_screen import ProcessTreeScreen
         self.app.push_screen(ProcessTreeScreen())
 
+    def action_geo_map(self) -> None:
+        """Open the connection map view."""
+        from tui.screens.connection_map_screen import ConnectionMapScreen
+        self.app.push_screen(ConnectionMapScreen())
+
     def on_data_table_row_selected(self, event) -> None:
         """Show detail screen when a row is selected (Enter)."""
         port_table = self.query_one("#port-table", PortTable)
@@ -257,7 +275,7 @@ class MainScreen(Screen):
         self._search_visible = True
         try:
             search_input = self.query_one("#search-input", Input)
-            search_input.remove_class("hidden")
+            search_input.remove_class("is-hidden")
             search_input.focus()
         except Exception:
             pass
@@ -266,12 +284,31 @@ class MainScreen(Screen):
         self._search_visible = False
         try:
             search_input = self.query_one("#search-input", Input)
-            search_input.add_class("hidden")
+            search_input.add_class("is-hidden")
         except Exception:
             pass
 
     def action_copy_row(self) -> None:
-        """Copy the selected row's connection info to the system clipboard."""
+        """Copy the selected row's info to the system clipboard.
+
+        Context-aware: copies from PortTable or ConnectionLog depending
+        on which widget currently has focus.
+        """
+        focused = self.focused
+        try:
+            if focused is not None and focused.id == "connection-log":
+                conn_log = self.query_one("#connection-log", ConnectionLog)
+                text = conn_log.get_plain_text()
+                if text.strip():
+                    self.app.copy_to_clipboard(text)
+                    self.query_one(StatusBar).update("Copied: connection log")
+                else:
+                    self.app.notify("Nothing to copy", severity="warning")
+                return
+        except Exception:
+            pass
+
+        # Default: copy from PortTable
         table = self.query_one(PortTable)
         try:
             if table.row_count > 0:

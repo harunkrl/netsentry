@@ -10,11 +10,15 @@ Each line is a JSON object.  Two event types:
   - "summary": one per daemon cycle (port counts, alert counts)
   - "alert": one per alert fired (full alert details)
 
+Automatic cleanup:
+    Files older than ``history_retention_days`` (default 30) are pruned
+    once per day when the recorder opens a new file (midnight rotation).
+
 Usage::
 
     from backend.history import HistoryRecorder
 
-    recorder = HistoryRecorder()
+    recorder = HistoryRecorder(retention_days=30)
     recorder.record_summary(snapshot)
     recorder.record_alert(alert)
 """
@@ -30,15 +34,37 @@ from typing import Optional
 from shared.constants import BASELINE_DIR
 
 HISTORY_DIR: str = os.path.join(BASELINE_DIR, "history")
+DEFAULT_RETENTION_DAYS: int = 30
 
 
 class HistoryRecorder:
     """Writes per-cycle history entries to daily JSONL files."""
 
-    def __init__(self, history_dir: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        history_dir: Optional[str] = None,
+        retention_days: int = DEFAULT_RETENTION_DAYS,
+    ) -> None:
         self.history_dir = history_dir or HISTORY_DIR
+        self.retention_days = retention_days
         self._current_file: Optional[str] = None
         self._current_date: Optional[str] = None
+
+    def _prune_old_files(self) -> None:
+        """Delete history files older than retention_days."""
+        cutoff = datetime.now().timestamp() - (self.retention_days * 86400)
+        try:
+            for f in os.listdir(self.history_dir):
+                if not f.endswith(".jsonl"):
+                    continue
+                path = os.path.join(self.history_dir, f)
+                try:
+                    if os.path.getmtime(path) < cutoff:
+                        os.unlink(path)
+                except OSError:
+                    pass
+        except OSError:
+            pass
 
     def _get_file_path(self) -> str:
         """Return today's JSONL file path, rotating at midnight."""
@@ -47,6 +73,8 @@ class HistoryRecorder:
             self._current_date = today
             self._current_file = os.path.join(self.history_dir, f"{today}.jsonl")
             os.makedirs(self.history_dir, exist_ok=True)
+            # Prune old files once per day at rotation
+            self._prune_old_files()
         return self._current_file
 
     def _append(self, data: dict) -> None:

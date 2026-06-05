@@ -1,4 +1,5 @@
 {
+    "KPackageStructure": "Plasma/Applet",
     "KPlugin": {
         "Authors": [
             {
@@ -11,11 +12,8 @@
         "Icon": "security-high",
         "Id": "com.netsentry.plasmoid",
         "EnabledByDefault": true,
-        "License": "GPL3",
+        "License": "GPL-3.0-or-later",
         "Name": "NetSentry",
-        "KPackageStructure": [
-            "Plasma/Applet"
-        ],
         "Version": "1.0.0",
         "Website": "https://github.com/netsentry"
     },

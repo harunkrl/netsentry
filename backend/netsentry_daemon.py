@@ -204,7 +204,10 @@ def daemon_loop(args: argparse.Namespace) -> None:
         cfg = load_config(cfg.config_path)
         cfg = apply_cli_overrides(cfg, args)
         alert_engine.reset_baseline()
-        logger.info("Configuration reloaded")
+        logger.info(
+            "Configuration reloaded — notifications_enabled=%s, poll_interval=%.1fs",
+            cfg.notifications_enabled, cfg.poll_interval,
+        )
 
     try:
         signal.signal(signal.SIGHUP, reload_config)
@@ -225,7 +228,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     socket_server.start()
 
     # Start history recorder
-    history = HistoryRecorder()
+    history = HistoryRecorder(retention_days=cfg.history_retention_days)
 
     def handle_signal(signum: int, _frame) -> None:
         nonlocal running

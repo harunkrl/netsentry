@@ -5,8 +5,6 @@ import org.kde.kirigami as Kirigami
 
 Item {
     id: compactRoot
-    
-    // Tell the Plasma Panel to expand the hover/click area to fit both items
     Layout.minimumWidth: contentRow.implicitWidth + 8
     Layout.preferredWidth: contentRow.implicitWidth + 8
 
@@ -20,46 +18,36 @@ Item {
         id: contentRow
         anchors.centerIn: parent
         spacing: 4
-        
+
         Kirigami.Icon {
-            id: shieldIconItem
             source: compactRoot.shieldIcon
             width: Math.min(compactRoot.width, compactRoot.height) * (root.iconSize / 100.0)
             height: Math.min(compactRoot.width, compactRoot.height) * (root.iconSize / 100.0)
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Badge Background
         Rectangle {
-            id: badge
             anchors.verticalCenter: parent.verticalCenter
-            
             width: Math.max(height, badgeLabel.implicitWidth + 8)
             height: Math.min(compactRoot.width, compactRoot.height) * (root.badgeSize / 100.0)
             radius: height / 2
-            
-            // Premium KDE Colors
             color: root.threatLevel === "critical" ? "#da4453" :
-                   root.threatLevel === "warning" ? "#f67400" :
-                   "#27ae60"
-            
+                   root.threatLevel === "warning" ? "#f67400" : "#27ae60"
             visible: root.listeningCount > 0 && root.showPortCount
-            
+
             Label {
                 id: badgeLabel
                 anchors.centerIn: parent
                 text: root.listeningCount
                 font.pixelSize: parent.height * 0.75
                 font.bold: true
-                color: "#ffffff" // Crisp white text on colored badge
+                color: "#ffffff"
             }
         }
     }
 
     MouseArea {
         anchors.fill: parent
-        onClicked: {
-            root.expanded = !root.expanded
-        }
+        onClicked: { root.expanded = !root.expanded }
     }
 }

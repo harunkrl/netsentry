@@ -34,7 +34,7 @@ def get_hostname(ip: str) -> Optional[str]:
 
 def _do_lookup(ip: str):
     try:
-        hostname, _, _ = socket.getnameinfo((ip, 0), 0)
+        hostname, _ = socket.getnameinfo((ip, 0), 0)
         with _lock:
             if hostname != ip:
                 _rdns_cache[ip] = hostname

@@ -146,6 +146,9 @@ class AppConfig:
     # TUI preferences
     tui_notifications_enabled: bool = True
 
+    # History
+    history_retention_days: int = 30  # prune files older than this
+
     # Source tracking
     config_path: Optional[str] = None  # None = defaults only
 
@@ -411,6 +414,13 @@ def load_config(path: Optional[str] = None) -> AppConfig:
             v = tui["notifications_enabled"]
             if isinstance(v, bool):
                 cfg.tui_notifications_enabled = v
+
+        # ── History ────────────────────────────────
+        hist = data.get("history", {})
+        if "retention_days" in hist:
+            v = hist["retention_days"]
+            if isinstance(v, (int, float)) and int(v) >= 1:
+                cfg.history_retention_days = int(v)
 
     _current_config = cfg
     return cfg

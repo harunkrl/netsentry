@@ -4,36 +4,15 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
     <kcfgfile name=""/>
-
     <group name="General">
-        <entry name="pollInterval" type="Int">
-            <default>2</default>
-        </entry>
-        <entry name="showPortCount" type="Bool">
-            <default>true</default>
-        </entry>
-        <entry name="alertThreshold" type="String">
-            <default>WARNING</default>
-        </entry>
-
-        <entry name="tuiCommand" type="String">
-            <default></default>
-        </entry>
-        <entry name="popupWidth" type="Int">
-            <default>32</default>
-        </entry>
-        <entry name="popupHeight" type="Int">
-            <default>22</default>
-        </entry>
-        <entry name="iconSize" type="Int">
-            <default>70</default>
-        </entry>
-        <entry name="badgeSize" type="Int">
-            <default>60</default>
-        </entry>
-        <entry name="fontScale" type="Int">
-            <default>100</default>
-        </entry>
+        <entry name="pollInterval" type="Int"><default>2</default></entry>
+        <entry name="showPortCount" type="Bool"><default>true</default></entry>
+        <entry name="alertThreshold" type="String"><default>WARNING</default></entry>
+        <entry name="tuiCommand" type="String"><default></default></entry>
+        <entry name="popupWidth" type="Int"><default>32</default></entry>
+        <entry name="popupHeight" type="Int"><default>22</default></entry>
+        <entry name="iconSize" type="Int"><default>70</default></entry>
+        <entry name="badgeSize" type="Int"><default>60</default></entry>
+        <entry name="fontScale" type="Int"><default>100</default></entry>
     </group>
-
 </kcfg>

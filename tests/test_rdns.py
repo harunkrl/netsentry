@@ -92,13 +92,13 @@ class TestLookupTrigger:
 
 class TestDoLookup:
     def test_successful_lookup_stores_hostname(self):
-        with patch("socket.getnameinfo", return_value=("host.example.com", None, None)):
+        with patch("socket.getnameinfo", return_value=("host.example.com", "0")):
             rdns._do_lookup("1.2.3.4")
         assert rdns._rdns_cache["1.2.3.4"] == "host.example.com"
 
     def test_ip_returned_unchanged_stores_empty(self):
         """If DNS returns the IP itself, store empty string."""
-        with patch("socket.getnameinfo", return_value=("1.2.3.4", None, None)):
+        with patch("socket.getnameinfo", return_value=("1.2.3.4", "0")):
             rdns._do_lookup("1.2.3.4")
         assert rdns._rdns_cache["1.2.3.4"] == ""
 
@@ -109,7 +109,7 @@ class TestDoLookup:
 
     def test_pending_cleared_after_lookup(self):
         rdns._pending_lookups.add("1.2.3.4")
-        with patch("socket.getnameinfo", return_value=("host.example.com", None, None)):
+        with patch("socket.getnameinfo", return_value=("host.example.com", "0")):
             rdns._do_lookup("1.2.3.4")
         assert "1.2.3.4" not in rdns._pending_lookups
 
@@ -130,7 +130,7 @@ class TestLRUEviction:
             rdns._rdns_cache[f"10.0.{i // 256}.{i % 256}"] = f"host-{i}"
 
         # Now do a lookup that adds to cache (will trigger eviction)
-        with patch("socket.getnameinfo", return_value=("new-host", None, None)):
+        with patch("socket.getnameinfo", return_value=("new-host", "0")):
             rdns._do_lookup("99.99.99.99")
 
         assert len(rdns._rdns_cache) <= rdns._MAX_CACHE_SIZE
@@ -157,7 +157,7 @@ class TestThreadSafety:
 
         def lookup_ip(ip: str):
             try:
-                with patch("socket.getnameinfo", return_value=(f"host-{ip}", None, None)):
+                with patch("socket.getnameinfo", return_value=(f"host-{ip}", "0")):
                     rdns._do_lookup(ip)
             except Exception as e:
                 errors.append(str(e))

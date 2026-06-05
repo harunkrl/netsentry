@@ -10,7 +10,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import ModalScreen
 from textual.containers import Vertical, VerticalScroll, Horizontal
-from textual.widgets import Label, Switch, Static
+from textual.widgets import Label, Switch, Static, Button
 
 from shared.config import save_config_setting
 
@@ -144,10 +144,20 @@ class SettingsScreen(ModalScreen[None]):
 
     #settings-footer {
         dock: bottom;
-        height: 1;
+        height: 3;
         padding: 0 2;
         color: #3a3a4a;
+        align: center middle;
+    }
+
+    #settings-footer-text {
+        width: 1fr;
         content-align: center middle;
+    }
+
+    .settings-action-btn {
+        margin: 0 1;
+        min-width: 18;
     }
 
     #settings-body ScrollBar {
@@ -204,8 +214,9 @@ class SettingsScreen(ModalScreen[None]):
                     value=self._tui_notifications,
                 )
 
-            yield Static(
-                "[dim]Tab: navigate  |  Enter/Space: toggle  |  Esc: close[/]",}]
+            yield Horizontal(
+                Static("[dim]Tab: navigate  |  Enter/Space: toggle  |  Esc: close[/]", id="settings-footer-text"),
+                Button("Restart Daemon", variant="warning", id="btn-restart-daemon", classes="settings-action-btn"),
                 id="settings-footer",
             )
 
@@ -251,8 +262,10 @@ class SettingsScreen(ModalScreen[None]):
         """Save to config.toml and reload daemon config if needed."""
         try:
             save_config_setting(section, key, value)
+            self.app.notify("Setting saved", severity="information")
         except Exception:
-            pass
+            self.app.notify("Failed to save setting", severity="error")
+            return
 
         # Reload config singleton so subsequent get_config() calls are fresh
         try:
@@ -277,6 +290,54 @@ class SettingsScreen(ModalScreen[None]):
                 os.kill(pid, signal.SIGHUP)
         except (OSError, ValueError, ProcessLookupError):
             pass  # daemon may not be running
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "btn-restart-daemon":
+            self._restart_daemon()
+
+    def _restart_daemon(self) -> None:
+        """Restart the daemon and show feedback."""
+        import subprocess
+        import sys
+
+        btn = self.query_one("#btn-restart-daemon", Button)
+        btn.label = "Restarting..."
+        btn.disabled = True
+
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "backend.netsentryctl", "restart"],
+                cwd=self._find_project_root(),
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if result.returncode == 0:
+                self.app.notify("Daemon restarted successfully", severity="information")
+                btn.label = "✓ Restarted"
+            else:
+                self.app.notify(f"Restart failed: {result.stderr.strip()}", severity="error")
+                btn.label = "Restart Daemon"
+                btn.disabled = False
+        except subprocess.TimeoutExpired:
+            self.app.notify("Restart timed out", severity="error")
+            btn.label = "Restart Daemon"
+            btn.disabled = False
+        except Exception as e:
+            self.app.notify(f"Error: {e}", severity="error")
+            btn.label = "Restart Daemon"
+            btn.disabled = False
+
+    @staticmethod
+    def _find_project_root() -> str:
+        import os
+        d = os.path.dirname(os.path.abspath(__file__))
+        while d != "/":
+            if os.path.isfile(os.path.join(d, "pyproject.toml")):
+                return d
+            d = os.path.dirname(d)
+        return os.getcwd()
 
     def action_close(self) -> None:
         self.dismiss(None)

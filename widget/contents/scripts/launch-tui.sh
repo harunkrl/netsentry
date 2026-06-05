@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# NetSentry TUI launcher — activates venv if present, then runs the TUI.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
-
 VENV_DIR="$PROJECT_ROOT/.venv"
 if [ -d "$VENV_DIR" ]; then
     source "$VENV_DIR/bin/activate"

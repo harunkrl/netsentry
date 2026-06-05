@@ -51,6 +51,7 @@ netsentry-tui     = "tui.netsentry_tui:main"
 netsentry-client  = "backend.netsentry_client:main"
 netsentry-export  = "backend.export:main"
 netsentry-update  = "backend.update:main"
+netsentryctl      = "backend.netsentryctl:main"
 
 [project.urls]
 Repository = "https://github.com/user/netsentry"

@@ -43,8 +43,10 @@ echo "   ✅ Dependencies installed (textual, rich)"
 # ── 3. Install Plasma widget ─────────────────────────────────
 echo "🔧 Installing Plasma 6 widget..."
 mkdir -p "${HOME}/.local/share/plasma/plasmoids"
-ln -sfn "${SCRIPT_DIR}/widget" "${PLASMOID_DIR}"
-echo "   ✅ Widget linked to ${PLASMOID_DIR}"
+# Copy files instead of symlink — kpackagetool -r deletes symlinks
+rm -rf "${PLASMOID_DIR}"
+cp -r "${SCRIPT_DIR}/widget" "${PLASMOID_DIR}"
+echo "   ✅ Widget installed to ${PLASMOID_DIR}"
 
 # ── 4. Config directory ──────────────────────────────────────
 echo "📁 Creating config directory..."
@@ -60,6 +62,7 @@ echo "🔗 Creating global symlinks in ~/.local/bin..."
 mkdir -p "${HOME}/.local/bin"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-tui" "${HOME}/.local/bin/netsentry-tui"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-daemon" "${HOME}/.local/bin/netsentry-daemon"
+ln -sf "${SCRIPT_DIR}/.venv/bin/netsentryctl" "${HOME}/.local/bin/netsentryctl"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-client" "${HOME}/.local/bin/netsentry-client"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-export" "${HOME}/.local/bin/netsentry-export"
 ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-update" "${HOME}/.local/bin/netsentry-update"
@@ -72,6 +75,7 @@ mkdir -p "${HOME}/.config/systemd/user"
 cp "${SCRIPT_DIR}/systemd/netsentry.service" "${HOME}/.config/systemd/user/"
 systemctl --user daemon-reload
 systemctl --user enable --now netsentry.service
+systemctl --user restart netsentry.service 2>/dev/null || true
 echo "   ✅ Systemd service installed and started"
 
 # ── 7. Restart Plasma (optional) ─────────────────────────────

@@ -542,10 +542,10 @@ notifications_enabled = true
     logger.info("Generated example config at %s", path)
 
 
-def save_tui_setting(key: str, value: object) -> None:
-    """Persist a single TUI setting to the config file.
+def save_config_setting(section: str, key: str, value: object) -> None:
+    """Persist a single setting to the config file under the given section.
 
-    Reads the existing config, updates the [tui] section, and writes back.
+    Reads the existing config, updates the named section, and writes back.
     Creates the file/section if they don't exist.
     """
     path = CONFIG_FILE
@@ -557,25 +557,27 @@ def save_tui_setting(key: str, value: object) -> None:
         except OSError:
             return
 
-    # Build the new [tui] section content
+    section_tag = f"[{section}]"
     line = f"{key} = {'true' if value is True else 'false' if value is False else repr(value)}\n"
 
-    if "[tui]" in raw:
-        # Update existing key or append to section
+    if section_tag in raw:
         import re
-        pattern = rf"(\[tui\][^\[]*?)({key}\s*=\s*\S+\n)"
+        pattern = rf"(\[{re.escape(section)}\][^\[]]*?)({key}\s*=\s*\S+\n)"
         if re.search(pattern, raw, re.DOTALL):
-            raw = re.sub(pattern, rf"\1{key} = {line.strip()}\n", raw, count=1)
+            raw = re.sub(pattern, rf"\1{line}", raw, count=1)
         else:
-            # Key doesn't exist yet — append after [tui] line
-            raw = raw.replace("[tui]", f"[tui]\n{line}", 1)
+            raw = raw.replace(section_tag, f"{section_tag}\n{line}", 1)
     else:
-        # No [tui] section — append one
-        raw = raw.rstrip() + "\n\n[tui]\n" + line
+        raw = raw.rstrip() + "\n\n" + section_tag + "\n" + line
 
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as fh:
             fh.write(raw)
     except OSError:
-        logger.debug("Failed to save TUI setting to %s", path, exc_info=True)
+        logger.debug("Failed to save config setting to %s", path, exc_info=True)
+
+
+def save_tui_setting(key: str, value: object) -> None:
+    """Shorthand for ``save_config_setting('tui', key, value)``."""
+    save_config_setting("tui", key, value)

@@ -391,7 +391,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                     logger.info("ALERT [%s] %s", a.level, a.message)
                     
                     # Desktop notification for WARNING and CRITICAL
-                    if a.level in (AlertLevel.WARNING, AlertLevel.CRITICAL):
+                    if cfg.notifications_enabled and a.level in (AlertLevel.WARNING, AlertLevel.CRITICAL):
                         alert_hash = f"{a.level}:{a.message}"
                         last_notified = notified_alerts.get(alert_hash, 0)
                         # Only notify if not recently notified (TTL-based dedup)

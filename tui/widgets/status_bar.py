@@ -93,5 +93,5 @@ class StatusBar(Static):
             f"{established} established  |  "
             f"{alert_count} alerts  |  "
             f"notif {notif_icon}  |  "
-            f"[dim][q]uit [k]ill [r]efresh [t]ree [m]ap [n]otif[/]"
+            f"[dim][q]uit [k]ill [r]efresh [t]ree [m]ap [s]ettings[/]"
         )

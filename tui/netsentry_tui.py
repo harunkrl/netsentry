@@ -30,7 +30,7 @@ warnings.filterwarnings(
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 
-from shared.config import load_config, get_config, save_tui_setting
+from shared.config import load_config, get_config
 from tui.screens.main_screen import MainScreen
 
 
@@ -43,23 +43,13 @@ class NetSentryTUI(App):
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("ctrl+c", "quit", "Quit", show=False),
-        Binding("n", "toggle_notifications", "Notifs", show=True),
     ]
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        # Read persisted TUI preference from config
-        try:
-            cfg = get_config()
-        except Exception:
-            try:
-                load_config()
-                cfg = get_config()
-            except Exception:
-                cfg = None
-        self.notifications_enabled: bool = (
-            cfg.tui_notifications_enabled if cfg else True
-        )
+        # Load persisted config (always load fresh on startup)
+        cfg = load_config()
+        self.notifications_enabled: bool = cfg.tui_notifications_enabled
 
     def on_mount(self) -> None:
         self.push_screen(MainScreen())
@@ -70,27 +60,15 @@ class NetSentryTUI(App):
             return
         super().notify(message, severity=severity, **kwargs)
 
-    def action_toggle_notifications(self) -> None:
-        """Toggle TUI toast notifications on/off and persist to config."""
-        self.notifications_enabled = not self.notifications_enabled
-        state = "ON" if self.notifications_enabled else "OFF"
-
-        # Bypass our own override to always show the toggle feedback
-        super().notify(f"Notifications: {state}", severity="information")
-
-        # Persist to config file
-        try:
-            save_tui_setting("notifications_enabled", self.notifications_enabled)
-        except Exception:
-            pass
-
-        # Update status bar if available
-        try:
-            from tui.widgets.status_bar import StatusBar
-            bar = self.query_one(StatusBar)
-            bar.set_notification_state(self.notifications_enabled)
-        except Exception:
-            pass
+    def action_open_settings(self) -> None:
+        """Open the settings screen."""
+        from tui.screens.settings_screen import SettingsScreen
+        from shared.config import get_config
+        cfg = get_config()
+        self.push_screen(SettingsScreen(
+            desktop_notifications=cfg.notifications_enabled,
+            tui_notifications=self.notifications_enabled,
+        ))
 
 
 # ── Entry point ───────────────────────────────────────────────

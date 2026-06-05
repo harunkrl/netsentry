@@ -38,6 +38,7 @@ class MainScreen(Screen):
         Binding("r", "refresh", "Refresh", show=True),
         Binding("t", "tree", "Procs", show=True),
         Binding("m", "geo_map", "Map", show=True),
+        Binding("s", "settings", "Settings", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
         Binding("e", "export", "Export", show=True),
@@ -221,6 +222,10 @@ class MainScreen(Screen):
         """Show the help screen."""
         from tui.screens.help_screen import HelpScreen
         self.app.push_screen(HelpScreen())
+
+    def action_settings(self) -> None:
+        """Open the settings screen."""
+        self.app.action_open_settings()
 
     def action_tree(self) -> None:
         """Open the process tree view."""

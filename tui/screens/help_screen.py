@@ -16,7 +16,8 @@ HELP_MD = """
 - `/` : Open search/filter bar (filters both port table and connection log)
 - `f` : Toggle the search/filter bar visibility
 - `c` : Copy selected row to clipboard (PortTable, ConnectionLog, or map table)
-- `n` : Toggle TUI toast notifications on/off (saved persistently)
+- `s` : Open settings screen (notifications, preferences)
+- `n` : *(removed — use `s` for settings)*
 - `Esc` : Clear filter and hide search bar / Close this help screen / Close detail screen
 - `e` : Export the current snapshot to `~/netsentry_export.json`
 - `Enter` : Show detailed view of the selected connection

@@ -23,9 +23,29 @@ def _read_pid() -> int | None:
     """Read the daemon PID from the PID file."""
     try:
         with open(PID_FILE) as f:
-            return int(f.read().strip())
+            content = f.read().strip()
+        if content:
+            return int(content)
     except (FileNotFoundError, ValueError):
-        return None
+        pass
+    return None
+
+
+def _find_daemon_pids() -> list[int]:
+    """Find all running daemon PIDs via pgrep.
+
+    Used as a fallback when the PID file is missing or empty.
+    """
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "backend.netsentry_daemon"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return [int(p) for p in result.stdout.strip().split() if p.isdigit()]
+    except Exception:
+        pass
+    return []
 
 
 def _is_alive(pid: int) -> bool:
@@ -75,43 +95,68 @@ def cmd_status(_args: argparse.Namespace) -> int:
 
 def cmd_stop(_args: argparse.Namespace) -> int:
     """Stop the daemon."""
+    stopped_any = False
+
+    # Attempt 1: PID file
     pid = _read_pid()
-    if pid is None:
+    if pid is not None and _is_alive(pid):
+        print(f"Stopping daemon (PID {pid})...")
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            print("❌ Process already gone")
+            _cleanup_pidfile()
+            return 1
+
+        if _wait_for(pid, timeout=5.0, alive=False):
+            print("✅ Daemon stopped")
+            stopped_any = True
+        else:
+            print("⚠️  Daemon did not stop within 5s — sending SIGKILL")
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stopped_any = True
+    else:
+        if pid is not None:
+            print("❌ PID file stale, cleaning up")
+        _cleanup_pidfile()
+
+    # Attempt 2: Find and kill all remaining daemon processes
+    remaining = _find_daemon_pids()
+    if remaining:
+        print(f"Found {len(remaining)} remaining daemon process(es): {remaining}")
+        for p in remaining:
+            try:
+                os.kill(p, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        time.sleep(1)
+        # Force-kill survivors
+        survivors = [p for p in remaining if _is_alive(p)]
+        if survivors:
+            print(f"Force killing survivors: {survivors}")
+            for p in survivors:
+                try:
+                    os.kill(p, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        stopped_any = True
+        print("✅ All daemon processes stopped")
+
+    if not stopped_any:
         print("❌ Daemon is not running")
         return 1
 
-    if not _is_alive(pid):
-        print("❌ Daemon is not running (stale PID file)")
-        _cleanup_pidfile()
-        return 1
-
-    print(f"Stopping daemon (PID {pid})...")
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        print("❌ Process already gone")
-        _cleanup_pidfile()
-        return 1
-
-    if _wait_for(pid, timeout=5.0, alive=False):
-        _cleanup_pidfile()
-        print("✅ Daemon stopped")
-        return 0
-    else:
-        print("⚠️  Daemon did not stop within 5s — sending SIGKILL")
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        _cleanup_pidfile()
-        return 0
+    _cleanup_pidfile()
+    return 0
 
 
 def cmd_restart(args: argparse.Namespace) -> int:
     """Restart the daemon."""
+    # ── Stop existing daemons ──────────────────────────────
     pid = _read_pid()
-
-    # Stop if running
     if pid is not None and _is_alive(pid):
         print(f"Stopping daemon (PID {pid})...")
         try:
@@ -127,11 +172,30 @@ def cmd_restart(args: argparse.Namespace) -> int:
             except ProcessLookupError:
                 pass
     else:
-        print("Daemon not running, starting fresh...")
+        print("No daemon via PID file")
+
+    # Always hunt for orphaned daemon processes
+    remaining = _find_daemon_pids()
+    if remaining:
+        print(f"Cleaning up {len(remaining)} orphaned daemon process(es): {remaining}")
+        for p in remaining:
+            try:
+                os.kill(p, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        time.sleep(1)
+        for p in remaining:
+            if _is_alive(p):
+                try:
+                    os.kill(p, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        print("Orphans cleaned")
 
     _cleanup_pidfile()
+    time.sleep(0.5)  # brief pause to let ports/sockets free
 
-    # Start daemon (use the same Python interpreter)
+    # ── Start new daemon ──────────────────────────────────
     python = sys.executable
     cmd = [python, "-m", "backend.netsentry_daemon", "--foreground"]
     if args.verbose:
@@ -169,24 +233,38 @@ def cmd_restart(args: argparse.Namespace) -> int:
 
 def cmd_reload(_args: argparse.Namespace) -> int:
     """Reload daemon config (SIGHUP)."""
+    sent = False
+
+    # Attempt 1: PID file
     pid = _read_pid()
-    if pid is None:
+    if pid is not None and _is_alive(pid):
+        try:
+            os.kill(pid, signal.SIGHUP)
+            print(f"✅ SIGHUP sent to daemon (PID {pid}) — config reloaded")
+            sent = True
+        except ProcessLookupError:
+            print("❌ Process gone")
+            _cleanup_pidfile()
+    elif pid is not None:
+        print("❌ PID file stale")
+        _cleanup_pidfile()
+
+    # Attempt 2: Find daemon PIDs via pgrep
+    if not sent:
+        pids = _find_daemon_pids()
+        if pids:
+            for p in pids:
+                try:
+                    os.kill(p, signal.SIGHUP)
+                except ProcessLookupError:
+                    pass
+            print(f"✅ SIGHUP sent to {len(pids)} daemon process(es) — config reloaded")
+            sent = True
+
+    if not sent:
         print("❌ Daemon is not running")
         return 1
-
-    if not _is_alive(pid):
-        print("❌ Daemon is not running (stale PID file)")
-        _cleanup_pidfile()
-        return 1
-
-    try:
-        os.kill(pid, signal.SIGHUP)
-        print(f"✅ SIGHUP sent to daemon (PID {pid}) — config reloaded")
-        return 0
-    except ProcessLookupError:
-        print("❌ Process gone")
-        _cleanup_pidfile()
-        return 1
+    return 0
 
 
 def _cleanup_pidfile() -> None:

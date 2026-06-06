@@ -42,6 +42,7 @@ class MainScreen(Screen):
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
         Binding("ctrl+f", "log_filter_cycle", "LogFilter", show=False),
+        Binding("ctrl+p", "proto_filter_cycle", "Proto", show=False),
         Binding("e", "export", "Export", show=True),
         Binding("c", "copy_row", "Copy", show=True),
         Binding("question_mark", "help", "Help", show=True),
@@ -58,9 +59,7 @@ class MainScreen(Screen):
     #search-input {
         width: 100%;
     }
-    .is-hidden {
-        display: none;
-    }
+    /* Uses global .hidden from styles.tcss */
     #traffic-bar {
         height: auto;
         padding: 0 1;
@@ -68,9 +67,10 @@ class MainScreen(Screen):
     }
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, provider: DataProvider | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.provider = DataProvider()
+        # Y15: Use singleton provider from app, or create new one
+        self.provider = provider or DataProvider()
         self._refresh_handle = None
         self._consecutive_failures: int = 0
         self._search_visible: bool = False
@@ -82,7 +82,7 @@ class MainScreen(Screen):
             yield Input(
                 placeholder="Search: type to filter rows (Esc to close)...",
                 id="search-input",
-                classes="is-hidden",
+                classes="hidden",
             )
             with Vertical(id="main-panes"):
                 yield PortTable(id="port-table")
@@ -93,10 +93,27 @@ class MainScreen(Screen):
 
     # ── Auto-refresh ──────────────────────────────────────────
     def on_mount(self) -> None:
-        self.refresh_data()
+        # Delay first refresh by one frame so layout settles first
+        self.set_timer(0.1, self._first_refresh)
         self._refresh_handle = self.set_interval(2.0, self.refresh_data)
-        # Focus the port table on startup — don't let Input steal focus
+        # Focus the port table on startup
         self.query_one("#port-table", PortTable).focus()
+
+    def _first_refresh(self) -> None:
+        self.refresh_data()
+
+    def on_resize(self, event) -> None:
+        """Re-render status bar when terminal is resized (fullscreen, F11, etc.)."""
+        # Defer by one frame so the layout engine has settled and
+        # StatusBar has its new size before we read self.size.width.
+        self.set_timer(0.05, self._deferred_statusbar_rerender)
+
+    def _deferred_statusbar_rerender(self) -> None:
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.rerender()
+        except Exception:
+            pass
 
     def on_screen_resume(self) -> None:
         """Restore focus to port table when returning from a sub-screen."""
@@ -116,6 +133,14 @@ class MainScreen(Screen):
                 
                 conn_log = self.query_one("#connection-log", ConnectionLog)
                 conn_log.set_filter(event.value)
+
+                # Y5: Show filter active indicator in status bar
+                status_bar = self.query_one("#status-bar", StatusBar)
+                if event.value.strip():
+                    visible = len(port_table._row_entries)
+                    status_bar.set_filter_info(f"Filter: '{event.value}' ({visible} shown)")
+                else:
+                    status_bar.set_filter_info("")
             except Exception:
                 pass
 
@@ -161,9 +186,13 @@ class MainScreen(Screen):
 
         try:
             status_bar = self.query_one("#status-bar", StatusBar)
+            # Use desktop_notifications from config, not TUI toast
+            from shared.config import get_config
+            cfg = get_config()
+            status_bar.set_notification_state(cfg.notifications_enabled)
             summary = getattr(snapshot, "summary", {}) or {}
             alerts = getattr(snapshot, "alerts", []) or []
-            status_bar.update_display(summary, alerts)
+            status_bar.update_display(summary, alerts, current_screen="Dashboard")
         except Exception:
             log.debug("Widget update failed: status_bar", exc_info=True)
 
@@ -207,12 +236,17 @@ class MainScreen(Screen):
         )
 
     def action_export(self) -> None:
-        """Export current snapshot to JSON."""
+        """Export current snapshot to JSON.
+
+        O3: Shows file path in notification after successful export.
+        """
         snapshot = self.provider.fetch()
         if snapshot:
             try:
                 import json, os
-                path = os.path.expanduser("~/netsentry_export.json")
+                from datetime import datetime
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                path = os.path.expanduser(f"~/netsentry_export_{ts}.json")
                 with open(path, "w") as f:
                     f.write(snapshot.to_json())
                 self.app.notify(f"Exported to {path}", severity="information")
@@ -274,6 +308,11 @@ class MainScreen(Screen):
             port_table.clear_filter()
         except Exception:
             pass
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.set_filter_info("")
+        except Exception:
+            pass
         self._hide_search()
 
     def action_log_filter_cycle(self) -> None:
@@ -286,12 +325,25 @@ class MainScreen(Screen):
         except Exception:
             pass
 
+    def action_proto_filter_cycle(self) -> None:
+        """Cycle the port table protocol filter: ALL → TCP → UDP → ICMP → ALL."""
+        try:
+            port_table = self.query_one("#port-table", PortTable)
+            proto_cycle = ["ALL", "TCP", "UDP", "ICMP"]
+            current = port_table.filter_proto
+            idx = proto_cycle.index(current) if current in proto_cycle else -1
+            next_proto = proto_cycle[(idx + 1) % len(proto_cycle)]
+            port_table.set_proto_filter(next_proto)
+            self.app.notify(f"Protocol: {next_proto}", severity="information")
+        except Exception:
+            pass
+
     # ── Search bar helpers ────────────────────────────────────
     def _show_search(self) -> None:
         self._search_visible = True
         try:
             search_input = self.query_one("#search-input", Input)
-            search_input.remove_class("is-hidden")
+            search_input.remove_class("hidden")
             search_input.focus()
         except Exception:
             pass
@@ -300,7 +352,7 @@ class MainScreen(Screen):
         self._search_visible = False
         try:
             search_input = self.query_one("#search-input", Input)
-            search_input.add_class("is-hidden")
+            search_input.add_class("hidden")
         except Exception:
             pass
 
@@ -309,6 +361,8 @@ class MainScreen(Screen):
 
         Context-aware: copies from PortTable or ConnectionLog depending
         on which widget currently has focus.
+
+        Y10: Wraps clipboard calls in try/except to handle Wayland/SSH/headless failures.
         """
         focused = self.focused
         try:
@@ -316,8 +370,7 @@ class MainScreen(Screen):
                 conn_log = self.query_one("#connection-log", ConnectionLog)
                 text = conn_log.get_plain_text()
                 if text.strip():
-                    self.app.copy_to_clipboard(text)
-                    self.query_one(StatusBar).update("Copied: connection log")
+                    self._safe_clipboard(text)
                 else:
                     self.app.notify("Nothing to copy", severity="warning")
                 return
@@ -334,7 +387,17 @@ class MainScreen(Screen):
                     addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
                             else f"{entry.local_ip}:{entry.local_port} -> {entry.remote_ip}:{entry.remote_port}")
                     text = f"{entry.process_name or 'unknown'} (PID: {entry.pid or '-'}) | {entry.proto} {addr} | State: {entry.state}"
-                    self.app.copy_to_clipboard(text)
-                    self.query_one(StatusBar).update(f"Copied: {text}")
+                    self._safe_clipboard(text)
         except Exception as e:
-            self.query_one(StatusBar).update(f"Failed to copy: {e}")
+            self.app.notify(f"Copy failed: {e}", severity="error")
+
+    def _safe_clipboard(self, text: str) -> None:
+        """Copy to clipboard with error handling for Wayland/SSH/headless envs."""
+        try:
+            self.app.copy_to_clipboard(text)
+            self.app.notify("Copied to clipboard", severity="information")
+        except Exception:
+            self.app.notify(
+                "Clipboard unavailable — install xclip, xsel, or wl-copy",
+                severity="warning",
+            )

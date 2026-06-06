@@ -74,6 +74,8 @@ class SocketEntry:
     remote_lon: Optional[float] = None
     remote_isp: Optional[str] = None
     remote_org: Optional[str] = None
+    # Ö1: First-seen timestamp (epoch seconds) for connection duration
+    first_seen: Optional[float] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SocketEntry:

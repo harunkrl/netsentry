@@ -2,6 +2,10 @@
 
 Reads the JSON snapshot written by the backend daemon and provides
 process-kill capability.
+
+K6: Socket I/O uses timeout to prevent indefinite blocking.
+K11: kill_process() is designed to be called via ``run_in_executor``
+     or ``asyncio.to_thread`` to avoid blocking the TUI event loop.
 """
 from __future__ import annotations
 
@@ -16,7 +20,11 @@ from shared import DATA_FILE
 
 
 class DataProvider:
-    """Bridge between the TUI and the backend data source."""
+    """Bridge between the TUI and the backend data source.
+
+    All potentially blocking I/O operations include timeouts to
+    prevent the TUI from freezing if the daemon is unresponsive.
+    """
 
     def __init__(self, data_path: str = DATA_FILE) -> None:
         self.data_path = data_path
@@ -48,6 +56,10 @@ class DataProvider:
         """Attempt to terminate *pid* gracefully, then forcibly.
 
         Returns ``(success, message)``.
+
+        K8: Handles PermissionError and ProcessLookupError gracefully.
+        K11: This method is blocking (up to ~2.2s) and should be called
+             via ``asyncio.to_thread()`` from the TUI to avoid freezing.
         """
         if pid <= 0:
             return False, f"Invalid PID {pid}"
@@ -56,9 +68,12 @@ class DataProvider:
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
-            return False, f"Process {pid} not found"
+            return False, f"Process {pid} not found — may have already terminated"
         except PermissionError:
-            return False, f"Permission denied — cannot signal PID {pid} (try running with higher privileges)"
+            return False, (
+                f"Permission denied — cannot signal PID {pid}. "
+                "Try running with elevated privileges."
+            )
 
         # SIGTERM
         try:
@@ -84,7 +99,10 @@ class DataProvider:
         except ProcessLookupError:
             return True, f"Process {pid} terminated gracefully (SIGTERM)"
         except PermissionError:
-            return False, f"Permission denied — cannot kill PID {pid}"
+            return False, (
+                f"Permission denied — cannot kill PID {pid}. "
+                "Try running with elevated privileges."
+            )
 
         # Brief wait to confirm
         time.sleep(0.2)

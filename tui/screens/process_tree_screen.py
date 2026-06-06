@@ -66,9 +66,13 @@ class ProcessTreeScreen(Screen):
 
     def __init__(self) -> None:
         super().__init__()
-        self.provider = DataProvider()
+        # Y15: Use singleton provider from app if available
+        app = self.app
+        self.provider = getattr(app, 'data_provider', None) or DataProvider()
         self._processes: Dict[int, ProcessInfo] = {}
         self._filter_text: str = ""
+        # O7: Preserve expand/collapse state across refreshes
+        self._expanded_pids: set[int] = set()
 
     # ── Layout ────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
@@ -83,6 +87,8 @@ class ProcessTreeScreen(Screen):
 
     def on_mount(self) -> None:
         self.refresh_data()
+        # O17: Auto-refresh every 2s like other screens
+        self._refresh_handle = self.set_interval(2.0, self.refresh_data)
 
     # ── Data refresh ──────────────────────────────────────────
     @work(exclusive=True)
@@ -112,13 +118,20 @@ class ProcessTreeScreen(Screen):
 
     # ── Tree rendering ────────────────────────────────────────
     def _rebuild_tree(self) -> None:
-        """Rebuild the Tree widget from current process data."""
+        """Rebuild the Tree widget from current process data.
+
+        O7: Preserves expand/collapse state across refreshes by
+        saving and restoring which nodes are expanded.
+        """
         try:
+            # O7: Save current expanded state before rebuilding
+            self._save_expand_state()
+
             tree = self.query_one("#process-tree", Tree)
             tree.clear()
 
             if not self._processes:
-                tree.root.add_leaf("[dim]No process data[/]")
+                tree.root.add_leaf("[dim]No process data — daemon running?[/]")
                 tree.root.expand()
                 return
 
@@ -132,6 +145,9 @@ class ProcessTreeScreen(Screen):
             for child in tree.root.children:
                 child.expand()
 
+            # O7: Restore previously expanded nodes
+            self._restore_expand_state(tree)
+
             # Update info bar
             total = len(self._processes)
             network = sum(1 for p in self._processes.values() if p.has_network)
@@ -139,7 +155,7 @@ class ProcessTreeScreen(Screen):
             info.update(
                 f"[bold]{total}[/] processes  |  "
                 f"[green]{network} with network[/]  |  "
-                f"[dim][/]filter  [k]ill  [Esc]back"
+                f"[dim]<k> kill  <Esc> back[/]"
             )
         except Exception as e:
             log.error("Failed to rebuild tree: %s", e, exc_info=True)
@@ -264,3 +280,36 @@ class ProcessTreeScreen(Screen):
         node = event.node
         if not node.is_root and node.allow_expand:
             node.toggle()
+
+    # ── O7: Expand state persistence ─────────────────────────
+    def _save_expand_state(self) -> None:
+        """Save which PIDs are currently expanded in the tree."""
+        self._expanded_pids.clear()
+        try:
+            tree = self.query_one("#process-tree", Tree)
+            self._collect_expanded(tree.root)
+        except Exception:
+            pass
+
+    def _collect_expanded(self, node) -> None:
+        """Recursively collect data (PID) of expanded nodes."""
+        if not node.is_root and node.is_expanded and node.data is not None:
+            self._expanded_pids.add(node.data)
+        for child in getattr(node, 'children', []):
+            self._collect_expanded(child)
+
+    def _restore_expand_state(self, tree: Tree) -> None:
+        """Expand nodes whose PID was expanded before the rebuild."""
+        if not self._expanded_pids:
+            return
+        try:
+            self._expand_matching(tree.root)
+        except Exception:
+            pass
+
+    def _expand_matching(self, node) -> None:
+        """Recursively expand nodes matching saved PIDs."""
+        if not node.is_root and node.data is not None and node.data in self._expanded_pids:
+            node.expand()
+        for child in getattr(node, 'children', []):
+            self._expand_matching(child)

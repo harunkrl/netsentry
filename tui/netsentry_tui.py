@@ -9,18 +9,11 @@ import os
 import sys
 import warnings
 
-# Ensure the project root is on sys.path so that ``shared``, ``backend``,
-# and ``tui`` are all importable regardless of cwd.
-# Only needed when running this file directly (``python tui/netsentry_tui.py``).
-# When installed as a package (``pip install .``), this is unnecessary.
+# Ensure the project root is on sys.path
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-# Suppress Textual v8.x internal RuntimeWarning:
-# "coroutine 'Header._on_mount.<locals>.set_title' was never awaited"
-# This is a Textual library bug, not ours — the Header widget registers an
-# async callback via watch() but does not await it on unmount.
 warnings.filterwarnings(
     "ignore",
     message=r"coroutine '.*set_title.*' was never awaited",
@@ -31,14 +24,21 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 
 from shared.config import load_config, get_config
+from shared.constants import APP_VERSION as VERSION
 from tui.screens.main_screen import MainScreen
+from tui.data.provider import DataProvider
+from tui.themes import ALL_THEME_CSS, apply_theme, current_theme, DEFAULT_THEME, THEMES
+from tui.themes import key_to_display_name
 
 
 class NetSentryTUI(App):
     """Textual application for network security monitoring."""
 
-    TITLE = "NetSentry — Network Security Analyzer"
-    CSS_PATH = os.path.join(os.path.dirname(__file__), "styles.tcss")
+    TITLE = f"NetSentry {VERSION} — Network Security Analyzer"
+
+    # All 4 themes pre-generated at import time, class-scoped.
+    # Switching themes = toggling .theme-dark / .theme-nord / etc.
+    CSS = ALL_THEME_CSS
 
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
@@ -47,33 +47,43 @@ class NetSentryTUI(App):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        # Load persisted config (always load fresh on startup)
         cfg = load_config()
         self.notifications_enabled: bool = cfg.tui_notifications_enabled
+        self.data_provider = DataProvider()
+        self._theme_name: str = getattr(cfg, "color_theme", DEFAULT_THEME)
+        if self._theme_name not in THEMES:
+            self._theme_name = DEFAULT_THEME
 
     def on_mount(self) -> None:
-        self.push_screen(MainScreen())
+        """Apply the persisted theme before showing the main screen."""
+        apply_theme(self, self._theme_name)
+        self.push_screen(MainScreen(provider=self.data_provider))
+
+    @property
+    def theme_name(self) -> str:
+        return current_theme()
 
     def notify(self, message: str = "", *, severity: str = "information", **kwargs) -> None:
-        """Override to respect the notifications toggle."""
         if not self.notifications_enabled:
             return
         super().notify(message, severity=severity, **kwargs)
 
     def action_open_settings(self) -> None:
-        """Open the settings screen."""
         from tui.screens.settings_screen import SettingsScreen
         from shared.config import get_config
         cfg = get_config()
+        theme_display = key_to_display_name(current_theme())
         self.push_screen(SettingsScreen(
             desktop_notifications=cfg.notifications_enabled,
             tui_notifications=self.notifications_enabled,
+            geoip_enabled=getattr(cfg, 'geoip_enabled', True),
+            burst_threshold=getattr(cfg, 'burst_threshold', 3),
+            scan_threshold=getattr(cfg, 'scan_threshold', 5),
+            current_theme=theme_display,
         ))
 
 
-# ── Entry point ───────────────────────────────────────────────
 def main() -> None:
-    """Package entry point for ``netsentry-tui``."""
     app = NetSentryTUI()
     app.run()
 

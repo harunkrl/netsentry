@@ -565,6 +565,7 @@ def main() -> None:
         fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         pid_fd.write(str(os.getpid()))
         pid_fd.flush()
+        os.fsync(pid_fd.fileno())
     except BlockingIOError:
         logger.error("Daemon is already running!")
         sys.exit(1)

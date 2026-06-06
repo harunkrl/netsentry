@@ -572,9 +572,21 @@ def save_config_setting(section: str, key: str, value: object) -> None:
 
     if section_tag in raw:
         import re
-        pattern = rf"(\[{re.escape(section)}\][^\[]]*?)({key}\s*=\s*\S+\n)"
-        if re.search(pattern, raw, re.DOTALL):
-            raw = re.sub(pattern, rf"\1{line}", raw, count=1)
+        # Find the boundaries of the target section
+        section_start = raw.index(section_tag) + len(section_tag)
+        next_section = re.search(r"\n(?=\[)", raw[section_start:])
+        section_end = section_start + next_section.start() if next_section else len(raw)
+        section_block = raw[section_start:section_end]
+
+        pattern = rf"({re.escape(key)}\s*=\s*[^\n]+)"
+        if re.search(pattern, section_block):
+            new_section_block = re.sub(
+                pattern,
+                f"{key} = {'true' if value is True else 'false' if value is False else repr(value)}",
+                section_block,
+                count=1,
+            )
+            raw = raw[:section_start] + new_section_block + raw[section_end:]
         else:
             raw = raw.replace(section_tag, f"{section_tag}\n{line}", 1)
     else:

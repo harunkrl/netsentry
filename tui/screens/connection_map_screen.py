@@ -92,11 +92,13 @@ def _render_map(
     grid = [list(row) for row in _WORLD_MAP]
 
     # Aggregate connections per grid cell
+    # O6: Skip (0, 0) coordinates — Null Island fix
     cell_counts: Dict[Tuple[int, int], int] = defaultdict(int)
     for conn in connections:
         lat = conn.get("lat")
         lon = conn.get("lon")
-        if lat is not None and lon is not None:
+        # Skip entries with no real geo data (0,0 = Null Island)
+        if lat is not None and lon is not None and not (lat == 0 and lon == 0):
             r, c = _lat_lon_to_grid(lat, lon)
             cell_counts[(r, c)] += 1
 
@@ -147,7 +149,7 @@ class ConnectionMapScreen(Screen):
         Binding("escape", "close", "Back", show=True),
         Binding("m", "toggle_map", "Map", show=True),
         Binding("slash", "search", "Search", show=True),
-        Binding("s", "cycle_sort", "Sort", show=True),
+        Binding("o", "cycle_sort", "Sort", show=True),
         Binding("c", "copy_row", "Copy", show=True),
         Binding("f", "search", "Filter", show=False),
     ]
@@ -178,28 +180,27 @@ class ConnectionMapScreen(Screen):
     #geo-search-input {
         width: 100%;
     }
-    .is-hidden {
-        display: none;
-    }
+    /* Uses global .hidden from styles.tcss */
     #geo-table {
         height: 1fr;
         border: round $primary;
         padding: 0 1;
         background: #1e1e2e;
     }
-    .map-hidden {
-        display: none;
-    }
+    /* Map visibility uses .hidden from styles.tcss */
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self.provider = DataProvider()
+        # Y15: Use singleton provider from app if available
+        app = self.app
+        self.provider = getattr(app, 'data_provider', None) or DataProvider()
         self._filter_text: str = ""
         self._sort_index: int = 0
         self._sort_reverse: bool = False
         self._map_visible: bool = True
         self._connections: List[dict] = []
+        self._geo_stats: dict = {}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -208,7 +209,7 @@ class ConnectionMapScreen(Screen):
         yield Input(
             placeholder="Filter by country / IP / process (Esc to close)...",
             id="geo-search-input",
-            classes="is-hidden",
+            classes="hidden",
             disabled=True,
         )
         yield DataTable(id="geo-table")
@@ -261,6 +262,7 @@ class ConnectionMapScreen(Screen):
             })
 
         self._connections = connections
+        self._geo_stats = geo_stats
         self._update_map(connections, geo_stats)
         self._update_table(connections)
 
@@ -275,13 +277,13 @@ class ConnectionMapScreen(Screen):
 
         header = self.query_one("#map-header", Static)
         
-        # FIX: Changed [s]ort to <s> sort to prevent Textual/Rich markup collisions.
+        # FIX: Changed [s]ort to <o> sort to prevent Textual/Rich markup collisions.
         header.update(
             f"[bold]Connection Map[/]  |  "
             f"{total} connections  |  "
             f"{unique_ips} unique IPs  |  "
             f"{countries} countries  |  "
-            f"[dim]<f> filter  <s> sort  <m> map toggle  <Esc> back[/dim]"
+            f"[dim]<f> filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
         )
 
         if self._map_visible:
@@ -384,10 +386,11 @@ class ConnectionMapScreen(Screen):
         try:
             map_widget = self.query_one("#world-map", Static)
             if self._map_visible:
-                map_widget.remove_class("map-hidden")
-                self._update_map(self._connections, {})
+                map_widget.remove_class("hidden")
+                # O12 fix: Use cached geo_stats to avoid resetting counters
+                self._update_map(self._connections, self._geo_stats)
             else:
-                map_widget.add_class("map-hidden")
+                map_widget.add_class("hidden")
         except Exception:
             pass
 
@@ -395,18 +398,24 @@ class ConnectionMapScreen(Screen):
         try:
             search_input = self.query_one("#geo-search-input", Input)
             search_input.disabled = False
-            search_input.remove_class("is-hidden")
+            search_input.remove_class("hidden")
             search_input.focus()
         except Exception:
             pass
 
     def _hide_search(self) -> None:
+        """Hide search bar and clear filter (Y13 fix)."""
         try:
             search_input = self.query_one("#geo-search-input", Input)
-            search_input.add_class("is-hidden")
+            search_input.add_class("hidden")
             search_input.disabled = True
+            # Y13: Clear filter when search is dismissed
+            search_input.value = ""
         except Exception:
             pass
+        self._filter_text = ""
+        if self._connections:
+            self._update_table(self._connections)
 
     def action_cycle_sort(self) -> None:
         prev = self._sort_index
@@ -415,8 +424,26 @@ class ConnectionMapScreen(Screen):
             self._sort_reverse = not self._sort_reverse
 
         label = _SORT_LABELS[self._sort_index]
-        direction = "desc" if self._sort_reverse else "asc"
-        self.app.notify(f"Sort: {label} ({direction})", severity="information")
+        direction = "▼" if self._sort_reverse else "▲"
+
+        # Y6: Update header to show sort indicator
+        try:
+            header = self.query_one("#map-header", Static)
+            countries = self._geo_stats.get("countries_count", 0)
+            unique_ips = len({c["ip"] for c in self._connections})
+            total = len(self._connections)
+            header.update(
+                f"[bold]Connection Map[/]  |  "
+                f"{total} connections  |  "
+                f"{unique_ips} unique IPs  |  "
+                f"{countries} countries  |  "
+                f"Sort: [bold]{label}[/] {direction}  |  "
+                f"[dim]<f> filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
+            )
+        except Exception:
+            pass
+
+        self.app.notify(f"Sort: {label} {direction}", severity="information")
         self._update_table(self._connections)
 
     def action_copy_row(self) -> None:
@@ -428,8 +455,11 @@ class ConnectionMapScreen(Screen):
                 # row: [#, Country, City, IP, Port, Process, Count]
                 parts = [str(c) for c in row]
                 text = " | ".join(parts)
-                self.app.copy_to_clipboard(text)
-                self.app.notify("Copied to clipboard", severity="information")
+                try:
+                    self.app.copy_to_clipboard(text)
+                    self.app.notify("Copied to clipboard", severity="information")
+                except Exception:
+                    self.app.notify("Clipboard unavailable", severity="warning")
             else:
                 self.app.notify("No row selected", severity="warning")
         except Exception as e:

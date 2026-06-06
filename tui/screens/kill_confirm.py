@@ -2,6 +2,10 @@
 
 Presents a dialog with process details and three action buttons:
 SIGTERM (graceful), SIGKILL (force), Cancel.
+
+K8: Handles PermissionError and ProcessLookupError gracefully.
+K12: Escape key binding to close the modal.
+K11: Kill operations run in background threads to avoid blocking.
 """
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ import signal as sig
 from typing import Optional
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.screen import ModalScreen
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Label, Static
@@ -19,7 +24,11 @@ from backend.models import SocketEntry
 
 
 class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
-    """Modal dialog asking the user to confirm process termination."""
+    """Modal dialog asking the user to confirm process termination.
+
+    Supports Escape to close, and proper error handling for kill
+    operations (PermissionError, ProcessLookupError).
+    """
 
     CSS = """
     KillConfirmScreen {
@@ -44,6 +53,10 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
         margin: 0 1;
     }
     """
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=False),
+    ]
 
     def __init__(
         self,
@@ -77,6 +90,11 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
                 yield Button("SIGKILL (force)", variant="error", id="btn-sigkill")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    # ── Actions ───────────────────────────────────────────────
+    def action_cancel(self) -> None:
+        """Close the modal without taking action (Escape key)."""
+        self.dismiss(None)
+
     # ── Button handlers ───────────────────────────────────────
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -89,10 +107,18 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
             self.dismiss((False, "No PID associated with this entry"))
             return
 
+        # Disable all buttons to prevent double-click
+        self._set_buttons_enabled(False)
+
         if btn_id == "btn-sigterm":
             self.app.run_worker(self._do_kill_graceful, exclusive=True)
         elif btn_id == "btn-sigkill":
             self.app.run_worker(self._do_kill_force, exclusive=True)
+
+    def _set_buttons_enabled(self, enabled: bool) -> None:
+        """Enable or disable all action buttons."""
+        for btn in self.query(Button):
+            btn.disabled = not enabled
 
     # ── Async kill workers (non-blocking) ─────────────────────
     async def _do_kill_graceful(self) -> None:
@@ -101,15 +127,21 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
         self._safe_dismiss((success, msg))
 
     async def _do_kill_force(self) -> None:
-        """Run SIGKILL in a thread to avoid blocking the TUI."""
+        """Run SIGKILL in a thread to avoid blocking the TUI.
+
+        Handles PermissionError and ProcessLookupError gracefully (K8).
+        """
         def _kill() -> tuple[bool, str]:
             try:
                 os.kill(self.entry.pid, sig.SIGKILL)
                 return True, f"Process {self.entry.pid} force-killed (SIGKILL)"
             except ProcessLookupError:
-                return False, f"Process {self.entry.pid} not found"
+                return False, f"Process {self.entry.pid} not found — may have already terminated"
             except PermissionError:
-                return False, f"Permission denied — cannot kill PID {self.entry.pid}"
+                return False, f"Permission denied — cannot kill PID {self.entry.pid}. Try running with elevated privileges."
+            except OSError as e:
+                return False, f"Failed to kill PID {self.entry.pid}: {e}"
+
         success, msg = await asyncio.to_thread(_kill)
         self._safe_dismiss((success, msg))
 

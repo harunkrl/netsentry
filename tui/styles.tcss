@@ -1,81 +1,8 @@
-/* NetSentry — Premium Dark Security Theme for Textual */
+/* NetSentry — Per-screen / per-widget overrides.
+ *
+ * Base theme (dark/nord/solarized/light) is generated at runtime by
+ * ``tui.themes.apply_theme()``.  This file only contains overrides
+ * that are *not* theme-dependent (layout, spacing, animations).
+ */
 
-$surface: #121212;
-$panel-bg: #1e1e2e;
-$primary: #00ff99;
-$secondary: #ff3366;
-$text: #e0e0e0;
-$warning: #ffcc00;
-$error: #ff3333;
-
-Screen {
-    background: $surface;
-    color: $text;
-}
-
-/* ── Main layout ──────────────────────────────────────────── */
-
-#header-bar {
-    dock: top;
-    height: 1;
-    background: $primary;
-    color: #000000;
-    text-style: bold;
-}
-
-#port-table {
-    height: 3fr;
-    border: round $primary;
-    padding: 0 1;
-    background: $panel-bg;
-    overflow-y: auto;
-}
-
-#connection-log {
-    height: 2fr;
-    border: round $primary;
-    padding: 0 1;
-    background: $panel-bg;
-    overflow-y: auto;
-}
-
-#status-bar {
-    dock: bottom;
-    height: auto;
-    background: #003311;
-    color: $primary;
-    content-align: center middle;
-    text-style: bold;
-    padding: 0 1;
-}
-
-.hidden {
-    display: none;
-}
-
-Input {
-    border: round $primary;
-    background: $panel-bg;
-}
-
-DataTable {
-    background: $panel-bg;
-}
-DataTable > .datatable--cursor {
-    background: #005533;
-    color: white;
-}
-DataTable > .datatable--hover {
-    background: #004422;
-}
-
-ScrollBar {
-    background: $surface;
-    color: $primary;
-}
-ScrollBar > .scrollbar--thumb {
-    background: #008855;
-}
-ScrollBar > .scrollbar--thumb:hover {
-    background: $primary;
-}
+/* Screen-level layout is handled by themes.py — nothing here. */

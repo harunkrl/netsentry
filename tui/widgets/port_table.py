@@ -49,8 +49,10 @@ def _smart_truncate_addr(entry: SocketEntry) -> str:
     """Format the address:port column with smart IPv6 shortening.
 
     Uses RFC 5952 ``::`` notation for IPv6 to avoid aggressive truncation.
+    LISTEN and UNCONN (UDP listening) show only the local address.
+    Everything else shows local → remote.
     """
-    if entry.state == "LISTEN":
+    if entry.state in ("LISTEN", "UNCONN"):
         ip = _shorten_ipv6(entry.local_ip)
         return f"{ip}:{entry.local_port}"
     else:

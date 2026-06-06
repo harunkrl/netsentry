@@ -146,7 +146,7 @@ class SettingsScreen(ModalScreen[None]):
         dock: bottom;
         height: 3;
         padding: 0 2;
-        color: #3a3a4a;
+        color: #6a6a8a;
         align: center middle;
     }
 

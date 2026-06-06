@@ -41,6 +41,7 @@ class MainScreen(Screen):
         Binding("s", "settings", "Settings", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("f", "filter_toggle", "Filter", show=True),
+        Binding("ctrl+f", "log_filter_cycle", "LogFilter", show=False),
         Binding("e", "export", "Export", show=True),
         Binding("c", "copy_row", "Copy", show=True),
         Binding("question_mark", "help", "Help", show=True),
@@ -274,6 +275,16 @@ class MainScreen(Screen):
         except Exception:
             pass
         self._hide_search()
+
+    def action_log_filter_cycle(self) -> None:
+        """Cycle the connection log quick-filter mode."""
+        try:
+            conn_log = self.query_one("#connection-log", ConnectionLog)
+            new_mode = conn_log.cycle_quick_filter()
+            label = conn_log.quick_filter_label
+            self.app.notify(f"Log filter: {label}", severity="information")
+        except Exception:
+            pass
 
     # ── Search bar helpers ────────────────────────────────────
     def _show_search(self) -> None:

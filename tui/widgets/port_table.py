@@ -28,8 +28,18 @@ _COL_CMDLINE = 6
 _ROW_COLOURS = {
     "safe": "green",
     "info": "yellow",
-    "critical": "red",
+    "critical": "red bold",
+    "warning": "yellow",
     "default": "white",
+}
+
+# Background styles for row-level highlighting
+_ROW_BG = {
+    "critical": "on dark_red",
+    "warning": "on #3a3200",
+    "safe": "",
+    "info": "",
+    "default": "",
 }
 
 
@@ -163,7 +173,7 @@ class PortTable(DataTable):
                 alert_level = alert_map.get(entry.local_port, "")
                 alert_str = alert_level if alert_level else ""
                 cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
-                colour = self._row_colour(entry, alert_level)
+                colour = self._full_style(entry, alert_level)
 
                 self.add_row(
                     f"[{colour}]{proc_str}[/]",
@@ -227,15 +237,34 @@ class PortTable(DataTable):
     # ── Colour logic ──────────────────────────────────────────
     @staticmethod
     def _row_colour(entry: SocketEntry, alert_level: str) -> str:
+        """Return Rich style string for the row based on alert level."""
         if alert_level == "CRITICAL":
             return _ROW_COLOURS["critical"]
         if alert_level == "WARNING":
-            return _ROW_COLOURS["info"]
+            return _ROW_COLOURS["warning"]
         if entry.local_port in KNOWN_SAFE_PORTS:
             return _ROW_COLOURS["safe"]
         if alert_level == "INFO":
             return _ROW_COLOURS["info"]
         return _ROW_COLOURS["default"]
+
+    @staticmethod
+    def _row_bg(entry: SocketEntry, alert_level: str) -> str:
+        """Return Rich background style for the row (subtle highlight)."""
+        if alert_level == "CRITICAL":
+            return _ROW_BG["critical"]
+        if alert_level == "WARNING":
+            return _ROW_BG["warning"]
+        return ""
+
+    @staticmethod
+    def _full_style(entry: SocketEntry, alert_level: str) -> str:
+        """Combined fg + bg style string for Rich markup."""
+        fg = PortTable._row_colour(entry, alert_level)
+        bg = PortTable._row_bg(entry, alert_level)
+        if bg:
+            return f"{fg} {bg}"
+        return fg
 
     # ── Column header click → sort ────────────────────────────
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected) -> None:

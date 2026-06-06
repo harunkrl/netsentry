@@ -189,7 +189,6 @@ def _generate_theme_css(theme_name: str) -> str:
 }}
 
 .theme-{theme_name} #status-bar {{
-    dock: bottom;
     height: auto;
     background: {c['statusbar-bg']};
     color: {c['primary']};

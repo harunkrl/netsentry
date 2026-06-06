@@ -73,6 +73,9 @@ class ProcessTreeScreen(Screen):
         self._filter_text: str = ""
         # O7: Preserve expand/collapse state across refreshes
         self._expanded_pids: set[int] = set()
+        # Track last rebuild data hash to skip unnecessary rebuilds
+        self._last_data_hash: Optional[int] = None
+        self._last_filter: str = ""
 
     # ── Layout ────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
@@ -81,7 +84,12 @@ class ProcessTreeScreen(Screen):
             placeholder="Filter processes (Esc to close)...",
             id="search-input",
         )
-        yield Tree("Processes", id="process-tree")
+        tree = Tree("Processes", id="process-tree")
+        # Disable Textual's auto_expand — it uses toggle() which collapses
+        # nodes that are already expanded programmatically via _restore_expand_state.
+        # We handle expand/collapse state ourselves via on_tree_node_expanded/collapsed.
+        tree.auto_expand = False
+        yield tree
         yield Static(id="tree-info")
         yield Footer()
 
@@ -114,7 +122,25 @@ class ProcessTreeScreen(Screen):
                 continue
 
         self._processes = processes
+        # Skip rebuild if data and filter haven't changed
+        current_hash = self._compute_data_hash(processes)
+        if current_hash == self._last_data_hash and self._filter_text == self._last_filter:
+            return
+        self._last_data_hash = current_hash
+        self._last_filter = self._filter_text
         self._rebuild_tree()
+
+    def _compute_data_hash(self, processes: Dict[int, ProcessInfo]) -> int:
+        """Compute a lightweight hash of process data to detect changes."""
+        try:
+            # Hash based on PIDs, parent relationships, and network state
+            items = tuple(
+                (pid, tuple(sorted(p.children)), p.has_network, p.name, p.state)
+                for pid, p in sorted(processes.items())
+            )
+            return hash(items)
+        except Exception:
+            return object()  # Always trigger rebuild on error
 
     # ── Tree rendering ────────────────────────────────────────
     def _rebuild_tree(self) -> None:
@@ -128,6 +154,12 @@ class ProcessTreeScreen(Screen):
             self._save_expand_state()
 
             tree = self.query_one("#process-tree", Tree)
+            
+            # Save the currently focused node's PID to prevent scroll jumps
+            focused_pid = None
+            if getattr(tree, "cursor_node", None) and getattr(tree.cursor_node, "data", None):
+                focused_pid = tree.cursor_node.data
+
             tree.clear()
 
             if not self._processes:
@@ -147,6 +179,22 @@ class ProcessTreeScreen(Screen):
 
             # O7: Restore previously expanded nodes
             self._restore_expand_state(tree)
+
+            # Restore cursor to prevent view jumping to top
+            if focused_pid is not None:
+                def _find_and_focus(node):
+                    if getattr(node, "data", None) == focused_pid:
+                        try:
+                            # Use cursor_line, cursor_node has no setter
+                            tree.cursor_line = node.line
+                        except Exception:
+                            pass
+                        return True
+                    for child in getattr(node, 'children', []):
+                        if _find_and_focus(child):
+                            return True
+                    return False
+                _find_and_focus(tree.root)
 
             # Update info bar
             total = len(self._processes)
@@ -224,6 +272,8 @@ class ProcessTreeScreen(Screen):
         """Live-filter the tree as user types."""
         if event.input.id == "search-input":
             self._filter_text = event.value.lower().strip()
+            # Invalidate hash so next refresh will rebuild with new filter
+            self._last_data_hash = None
             self._rebuild_tree()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -276,27 +326,51 @@ class ProcessTreeScreen(Screen):
 
     # ── Tree interaction ──────────────────────────────────────
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        """Toggle expand/collapse on node selection (Enter key)."""
+        """Toggle expand/collapse on node selection (Enter or click).
+        
+        We handle this manually because auto_expand is disabled to prevent
+        Textual's internal toggle from collapsing programmatically expanded nodes.
+        """
         node = event.node
-        if not node.is_root and node.allow_expand:
+        if node.allow_expand:
             node.toggle()
 
     # ── O7: Expand state persistence ─────────────────────────
     def _save_expand_state(self) -> None:
-        """Save which PIDs are currently expanded in the tree."""
-        self._expanded_pids.clear()
+        """Save which PIDs are currently expanded in the tree.
+        
+        Uses cumulative set: does NOT clear, so expand state from manual
+        user interactions (on_tree_node_expanded) is preserved even if
+        the DOM query fails.
+        """
         try:
             tree = self.query_one("#process-tree", Tree)
-            self._collect_expanded(tree.root)
-        except Exception:
-            pass
+            # Also collect from current DOM state (handles auto-expanded nodes)
+            newly_expanded: set[int] = set()
+            self._collect_expanded_into(tree.root, newly_expanded)
+            # Merge: keep previously saved + add newly discovered
+            self._expanded_pids |= newly_expanded
+        except Exception as e:
+            log.debug("_save_expand_state DOM query failed: %s", e)
 
-    def _collect_expanded(self, node) -> None:
-        """Recursively collect data (PID) of expanded nodes."""
+    def _collect_expanded_into(self, node, result: set) -> None:
+        """Recursively collect data (PID) of expanded nodes into result set."""
         if not node.is_root and node.is_expanded and node.data is not None:
-            self._expanded_pids.add(node.data)
+            result.add(node.data)
         for child in getattr(node, 'children', []):
-            self._collect_expanded(child)
+            self._collect_expanded_into(child, result)
+
+    def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
+        """Track user-initiated node expansion to preserve across rebuilds."""
+        node = event.node
+        if not node.is_root and node.data is not None:
+            self._expanded_pids.add(node.data)
+
+    def on_tree_node_collapsed(self, event: Tree.NodeCollapsed) -> None:
+        """Track user-initiated node collapse to update saved state."""
+        node = event.node
+        if not node.is_root and node.data is not None:
+            self._expanded_pids.discard(node.data)
 
     def _restore_expand_state(self, tree: Tree) -> None:
         """Expand nodes whose PID was expanded before the rebuild."""
@@ -304,8 +378,8 @@ class ProcessTreeScreen(Screen):
             return
         try:
             self._expand_matching(tree.root)
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("_restore_expand_state failed: %s", e)
 
     def _expand_matching(self, node) -> None:
         """Recursively expand nodes matching saved PIDs."""

@@ -16,8 +16,8 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import ModalScreen
-from textual.containers import Vertical, VerticalScroll, Horizontal
-from textual.widgets import Label, Switch, Static, Button
+from textual.containers import Vertical, Horizontal, Container
+from textual.widgets import Label, Switch, Static, Button, TabbedContent, TabPane
 
 from shared.config import save_config_setting
 
@@ -25,7 +25,7 @@ from shared.config import save_config_setting
 AVAILABLE_THEMES = ["Cyberpunk", "Midnight", "Hacker"]
 
 
-class SettingRow(Horizontal):
+class SettingRow(Container):
     """A single toggleable setting row — focusable for keyboard navigation.
 
     Press Enter or Space to toggle the switch when the row is focused.
@@ -33,6 +33,9 @@ class SettingRow(Horizontal):
 
     CSS = """
     SettingRow {
+        layout: grid;
+        grid-size: 2;
+        grid-columns: 1fr 16;
         height: auto;
         padding: 1 2;
         border-bottom: solid #1a3a2a 80%;
@@ -46,7 +49,7 @@ class SettingRow(Horizontal):
     }
 
     SettingRow > .setting-info {
-        width: 1fr;
+        height: auto;
     }
 
     SettingRow > .setting-info > .setting-title {
@@ -62,9 +65,9 @@ class SettingRow(Horizontal):
     }
 
     SettingRow > .setting-switch-container {
-        width: auto;
-        padding: 1 0 0 2;
-        content-align: center middle;
+        height: 100%;
+        padding: 0;
+        content-align: right middle;
     }
     """
 
@@ -105,7 +108,7 @@ class SettingRow(Horizontal):
         self.switch.toggle()
 
 
-class SelectableRow(Horizontal):
+class SelectableRow(Container):
     """A selectable setting row with cycle-through values (e.g., theme selector).
 
     Press Enter or Space to cycle to the next value when the row is focused.
@@ -113,6 +116,9 @@ class SelectableRow(Horizontal):
 
     CSS = """
     SelectableRow {
+        layout: grid;
+        grid-size: 2;
+        grid-columns: 1fr 20;
         height: auto;
         padding: 1 2;
         border-bottom: solid #1a3a2a 80%;
@@ -126,7 +132,7 @@ class SelectableRow(Horizontal):
     }
 
     SelectableRow > .setting-info {
-        width: 1fr;
+        height: auto;
     }
 
     SelectableRow > .setting-info > .setting-title {
@@ -142,9 +148,9 @@ class SelectableRow(Horizontal):
     }
 
     SelectableRow > .setting-value-container {
-        width: auto;
-        padding: 1 0 0 2;
-        content-align: center middle;
+        height: 100%;
+        padding: 0;
+        content-align: right middle;
     }
 
     SelectableRow > .setting-value-container > .value-label {
@@ -215,17 +221,16 @@ class SettingsScreen(ModalScreen[None]):
     }
 
     #settings-dialog {
-        width: 72;
-        max-width: 90%;
-        height: auto;
-        max-height: 80%;
+        width: 76;
+        height: 28;
+        max-width: 95%;
+        max-height: 90%;
         background: #0d0d0d;
         border: round #008855;
         padding: 0;
     }
 
     #settings-header {
-        dock: top;
         height: 3;
         padding: 0 2;
         background: #008855;
@@ -234,26 +239,19 @@ class SettingsScreen(ModalScreen[None]):
         content-align: center middle;
     }
 
-    .settings-section-label {
-        dock: top;
-        height: 1;
-        padding: 1 2 0 2;
-        color: #008855;
-        text-style: bold;
+    #settings-body {
+        height: 1fr;
+        padding: 1 2;
     }
 
-    #settings-body {
-        height: auto;
-        max-height: 28;
-        padding: 0 1;
-    }
+
 
     #settings-footer {
-        dock: bottom;
         height: 3;
         padding: 0 2;
         color: #6a6a8a;
         align: center middle;
+        border-top: solid #1a3a2a;
     }
 
     #settings-footer-text {
@@ -302,79 +300,80 @@ class SettingsScreen(ModalScreen[None]):
         with Vertical(id="settings-dialog"):
             yield Static("SETTINGS", id="settings-header")
 
-            with VerticalScroll(id="settings-body"):
-                # Notifications section
-                yield Label("Notifications", classes="settings-section-label")
-                yield SettingRow(
-                    key="enabled",
-                    section="notifications",
-                    title="Alert Desktop Notifications",
-                    description=(
-                        "Show desktop notifications for daemon alerts "
-                        "(notify-send). Applies to WARNING and CRITICAL alerts."
-                    ),
-                    value=self._desktop_notifications,
-                )
-                yield SettingRow(
-                    key="tui_notifications_enabled",
-                    section="tui",
-                    title="Toast Notifications",
-                    description=(
-                        "Show pop-up notifications inside the TUI. "
-                        "When disabled, all toast messages are suppressed."
-                    ),
-                    value=self._tui_notifications,
-                )
+            with Vertical(id="settings-body"):
+                with TabbedContent(initial="tab-notifications"):
+                    # Notifications Tab
+                    with TabPane("Notifications", id="tab-notifications"):
+                        yield SettingRow(
+                            key="enabled",
+                            section="notifications",
+                            title="Alert Desktop Notifications",
+                            description=(
+                                "Show desktop notifications for daemon alerts "
+                                "(notify-send). Applies to WARNING and CRITICAL alerts."
+                            ),
+                            value=self._desktop_notifications,
+                        )
+                        yield SettingRow(
+                            key="tui_notifications_enabled",
+                            section="tui",
+                            title="Toast Notifications",
+                            description=(
+                                "Show pop-up notifications inside the TUI. "
+                                "When disabled, all toast messages are suppressed."
+                            ),
+                            value=self._tui_notifications,
+                        )
 
-                # Daemon settings section
-                yield Label("Daemon", classes="settings-section-label")
-                yield SettingRow(
-                    key="geoip_enabled",
-                    section="geoip",
-                    title="GeoIP Lookup",
-                    description=(
-                        "Resolve remote IP geolocation (country, city, org). "
-                        "Disabling reduces network requests and latency."
-                    ),
-                    value=self._geoip_enabled,
-                )
-                yield SettingRow(
-                    key="burst_threshold",
-                    section="alerts",
-                    title="Burst Alert Threshold",
-                    description=(
-                        f"Number of rapid connections to trigger a burst alert. "
-                        f"Current: {self._burst_threshold}. Toggle to reset to default (3)."
-                    ),
-                    value=self._burst_threshold <= 3,  # Binary toggle for simplicity
-                )
+                    # Daemon Tab
+                    with TabPane("Daemon", id="tab-daemon"):
+                        yield SettingRow(
+                            key="geoip_enabled",
+                            section="geoip",
+                            title="GeoIP Lookup",
+                            description=(
+                                "Resolve remote IP geolocation (country, city, org). "
+                                "Disabling reduces network requests and latency."
+                            ),
+                            value=self._geoip_enabled,
+                        )
+                        yield SettingRow(
+                            key="burst_threshold",
+                            section="alerts",
+                            title="Burst Alert Threshold",
+                            description=(
+                                f"Number of rapid connections to trigger a burst alert. "
+                                f"Current: {self._burst_threshold}. Toggle to reset to default (3)."
+                            ),
+                            value=self._burst_threshold <= 3,
+                        )
 
-                # Port scan detection section
-                yield Label("Security", classes="settings-section-label")
-                yield SettingRow(
-                    key="scan_threshold",
-                    section="security",
-                    title="Port Scan Detection (threshold toggle)",
-                    description=(
-                        f"Number of unique ports from one IP to flag as port scan. "
-                        f"Current: {self._scan_threshold}. Toggle between 5 (sensitive) and 10 (relaxed)."
-                    ),
-                    value=self._scan_threshold <= 5,
-                )
+                    # Security Tab
+                    with TabPane("Security", id="tab-security"):
+                        yield SettingRow(
+                            key="scan_threshold",
+                            section="security",
+                            title="Port Scan Detection",
+                            description=(
+                                f"Number of unique ports from one IP to flag as port scan. "
+                                f"Current: {self._scan_threshold}. Toggle between 5 (sensitive) and 10 (relaxed)."
+                            ),
+                            value=self._scan_threshold <= 5,
+                        )
 
-                # Theme section
-                yield Label("Appearance", classes="settings-section-label")
-                yield SelectableRow(
-                    key="theme",
-                    section="tui",
-                    title="Color Theme",
-                    description=(
-                        "Select the TUI color scheme. Changes apply immediately. "
-                        "Options: Cyberpunk (green neon), Midnight (cool blue), Hacker (classic green)."
-                    ),
-                    value=self._current_theme,
-                    options=AVAILABLE_THEMES,
-                )
+                    # Appearance Tab
+                    with TabPane("Appearance", id="tab-appearance"):
+                        yield SelectableRow(
+                            key="theme",
+                            section="tui",
+                            title="Color Theme",
+                            description=(
+                                "Select the TUI color scheme. Changes apply immediately. "
+                                "Options: Cyberpunk (green neon), Midnight (cool blue), Hacker (classic green)."
+                            ),
+                            value=self._current_theme,
+                            options=AVAILABLE_THEMES,
+                        )
 
             yield Horizontal(
                 Static("[dim]Tab: navigate  |  Enter/Space: toggle  |  Esc: close[/]", id="settings-footer-text"),

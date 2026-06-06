@@ -34,9 +34,13 @@ if [ ! -d "${SCRIPT_DIR}/.venv" ]; then
     python3 -m venv "${SCRIPT_DIR}/.venv"
 fi
 source "${SCRIPT_DIR}/.venv/bin/activate"
-if ! pip install --quiet -e "${SCRIPT_DIR}" 2>&1; then
-    echo "⚠️  pip install from pyproject.toml failed, falling back to direct install..."
+# Try editable install first; falls back gracefully on Python 3.14+
+# (known getpath null-char issue with editable installs on 3.14+)
+if ! pip install --quiet -e "${SCRIPT_DIR}" 2>/dev/null; then
+    echo "   ⚠️  Editable install skipped (Python $(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')), using direct install..."
     pip install --quiet textual rich
+    # Re-install entry points without build isolation
+    pip install --quiet --no-build-isolation -e "${SCRIPT_DIR}" 2>/dev/null || true
 fi
 echo "   ✅ Dependencies installed (textual, rich)"
 

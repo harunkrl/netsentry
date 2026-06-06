@@ -138,6 +138,18 @@ class Snapshot:
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
+    def to_widget_dict(self) -> dict[str, Any]:
+        """Lightweight payload for the Plasma widget — omits processes & geo_stats."""
+        return {
+            "timestamp": self.timestamp,
+            "poll_interval_ms": self.poll_interval_ms,
+            "listening": [asdict(e) for e in self.listening],
+            "established": [asdict(e) for e in self.established],
+            "alerts": [asdict(a) for a in self.alerts],
+            "summary": self.summary,
+            "traffic": {name: asdict(stats) for name, stats in self.traffic.items()},
+        }
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Snapshot:
         traffic_raw = d.get("traffic", {})

@@ -12,6 +12,7 @@ from enum import StrEnum
 # Falls back to /tmp only if XDG_RUNTIME_DIR is not set.
 _RUNTIME_DIR: str = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 DATA_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch-data.json")
+WIDGET_DATA_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch-widget-data.json")
 SOCKET_PATH: str = os.path.join(_RUNTIME_DIR, "kportwatch.sock")
 BASELINE_DIR: str = os.path.expanduser("~/.config/kportwatch")
 BASELINE_FILE: str = os.path.join(BASELINE_DIR, "baseline.json")

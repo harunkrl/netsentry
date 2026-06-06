@@ -6,6 +6,7 @@ import org.kde.kirigami as Kirigami
 Item {
     id: compactRoot
     Layout.minimumWidth: contentRow.implicitWidth + 8
+    Layout.minimumHeight: contentRow.implicitHeight + 4
     Layout.preferredWidth: contentRow.implicitWidth + 8
 
     readonly property string shieldIcon: {
@@ -48,6 +49,7 @@ Item {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: { root.expanded = !root.expanded }
+        acceptedButtons: Qt.LeftButton
+        onClicked: (mouse) => { if (mouse.button === Qt.LeftButton) root.expanded = !root.expanded }
     }
 }

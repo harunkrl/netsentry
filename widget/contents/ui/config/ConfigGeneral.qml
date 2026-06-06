@@ -42,7 +42,7 @@ ScrollView {
                 { label: i18n("Suspicious (WARNING+)"), value: "WARNING" },
                 { label: i18n("Threats only (CRITICAL)"), value: "CRITICAL" }
             ]
-            Component.onCompleted: { for (var i = 0; i < model.length; i++) { if (model[i].value === cfg_alertThreshold) { currentIndex = i; break } } }
+            Component.onCompleted: { for (var i = 0; i < model.length; i++) { if (model[i].value === plasmoid.configuration.alertThreshold) { currentIndex = i; break } } }
             onActivated: { cfg_alertThreshold = model[currentIndex].value }
         }
 
@@ -56,7 +56,7 @@ ScrollView {
         Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Advanced") }
         TextField {
             id: tuiCommandField; Kirigami.FormData.label: i18n("TUI command:"); Layout.fillWidth: true
-            placeholderText: "konsole -e bash -c 'source ~/KPortWatch/.venv/bin/activate && exec kportwatch-tui'"
+            placeholderText: "konsole -e kportwatch-tui"
         }
         Label {
             Kirigami.FormData.label: ""; text: i18n("Command for 'Launch Analyzer' button.")

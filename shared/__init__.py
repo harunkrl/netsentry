@@ -11,6 +11,7 @@ from shared.constants import (  # explicit re-exports for type-checkers
     BASELINE_DIR,
     BASELINE_FILE,
     DATA_FILE,
+    WIDGET_DATA_FILE,
     GITHUB_REPO,
     KNOWN_SAFE_PORTS,
     MALICIOUS_PORTS,

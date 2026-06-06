@@ -9,8 +9,8 @@ Item {
     Layout.preferredHeight: Kirigami.Units.gridUnit * root.popupHeight
 
     readonly property bool hasData: root.snapshotData !== null
-    readonly property int sf: Kirigami.Theme.smallFont.pixelSize * (root.fontScale / 100.0)
-    readonly property int df: Kirigami.Theme.defaultFont.pixelSize * (root.fontScale / 100.0)
+    readonly property real sf: Kirigami.Theme.smallFont.pixelSize * (root.fontScale / 100.0)
+    readonly property real df: Kirigami.Theme.defaultFont.pixelSize * (root.fontScale / 100.0)
 
     readonly property string hi: {
         if (root.threatLevel === "critical") return "security-low"
@@ -18,13 +18,15 @@ Item {
         return "security-high"
     }
 
+    readonly property var activeModel: root.activeTab === 0 ? connectionsModel : establishedModel
+
     Kirigami.PromptDialog {
         id: killDialog
         property int targetPid: 0
         title: i18n("Kill Process")
         subtitle: i18n("Are you sure you want to terminate process %1?", targetPid)
         standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
-        onAccepted: { killExecSource.connectedSources = ["kill -15 " + targetPid] }
+        onAccepted: { root.killProcess(targetPid) }
     }
 
     ColumnLayout {
@@ -32,6 +34,7 @@ Item {
         anchors.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
+        // ── Header row ─────────────────────────────────────────
         RowLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -48,36 +51,62 @@ Item {
 
         Kirigami.Separator { Layout.fillWidth: true }
 
+        // ── Status banners ─────────────────────────────────────
         Kirigami.InlineMessage {
             Layout.fillWidth: true; type: Kirigami.MessageType.Error
             text: i18n("Daemon not responding. Data may be stale."); visible: root.daemonDown
         }
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true; type: Kirigami.MessageType.Warning
+            text: i18n("Data may be stale — last fetch failed."); visible: root.dataStale && !root.daemonDown
+        }
 
+        // ── Tab bar ────────────────────────────────────────────
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 0
+
+            Button {
+                text: i18n("Listening (%1)", root.listeningCount)
+                font.pixelSize: fullRoot.sf
+                flat: true
+                highlighted: root.activeTab === 0
+                onClicked: root.activeTab = 0
+                Layout.fillWidth: true
+            }
+            Button {
+                text: i18n("Established (%1)", root.establishedCount)
+                font.pixelSize: fullRoot.sf
+                flat: true
+                highlighted: root.activeTab === 1
+                onClicked: root.activeTab = 1
+                Layout.fillWidth: true
+            }
+        }
+
+        Kirigami.Separator { Layout.fillWidth: true }
+
+        // ── Search ─────────────────────────────────────────────
         Kirigami.SearchField {
             Layout.fillWidth: true
             placeholderText: i18n("Search ports, processes, IP...")
             onTextChanged: root.searchText = text.toLowerCase()
         }
 
+        // ── Connection list ────────────────────────────────────
         ListView {
             id: portListView
             Layout.fillWidth: true; Layout.fillHeight: true
-            clip: true; model: connectionsModel; spacing: 1
+            clip: true; model: fullRoot.activeModel; spacing: 1
             ScrollBar.vertical: ScrollBar {}
 
             header: RowLayout {
                 width: portListView.width; spacing: 0
-                visible: connectionsModel.count > 0
+                visible: portListView.count > 0
                 height: visible ? Kirigami.Units.gridUnit * 1.5 : 0
                 Item { Layout.preferredWidth: Kirigami.Units.smallSpacing }
                 Repeater {
-                    model: [
-                        { col: "process_name", label: i18n("Process"), w: 0.30 },
-                        { col: "pid", label: i18n("PID"), w: 0.12 },
-                        { col: "proto", label: i18n("Proto"), w: 0.12 },
-                        { col: "local_port", label: i18n("Port"), w: 0.15 },
-                        { col: "remote_hostname", label: i18n("IP Address"), w: 0.31 }
-                    ]
+                    model: root.activeTab === 0 ? listeningCols : establishedCols
                     delegate: Label {
                         readonly property var m: modelData
                         text: m.label + (root.sortColumn === m.col ? (root.sortDescending ? " ▼" : " ▲") : "")
@@ -88,11 +117,30 @@ Item {
                             onClicked: {
                                 if (root.sortColumn === m.col) root.sortDescending = !root.sortDescending
                                 else { root.sortColumn = m.col; root.sortDescending = false }
+                                plasmoid.configuration.sortColumn = root.sortColumn
+                                plasmoid.configuration.sortDescending = root.sortDescending
                             }
                         }
                     }
                 }
             }
+
+            // Column definitions
+            property var listeningCols: [
+                { col: "process_name", label: i18n("Process"), w: 0.30 },
+                { col: "pid", label: i18n("PID"), w: 0.12 },
+                { col: "proto", label: i18n("Proto"), w: 0.12 },
+                { col: "local_port", label: i18n("Port"), w: 0.15 },
+                { col: "remote_hostname", label: i18n("IP Address"), w: 0.31 }
+            ]
+            property var establishedCols: [
+                { col: "process_name", label: i18n("Process"), w: 0.24 },
+                { col: "local_port", label: i18n("Local"), w: 0.10 },
+                { col: "remote_ip", label: i18n("Remote"), w: 0.22 },
+                { col: "remote_country", label: i18n("Country"), w: 0.14 },
+                { col: "remote_hostname", label: i18n("Hostname"), w: 0.20 },
+                { col: "state", label: i18n("State"), w: 0.10 }
+            ]
 
             delegate: Item {
                 width: portListView.width; height: Kirigami.Units.gridUnit * 1.8
@@ -119,14 +167,16 @@ Item {
                     MenuItem { text: i18n("Copy Process"); onTriggered: { clip.text = entry.process_name || ""; clip.selectAll(); clip.copy() } }
                     MenuItem { text: i18n("Copy PID"); onTriggered: { clip.text = entry.pid ? String(entry.pid) : ""; clip.selectAll(); clip.copy() } }
                     MenuItem { text: i18n("Copy Port"); onTriggered: { clip.text = entry.local_port ? String(entry.local_port) : ""; clip.selectAll(); clip.copy() } }
-                    MenuItem { text: i18n("Copy IP"); onTriggered: { clip.text = entry.local_ip || ""; clip.selectAll(); clip.copy() } }
+                    MenuItem { text: i18n("Copy IP"); onTriggered: { clip.text = entry.remote_ip || entry.local_ip || ""; clip.selectAll(); clip.copy() } }
                     MenuSeparator {}
                     MenuItem { text: i18n("Kill Process"); icon.name: "application-exit"; enabled: entry.pid > 0
                         onTriggered: { killDialog.targetPid = entry.pid; killDialog.open() } }
                 }
 
+                // ── Listening tab delegate ─────────────────────
                 RowLayout {
                     anchors.fill: parent; spacing: 0
+                    visible: root.activeTab === 0
                     Item { Layout.preferredWidth: Kirigami.Units.smallSpacing }
 
                     RowLayout {
@@ -160,30 +210,136 @@ Item {
                             HoverHandler { id: th }
                         }
                         Button {
-                            icon.name: "application-exit"; visible: entry.pid > 0
+                            icon.name: "application-exit"; visible: lh.hovered && entry.pid > 0
                             implicitWidth: 28; implicitHeight: 28; Layout.alignment: Qt.AlignVCenter
                             ToolTip.text: i18n("Kill (%1)", entry.pid); ToolTip.visible: hovered; flat: true
                             onClicked: { killDialog.targetPid = entry.pid; killDialog.open() }
                         }
                     }
                 }
+
+                // ── Established tab delegate ────────────────────
+                RowLayout {
+                    anchors.fill: parent; spacing: 0
+                    visible: root.activeTab === 1
+                    Item { Layout.preferredWidth: Kirigami.Units.smallSpacing }
+
+                    Label {
+                        text: entry.process_name || i18n("unknown")
+                        font.pixelSize: fullRoot.sf; Layout.fillWidth: false
+                        Layout.preferredWidth: parent.width * 0.24 - Kirigami.Units.smallSpacing
+                        elide: Text.ElideRight
+                    }
+                    Label { text: entry.local_port ? String(entry.local_port) : "-"; font.pixelSize: fullRoot.sf; Layout.preferredWidth: parent.width * 0.10 }
+                    Label {
+                        text: entry.remote_ip || "-"
+                        font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor
+                        Layout.preferredWidth: parent.width * 0.22; elide: Text.ElideRight
+                        ToolTip.visible: ipHov.hovered; ToolTip.text: entry.remote_ip + ":" + (entry.remote_port || "?")
+                        HoverHandler { id: ipHov }
+                    }
+                    Label {
+                        text: entry.remote_country_code ? entry.remote_country_code.toUpperCase() : (entry.remote_country || "-")
+                        font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor
+                        Layout.preferredWidth: parent.width * 0.14
+                    }
+                    Label {
+                        text: entry.remote_hostname || "-"
+                        font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor
+                        Layout.preferredWidth: parent.width * 0.20; elide: Text.ElideRight
+                    }
+                    Label {
+                        text: entry.state || "?"
+                        font.pixelSize: fullRoot.sf
+                        color: entry.state === "ESTABLISHED" ? "#27ae60" : Kirigami.Theme.disabledTextColor
+                        Layout.preferredWidth: parent.width * 0.10
+                    }
+                }
             }
 
+            // ── Empty states ───────────────────────────────────
             Label {
-                anchors.fill: parent; visible: portListView.count === 0
-                text: fullRoot.hasData ? i18n("No listening ports detected") : i18n("Waiting for data…\nMake sure kportwatch-daemon is running.")
+                anchors.fill: parent; visible: portListView.count === 0 && fullRoot.hasData
+                text: root.activeTab === 0 ? i18n("No listening ports detected") : i18n("No active connections")
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor; wrapMode: Text.WordWrap
+            }
+
+            Column {
+                anchors.fill: parent; visible: portListView.count === 0 && !fullRoot.hasData
+                spacing: Kirigami.Units.smallSpacing
+
+                Item { Layout.fillHeight: true }
+
+                Kirigami.Icon {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    source: "view-refresh"
+                    implicitWidth: Kirigami.Units.iconSizes.medium
+                    implicitHeight: Kirigami.Units.iconSizes.medium
+                    opacity: 0.5
+                    NumberAnimation on opacity {
+                        from: 0.3; to: 0.7; duration: 1200
+                        running: parent.visible; loops: Animation.Infinite
+                        easing.type: Easing.InOutSine
+                    }
+                }
+
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: i18n("Waiting for data…")
+                    font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor
+                }
+
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: i18n("Make sure kportwatch-daemon is running.")
+                    font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor; opacity: 0.7
+                }
+
+                Item { Layout.fillHeight: true }
             }
         }
 
         Kirigami.Separator { Layout.fillWidth: true }
 
+        // ── Footer: traffic + timestamp + actions ──────────────
         RowLayout {
             Layout.fillWidth: true
-            Label { text: root.lastUpdated ? i18n("Updated: %1", root.lastUpdated) : ""; font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor }
+
+            Label {
+                text: root.lastUpdated ? i18n("Updated: %1", root.lastUpdated) : ""
+                font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor
+            }
+
             Item { Layout.fillWidth: true }
-            Button { icon.name: "utilities-terminal"; text: i18n("Launch Analyzer"); onClicked: root.launchTUI() }
+
+            // Traffic indicator
+            RowLayout {
+                visible: root.trafficIface !== ""
+                spacing: Kirigami.Units.smallSpacing
+                Kirigami.Icon {
+                    source: "network-wireless"
+                    implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: Kirigami.Units.iconSizes.small
+                    opacity: 0.6
+                }
+                Label {
+                    text: "↓" + root.trafficRx
+                    font.pixelSize: fullRoot.sf; color: "#27ae60"
+                    font.bold: root.trafficRx !== "0 B/s"
+                }
+                Label {
+                    text: "↑" + root.trafficTx
+                    font.pixelSize: fullRoot.sf; color: "#3498db"
+                    font.bold: root.trafficTx !== "0 B/s"
+                }
+            }
+
+            Button {
+                icon.name: "utilities-terminal"; text: i18n("Analyzer")
+                implicitHeight: Kirigami.Units.gridUnit * 1.6
+                font.pixelSize: fullRoot.sf
+                onClicked: root.launchTUI()
+            }
         }
     }
 }

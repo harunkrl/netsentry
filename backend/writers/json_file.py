@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from shared import DATA_FILE
+from shared import DATA_FILE, WIDGET_DATA_FILE
 from backend.models import Snapshot
 
 
@@ -35,6 +35,27 @@ def write_snapshot(snapshot_data: Snapshot | str, path: str = DATA_FILE) -> None
         os.replace(tmp_path, path)
     except OSError:
         # Clean up tmp on failure
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def write_widget_snapshot(snapshot: Snapshot, path: str = WIDGET_DATA_FILE) -> None:
+    """Atomically write a lightweight widget-only payload (no processes/geo_stats)."""
+    import json
+    path = str(path)
+    tmp_path = path + ".tmp"
+    parent = os.path.dirname(path)
+    if parent and parent not in _dirs_created:
+        os.makedirs(parent, exist_ok=True)
+        _dirs_created.add(parent)
+    try:
+        with open(tmp_path, "w") as fh:
+            json.dump(snapshot.to_widget_dict(), fh, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except OSError:
         try:
             os.unlink(tmp_path)
         except OSError:

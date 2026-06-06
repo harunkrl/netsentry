@@ -17,7 +17,7 @@ version = "2.1.0"
 description = "KDE Plasma 6 network security monitor with daemon, TUI, and plasmoid widget"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{name = "KPortWatch Contributors"}]
 keywords = ["network", "security", "monitor", "kde", "plasma"]
 classifiers = [
@@ -27,9 +27,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Networking :: Monitoring",
 ]
@@ -43,6 +43,8 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
 ]
 
 [project.scripts]
@@ -72,3 +74,16 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+# ── Ruff ───────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["backend", "tui", "shared", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"

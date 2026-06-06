@@ -69,7 +69,7 @@ class DetailScreen(Screen):
         margin: 1 2;
         padding: 1 2;
         border: round #008855;
-        background: $panel-bg;
+        background: $surface;
     }
     .detail-section-title {
         color: #00ff99;

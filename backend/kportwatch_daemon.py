@@ -36,7 +36,7 @@ from backend.parsers.net_dev import parse_proc_net_dev
 from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
 from backend.parsers.process_tree import build_process_tree
 from backend.alert_engine import AlertEngine
-from backend.writers.json_file import write_snapshot
+from backend.writers.json_file import write_snapshot, write_widget_snapshot
 from backend.parsers.rdns import get_hostname
 from backend.parsers import geoip as geoip_mod
 from backend.writers.unix_socket import UnixSocketServer
@@ -377,6 +377,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
             # 7. Write snapshot atomically and broadcast over socket
             snapshot_json = snapshot.to_json()
             write_snapshot(snapshot_json)
+            write_widget_snapshot(snapshot)  # lightweight payload for widget
             if socket_server:
                 socket_server.broadcast(snapshot_json)
 
@@ -577,4 +578,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback, pathlib
+        crash_log = pathlib.Path.home() / ".local" / "share" / "kportwatch" / "crash.log"
+        crash_log.parent.mkdir(parents=True, exist_ok=True)
+        with open(crash_log, "a") as f:
+            f.write(f"\n{'='*60}\nCrash at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            traceback.print_exc(file=f)
+        raise

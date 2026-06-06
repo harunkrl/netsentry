@@ -16,6 +16,7 @@ ScrollView {
     property alias cfg_iconSize: iconSizeSpin.value
     property alias cfg_badgeSize: badgeSizeSpin.value
     property alias cfg_fontScale: fontScaleSpin.value
+    property alias cfg_safePorts: safePortsField.text
 
     Kirigami.FormLayout {
         width: configPage.availableWidth
@@ -52,6 +53,17 @@ ScrollView {
         SpinBox { id: fontScaleSpin; Kirigami.FormData.label: i18n("Text scale:"); from: 50; to: 200; stepSize: 10; value: 100; textFromValue: function(v) { return v + " %" }; valueFromText: function(t) { return Number(t.replace(/[^0-9]/g, "")) } }
         SpinBox { id: popupWidthSpin; Kirigami.FormData.label: i18n("Popup width:"); from: 15; to: 100; stepSize: 1; value: 32; textFromValue: function(v) { return v + " units" }; valueFromText: function(t) { return Number(t.replace(/[^0-9]/g, "")) } }
         SpinBox { id: popupHeightSpin; Kirigami.FormData.label: i18n("Popup height:"); from: 10; to: 100; stepSize: 1; value: 22; textFromValue: function(v) { return v + " units" }; valueFromText: function(t) { return Number(t.replace(/[^0-9]/g, "")) } }
+
+        Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Safe Ports") }
+        TextField {
+            id: safePortsField; Kirigami.FormData.label: i18n("Safe ports:"); Layout.fillWidth: true
+            placeholderText: i18n("e.g. 22, 80, 443, 5353")
+        }
+        Label {
+            Kirigami.FormData.label: ""; text: i18n("Comma-separated port numbers. These ports won't trigger alerts in the widget.")
+            font.pixelSize: Kirigami.Theme.smallFont.pixelSize; color: Kirigami.Theme.disabledTextColor; wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
 
         Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Advanced") }
         TextField {

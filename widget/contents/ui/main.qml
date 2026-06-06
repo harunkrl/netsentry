@@ -14,6 +14,16 @@ PlasmoidItem {
     property int iconSize: plasmoid.configuration.iconSize
     property int badgeSize: plasmoid.configuration.badgeSize
     property int fontScale: plasmoid.configuration.fontScale
+    property string safePortsStr: plasmoid.configuration.safePorts || ""
+    property var safePortsSet: {
+        var s = {}
+        var parts = root.safePortsStr.split(",")
+        for (var i = 0; i < parts.length; i++) {
+            var n = parseInt(parts[i].trim())
+            if (n > 0 && n <= 65535) s[n] = true
+        }
+        s
+    }
 
     property var snapshotData: null
     property int listeningCount: 0
@@ -155,7 +165,7 @@ PlasmoidItem {
         root.trafficRx = formatBytes(bestRx) + "/s"
         root.trafficTx = formatBytes(bestTx) + "/s"
 
-        // ── Filter alerts by threshold ─────────────────────────
+        // ── Filter alerts by threshold & safe ports ────────────
         var allAlerts = parsed.alerts || []
         var filtered = []
         var thresholdOrder = ["INFO", "WARNING", "CRITICAL"]
@@ -163,7 +173,8 @@ PlasmoidItem {
         for (var i = 0; i < allAlerts.length; i++) {
             var alertLevel = allAlerts[i].level || "INFO"
             var alertIdx = thresholdOrder.indexOf(alertLevel)
-            if (alertIdx >= thresholdIdx) { filtered.push(allAlerts[i]) }
+            var alertPort = allAlerts[i].port
+            if (alertIdx >= thresholdIdx && !root.safePortsSet[alertPort]) { filtered.push(allAlerts[i]) }
         }
         root.alertList = filtered
 

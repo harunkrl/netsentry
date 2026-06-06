@@ -184,9 +184,13 @@ Item {
                         spacing: Kirigami.Units.smallSpacing
                         Item {
                             width: 14; height: 14; Layout.alignment: Qt.AlignVCenter
+                            ToolTip.visible: dotHover.hovered
+                            ToolTip.text: ma ? ma.message : (root.safePortsSet[entry.local_port] ? i18n("Safe port") : i18n("No alert"))
+                            HoverHandler { id: dotHover }
                             Rectangle {
                                 anchors.centerIn: parent; width: 8; height: 8; radius: 4
-                                color: ma ? (ma.level === "CRITICAL" ? "#da4453" : "#f67400") : "#27ae60"
+                                color: ma ? (ma.level === "CRITICAL" ? "#da4453" : "#f67400") : (root.safePortsSet[entry.local_port] ? "#27ae60" : "#3daee9")
+                                opacity: root.safePortsSet[entry.local_port] && !ma ? 0.5 : 1.0
                                 Rectangle {
                                     anchors.centerIn: parent; width: 16; height: 16; radius: 8
                                     color: parent.color; opacity: 0.25; visible: ma !== null

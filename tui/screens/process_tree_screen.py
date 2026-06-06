@@ -73,8 +73,11 @@ class ProcessTreeScreen(Screen):
         self._filter_text: str = ""
         # O7: Preserve expand/collapse state across refreshes
         self._expanded_pids: set[int] = set()
-        # Track last rebuild data hash to skip unnecessary rebuilds
-        self._last_data_hash: Optional[int] = None
+        # PID → TreeNode mapping for in-place label updates
+        self._pid_to_node: Dict[int, object] = {}
+        # Two-tier hashing: structure (PIDs, parent-child) vs display (state, network)
+        self._last_structure_hash: Optional[int] = None
+        self._last_display_hash: Optional[int] = None
         self._last_filter: str = ""
 
     # ── Layout ────────────────────────────────────────────────
@@ -101,7 +104,13 @@ class ProcessTreeScreen(Screen):
     # ── Data refresh ──────────────────────────────────────────
     @work(exclusive=True)
     async def refresh_data(self) -> None:
-        """Fetch latest snapshot and rebuild the process tree."""
+        """Fetch latest snapshot and update the process tree.
+
+        Uses two-tier hashing to avoid unnecessary tree rebuilds:
+        - Structure hash (PIDs, parent-child): triggers full rebuild
+        - Display hash (state, network, cmdline): triggers in-place label update
+        This prevents the tree from collapsing on every refresh.
+        """
         snapshot = await __import__("asyncio").to_thread(self.provider.fetch)
         if snapshot is None:
             try:
@@ -122,25 +131,96 @@ class ProcessTreeScreen(Screen):
                 continue
 
         self._processes = processes
-        # Skip rebuild if data and filter haven't changed
-        current_hash = self._compute_data_hash(processes)
-        if current_hash == self._last_data_hash and self._filter_text == self._last_filter:
+
+        # Two-tier update strategy to prevent tree collapse
+        structure_hash = self._compute_structure_hash(processes)
+        display_hash = self._compute_display_hash(processes)
+        filter_changed = self._filter_text != self._last_filter
+
+        if structure_hash == self._last_structure_hash and not filter_changed:
+            if display_hash == self._last_display_hash:
+                return  # Nothing changed at all
+            # Only display data changed — update labels in-place, no rebuild
+            self._update_labels_in_place()
+            self._last_display_hash = display_hash
             return
-        self._last_data_hash = current_hash
+
+        # Structure or filter changed — full rebuild
+        self._last_structure_hash = structure_hash
+        self._last_display_hash = display_hash
         self._last_filter = self._filter_text
         self._rebuild_tree()
 
-    def _compute_data_hash(self, processes: Dict[int, ProcessInfo]) -> int:
-        """Compute a lightweight hash of process data to detect changes."""
+    def _compute_structure_hash(self, processes: Dict[int, ProcessInfo]) -> int:
+        """Hash of PIDs and parent-child relationships only.
+
+        Changes when processes appear/disappear or parent relationships change.
+        Triggers a full tree rebuild when this changes.
+        """
         try:
-            # Hash based on PIDs, parent relationships, and network state
             items = tuple(
-                (pid, tuple(sorted(p.children)), p.has_network, p.name, p.state)
+                (pid, tuple(sorted(p.children)))
                 for pid, p in sorted(processes.items())
             )
             return hash(items)
         except Exception:
-            return object()  # Always trigger rebuild on error
+            return hash(time.time())
+
+    def _compute_display_hash(self, processes: Dict[int, ProcessInfo]) -> int:
+        """Hash of display-relevant data: state, network flag, cmdline.
+
+        Changes when a process state flips (S↔R) or network status changes.
+        Triggers an in-place label update only — no tree rebuild.
+        """
+        try:
+            items = tuple(
+                (pid, p.has_network, p.name, p.state, p.cmdline)
+                for pid, p in sorted(processes.items())
+            )
+            return hash(items)
+        except Exception:
+            return hash(time.time())
+
+    # ── Label building ────────────────────────────────────────
+    @staticmethod
+    def _make_node_label(info: ProcessInfo) -> str:
+        """Build the display label for a process node."""
+        state_colors = {
+            "S": "dim",    # sleeping — dim
+            "R": "bold",   # running — bold
+            "Z": "red",    # zombie — red
+            "T": "yellow", # stopped — yellow
+            "D": "yellow", # disk sleep — yellow
+        }
+        state_style = state_colors.get(info.state, "")
+
+        net_marker = "[green]*[/] " if info.has_network else "  "
+        cmdline_short = (info.cmdline[:40] + "…") if len(info.cmdline) > 40 else info.cmdline
+
+        label = (
+            f"{net_marker}"
+            f"[{state_style}]{info.name}[/] "
+            f"[dim](PID {info.pid})[/]"
+        )
+        if cmdline_short and cmdline_short != info.name:
+            label += f" [dim]{cmdline_short}[/]"
+        return label
+
+    def _update_labels_in_place(self) -> None:
+        """Update node labels without clearing the tree.
+
+        Called when only display data changed (state, network, cmdline)
+        but the tree structure (PIDs, parent-child) is the same.
+        This avoids the visual collapse caused by tree.clear().
+        """
+        for pid, node in self._pid_to_node.items():
+            info = self._processes.get(pid)
+            if info is None:
+                continue
+            try:
+                node.set_label(self._make_node_label(info))
+            except Exception:
+                pass
 
     # ── Tree rendering ────────────────────────────────────────
     def _rebuild_tree(self) -> None:
@@ -154,12 +234,13 @@ class ProcessTreeScreen(Screen):
             self._save_expand_state()
 
             tree = self.query_one("#process-tree", Tree)
-            
+
             # Save the currently focused node's PID to prevent scroll jumps
             focused_pid = None
             if getattr(tree, "cursor_node", None) and getattr(tree.cursor_node, "data", None):
                 focused_pid = tree.cursor_node.data
 
+            self._pid_to_node.clear()
             tree.clear()
 
             if not self._processes:
@@ -222,35 +303,18 @@ class ProcessTreeScreen(Screen):
                 if self._filter_text not in searchable:
                     return
 
-        # Build label
-        state_colors = {
-            "S": "dim",    # sleeping — dim
-            "R": "bold",   # running — bold
-            "Z": "red",    # zombie — red
-            "T": "yellow", # stopped — yellow
-            "D": "yellow", # disk sleep — yellow
-        }
-        state_style = state_colors.get(info.state, "")
+        label = self._make_node_label(info)
 
-        net_marker = "[green]*[/] " if info.has_network else "  "
-        cmdline_short = (info.cmdline[:40] + "…") if len(info.cmdline) > 40 else info.cmdline
-
-        label = (
-            f"{net_marker}"
-            f"[{state_style}]{info.name}[/] "
-            f"[dim](PID {info.pid})[/]"
-        )
-        if cmdline_short and cmdline_short != info.name:
-            label += f" [dim]{cmdline_short}[/]"
-
-        # Add node — use add_leaf if no children, add if has children
+        # Add node — use add if has children, add_leaf if leaf
         children = [c for c in info.children if c in self._processes]
         if children:
             node = parent.add(label, data=pid)
+            self._pid_to_node[pid] = node
             for child_pid in children:
                 self._add_node(node, child_pid)
         else:
-            parent.add_leaf(label, data=pid)
+            node = parent.add_leaf(label, data=pid)
+            self._pid_to_node[pid] = node
 
     def _descendant_matches(self, pid: int, text: str) -> bool:
         """Check if any descendant of pid matches the filter text."""
@@ -272,8 +336,9 @@ class ProcessTreeScreen(Screen):
         """Live-filter the tree as user types."""
         if event.input.id == "search-input":
             self._filter_text = event.value.lower().strip()
-            # Invalidate hash so next refresh will rebuild with new filter
-            self._last_data_hash = None
+            # Invalidate hashes so next refresh will rebuild with new filter
+            self._last_structure_hash = None
+            self._last_display_hash = None
             self._rebuild_tree()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

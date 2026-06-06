@@ -84,8 +84,18 @@ PlasmoidItem {
                 root.dataStale = true
                 if (root.fetchFailures >= 3) { root.daemonDown = true }
             }
-            connectedSources = []
+            // Delay disconnect to avoid race with timer re-fire
+            disconnectTimer.start()
         }
+    }
+
+    // Delayed disconnect to prevent race between onNewData clearing sources
+    // and the next execQuery() check for connectedSources.length === 0
+    Timer {
+        id: disconnectTimer
+        interval: 50
+        onTriggered: dataSource.connectedSources = []
+    }
     }
 
     // ── Notification source ────────────────────────────────────
@@ -110,6 +120,11 @@ PlasmoidItem {
         } catch(e) {
             console.log("KPortWatch parse error: " + e)
             root.dataStale = true
+            root.sendDesktopNotification(
+                "KPortWatch Error",
+                "Failed to parse daemon data: " + e,
+                "low"
+            )
             return
         }
 
@@ -263,32 +278,40 @@ PlasmoidItem {
 
     // ── List model reconciliation ──────────────────────────────
     function reconcileModel(model, newItems) {
-        var currentKeys = {}
+        // Build index of current items by key (proto-inode)
+        var currentMap = {}   // key → index
         for (var i = 0; i < model.count; i++) {
             var m = model.get(i)
-            currentKeys[m.proto + "-" + m.inode] = i
+            currentMap[m.proto + "-" + m.inode] = i
         }
 
-        var newKeys = {}
+        // Build set of incoming keys
+        var newSet = {}
+        for (var i = 0; i < newItems.length; i++) {
+            newSet[newItems[i].proto + "-" + newItems[i].inode] = true
+        }
+
+        // Step 1: Update existing items in-place or append new ones
         for (var i = 0; i < newItems.length; i++) {
             var item = newItems[i]
             var key = item.proto + "-" + item.inode
-            newKeys[key] = true
-            if (currentKeys[key] !== undefined) {
-                model.set(currentKeys[key], item)
+            if (currentMap[key] !== undefined) {
+                model.set(currentMap[key], item)
             } else {
                 model.append(item)
             }
         }
 
+        // Step 2: Remove stale entries (no longer in new data)
         for (var i = model.count - 1; i >= 0; i--) {
             var m = model.get(i)
-            if (!newKeys[m.proto + "-" + m.inode]) {
+            if (!newSet[m.proto + "-" + m.inode]) {
                 model.remove(i)
             }
         }
 
-        for (var i = 0; i < newItems.length; i++) {
+        // Step 3: Reorder to match incoming sort order
+        for (var i = 0; i < newItems.length && i < model.count; i++) {
             var expectedKey = newItems[i].proto + "-" + newItems[i].inode
             var actualItem = model.get(i)
             if (actualItem && (actualItem.proto + "-" + actualItem.inode !== expectedKey)) {

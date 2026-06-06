@@ -8,6 +8,7 @@ Item {
     Layout.minimumWidth: contentRow.implicitWidth + 8
     Layout.minimumHeight: contentRow.implicitHeight + 4
     Layout.preferredWidth: contentRow.implicitWidth + 8
+    Layout.preferredHeight: contentRow.implicitHeight + 4
 
     readonly property string shieldIcon: {
         if (root.threatLevel === "critical") return "security-low"
@@ -49,7 +50,10 @@ Item {
 
     MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onClicked: (mouse) => { if (mouse.button === Qt.LeftButton) root.expanded = !root.expanded }
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.MiddleButton) root.launchTUI()
+            else if (mouse.button === Qt.LeftButton) root.expanded = !root.expanded
+        }
     }
 }

@@ -9,8 +9,8 @@ Item {
     Layout.preferredHeight: Kirigami.Units.gridUnit * root.popupHeight
 
     readonly property bool hasData: root.snapshotData !== null
-    readonly property real sf: Kirigami.Theme.smallFont.pixelSize * (root.fontScale / 100.0)
-    readonly property real df: Kirigami.Theme.defaultFont.pixelSize * (root.fontScale / 100.0)
+    readonly property real sf: Math.round(Kirigami.Theme.smallFont.pixelSize * (root.fontScale / 100.0))
+    readonly property real df: Math.round(Kirigami.Theme.defaultFont.pixelSize * (root.fontScale / 100.0))
 
     readonly property string hi: {
         if (root.threatLevel === "critical") return "security-low"

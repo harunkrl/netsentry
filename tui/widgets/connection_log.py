@@ -179,7 +179,7 @@ class ConnectionLog(RichLog):
         if self._quick_filter == "all":
             return True
         if self._quick_filter == "new":
-            key = f"{e.proto}-{e.inode}"
+            key = f"{e.proto}-{e.inode}-{e.local_ip}-{e.local_port}-{e.remote_ip}-{e.remote_port}"
             return key not in self._seen_keys
         if self._quick_filter == "warning":
             return e.state in ("ESTABLISHED", "SYN_SENT", "SYN_RECV")
@@ -223,7 +223,7 @@ class ConnectionLog(RichLog):
             if not self._should_show_entry(e):
                 continue
 
-            key = f"{e.proto}-{e.inode}"
+            key = f"{e.proto}-{e.inode}-{e.local_ip}-{e.local_port}-{e.remote_ip}-{e.remote_port}"
             current_keys.add(key)
             if key not in self._seen_keys:
                 new_entries.append(e)

@@ -1,29 +1,153 @@
-/* KPortWatch — Per-screen / per-widget overrides.
+/* KPortWatch — Widget-level CSS overrides.
  *
  * Theming is handled by Textual's native theme system (app.theme).
- * This file only contains layout, spacing, and non-theme overrides.
+ * This file uses Textual CSS variables ($primary, $panel, $surface, etc.)
+ * to apply widget styling that automatically adapts to the active theme.
  */
 
-/* Port table layout */
+/* ── Panels ─────────────────────────────────────────────────── */
+
 #port-table {
     height: auto;
     min-height: 8;
     max-height: 60%;
+    border: round $secondary;
     padding: 0 1;
+    background: $panel;
     overflow-y: auto;
 }
 
-/* Connection log layout */
 #connection-log {
     height: 1fr;
+    border: round $secondary;
     padding: 0 1;
+    background: $panel;
     overflow-y: auto;
 }
 
-/* Status bar layout */
 #status-bar {
     height: auto;
+    background: $surface;
+    color: $primary;
     content-align: center middle;
     text-style: bold;
     padding: 0 1;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+
+Input {
+    border: round $secondary;
+    background: $panel;
+    color: $foreground;
+}
+
+/* ── DataTable ──────────────────────────────────────────────── */
+
+DataTable {
+    background: $panel;
+}
+
+DataTable > .datatable--header {
+    background: $surface;
+    color: $primary;
+    text-style: bold;
+}
+
+DataTable > .datatable--header:hover {
+    background: $secondary;
+}
+
+DataTable > .datatable--cursor {
+    background: $secondary;
+    color: $foreground;
+}
+
+DataTable > .datatable--hover {
+    background: $secondary;
+}
+
+DataTable > .datatable--odd-row {
+    background: $surface;
+}
+
+/* ── ScrollBar ──────────────────────────────────────────────── */
+
+ScrollBar {
+    background: $surface;
+}
+
+ScrollBar > .scrollbar--thumb {
+    background: $secondary;
+}
+
+ScrollBar > .scrollbar--thumb:hover {
+    background: $primary;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+
+Button {
+    border: round $secondary;
+    background: $panel;
+    color: $foreground;
+}
+
+Button:hover {
+    border: round $primary;
+    background: $secondary;
+    color: $foreground;
+    text-style: bold;
+}
+
+Button.-primary {
+    border: round $primary;
+    background: $primary;
+}
+
+Button.-primary:hover {
+    background: $secondary;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
+
+Tabs {
+    background: $surface;
+}
+
+Tabs > .tabs--bar {
+    background: $surface;
+}
+
+Tab {
+    color: $foreground-muted;
+}
+
+Tab:hover {
+    color: $primary;
+    text-style: bold;
+}
+
+Tab.-active {
+    color: $primary;
+    text-style: bold;
+}
+
+Underline {
+    background: $secondary;
+}
+
+/* ── Static / Labels ────────────────────────────────────────── */
+
+Static {
+    color: $foreground;
+}
+
+.label-title {
+    color: $primary;
+    text-style: bold;
+}
+
+.label-dim {
+    color: $foreground-muted;
 }

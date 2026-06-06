@@ -234,7 +234,7 @@ class PortTable(DataTable):
             for entry in entries:
                 if self.filter_text and not self._matches_filter(entry, alert_map):
                     continue
-                row_key = f"{entry.proto}-{entry.inode}"
+                row_key = f"{entry.proto}-{entry.inode}-{entry.local_ip}-{entry.local_port}-{entry.pid or 0}"
                 rows.append((row_key, entry))
 
             if self.sort_column >= 0 and rows:
@@ -419,7 +419,7 @@ class PortTable(DataTable):
                 if self.filter_text and not self._matches_filter(entry, alert_map):
                     continue
 
-                row_key = f"{entry.proto}-{entry.inode}"
+                row_key = f"{entry.proto}-{entry.inode}-{entry.local_ip}-{entry.local_port}-{entry.pid or 0}"
                 rows.append((row_key, entry))
 
             # Sort before adding

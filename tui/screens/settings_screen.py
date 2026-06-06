@@ -221,7 +221,7 @@ class SettingsScreen(ModalScreen[None]):
 
     #settings-dialog {
         width: 76;
-        height: 28;
+        height: 34;
         max-width: 95%;
         max-height: 90%;
         background: #0d0d0d;
@@ -246,8 +246,9 @@ class SettingsScreen(ModalScreen[None]):
 
 
     #settings-footer {
-        height: 3;
-        padding: 0 2;
+        height: auto;
+        min-height: 3;
+        padding: 0 2 1 2;
         color: #6a6a8a;
         align: center middle;
         border-top: solid #1a3a2a;

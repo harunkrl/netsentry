@@ -6,29 +6,35 @@ and display formatting.
 """
 from __future__ import annotations
 
-import time
-from unittest.mock import MagicMock, patch
-
 import pytest
-
-from backend.models import SocketEntry, Alert
-from shared import AlertLevel, KNOWN_SAFE_PORTS
-from tui.widgets.port_table import (
-    PortTable, _smart_truncate_addr, _shorten_ipv6,
+from backend.models import Alert, InterfaceStats, SocketEntry
+from shared import AlertLevel
+from tui.themes import (
+    ALERT_COLOURS,
+    ALL_THEME_CSS,
+    DEFAULT_THEME,
+    STATE_COLOURS,
+    THEME_DISPLAY_NAMES,
+    THEMES,
+    alert_colour,
+    current_theme,
+    display_name_to_key,
+    get_theme_names,
+    key_to_display_name,
+    state_colour,
 )
 from tui.widgets.connection_log import ConnectionLog
+from tui.widgets.port_table import (
+    PortTable,
+    _shorten_ipv6,
+    _smart_truncate_addr,
+)
 from tui.widgets.status_bar import StatusBar
 from tui.widgets.traffic_bar import (
-    TrafficBar, _human_bytes, _mini_sparkline,
+    TrafficBar,
+    _human_bytes,
+    _mini_sparkline,
 )
-from tui.themes import (
-    THEMES, get_theme_names, ALL_THEME_CSS,
-    alert_colour, state_colour, current_theme, DEFAULT_THEME,
-    ALERT_COLOURS, STATE_COLOURS,
-    THEME_DISPLAY_MAP, THEME_DISPLAY_NAMES, display_name_to_key, key_to_display_name,
-)
-from backend.models import InterfaceStats
-
 
 # ── Fixtures ──────────────────────────────────────────────────
 
@@ -564,7 +570,7 @@ class TestConnectionLogSeverity:
 class TestSettingsScreen:
     def test_settings_screen_import(self):
         """Settings screen can be imported without error."""
-        from tui.screens.settings_screen import SettingsScreen, AVAILABLE_THEMES
+        from tui.screens.settings_screen import SettingsScreen
         assert SettingsScreen is not None
 
     def test_available_themes(self):

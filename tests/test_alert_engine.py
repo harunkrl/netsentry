@@ -1,14 +1,11 @@
 """KPortWatch — Tests for backend.alert_engine."""
-import json
 import time
 
 import pytest
-
 from backend.alert_engine import AlertEngine
-from backend.models import Alert, SocketEntry
-from shared import AlertLevel, MALICIOUS_PORTS, KNOWN_SAFE_PORTS
+from backend.models import SocketEntry
+from shared import MALICIOUS_PORTS, AlertLevel
 from shared.config import CustomRule
-
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -52,7 +49,7 @@ def _run_cycles(engine, entries_list, start_time):
     t = start_time
     for entries in entries_list:
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(time, "time", lambda: t)
+            mp.setattr(time, "time", lambda _t=t: _t)
             alerts = engine.analyze(entries)
         results.append((alerts, t))
         t += 1.0

@@ -2,16 +2,10 @@
 from __future__ import annotations
 
 import json
-import os
-import time
 from dataclasses import asdict
-from typing import Dict, Tuple
-
-import pytest
 
 from backend.models import InterfaceStats, Snapshot
 from backend.parsers.net_dev import parse_proc_net_dev
-
 
 # ── Parser tests ───────────────────────────────────────────────
 
@@ -200,7 +194,7 @@ class TestDeltaComputation:
         """Rate should be (current - prev) / elapsed."""
         from backend.kportwatch_daemon import compute_traffic_deltas
 
-        prev: Dict[str, Tuple[float, InterfaceStats]] = {
+        prev: dict[str, tuple[float, InterfaceStats]] = {
             "wlan0": (100.0, InterfaceStats(
                 interface="wlan0",
                 rx_bytes=1000000, tx_bytes=500000,

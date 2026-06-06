@@ -13,12 +13,9 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
-from typing import List, Set
-
-from rich.text import Text
-from textual.widgets import RichLog
 
 from backend.models import SocketEntry
+from textual.widgets import RichLog
 
 # Map states → (rich style name, display label)
 _STATE_COLOURS: dict[str, tuple[str, str]] = {
@@ -65,8 +62,8 @@ class ConnectionLog(RichLog):
         self._plain_lines: list[str] = []
         self._quick_filter: str = "all"
         self._severity_filter: str = "ALL"
-        self._last_entries: List[SocketEntry] = []
-        self._seen_keys: Set[str] = set()
+        self._last_entries: list[SocketEntry] = []
+        self._seen_keys: set[str] = set()
 
     def on_mount(self) -> None:
         self.auto_scroll = True
@@ -131,7 +128,6 @@ class ConnectionLog(RichLog):
 
     def _severity_for_state(self, state: str) -> str:
         """Map a TCP state to a severity level."""
-        info_states = {"ESTABLISHED", "LISTEN", "UNCONN"}
         warning_states = {"SYN_SENT", "SYN_RECV", "FIN_WAIT1", "FIN_WAIT2",
                           "TIME_WAIT", "CLOSE_WAIT"}
         error_states = {"CLOSING", "LAST_ACK", "CLOSE"}
@@ -201,15 +197,15 @@ class ConnectionLog(RichLog):
                 or self._filter_text in remote
                 or self._filter_text in str(e.local_port))
 
-    def update_data(self, entries: List[SocketEntry], *, is_first_call: bool = False) -> None:
+    def update_data(self, entries: list[SocketEntry], *, is_first_call: bool = False) -> None:
         """Incrementally log new and closed connections.
 
         On the first call (empty ``_seen_keys``), writes a header + all
         entries **with filters applied** (O18 fix).  On subsequent calls,
         only writes NEW connections (not in previous set).
         """
-        current_keys: Set[str] = set()
-        new_entries: List[SocketEntry] = []
+        current_keys: set[str] = set()
+        new_entries: list[SocketEntry] = []
 
         # Store for quick-filter rebuilds
         self._last_entries = entries

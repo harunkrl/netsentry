@@ -1,9 +1,10 @@
-import socket
-import os
-import threading
-import logging
+import contextlib
 import json
-from typing import List, Callable, Optional
+import logging
+import os
+import socket
+import threading
+from collections.abc import Callable
 
 from shared import SOCKET_PATH
 
@@ -11,18 +12,18 @@ logger = logging.getLogger("kportwatch.unix_socket")
 
 class UnixSocketServer:
     """Unix domain socket server supporting both broadcast and request/response.
-    
+
     Broadcast mode: clients connect long-lived and receive JSON snapshots.
     Command mode: clients send a JSON command and receive a JSON response.
     """
 
     def __init__(self):
-        self.clients: List[socket.socket] = []
+        self.clients: list[socket.socket] = []
         self._clients_lock = threading.Lock()
         self.server: socket.socket | None = None
         self.running = False
         self.thread: threading.Thread | None = None
-        self._command_handler: Optional[Callable[[dict], dict]] = None
+        self._command_handler: Callable[[dict], dict] | None = None
 
     def set_command_handler(self, handler: Callable[[dict], dict]):
         """Register a handler for command requests. Handler receives a dict, returns a dict."""
@@ -30,10 +31,8 @@ class UnixSocketServer:
 
     def start(self):
         if os.path.exists(SOCKET_PATH):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(SOCKET_PATH)
-            except OSError:
-                pass
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             self.server.bind(SOCKET_PATH)
@@ -61,18 +60,16 @@ class UnixSocketServer:
                     else:
                         # Connection closed immediately — ignore
                         client.close()
-                except socket.timeout:
+                except TimeoutError:
                     # No initial message within probe window — broadcast subscriber
                     client.settimeout(None)  # Reset to blocking for broadcast
                     with self._clients_lock:
                         self.clients.append(client)
                     logger.debug("Broadcast client connected (no initial message)")
                 except OSError:
-                    try:
+                    with contextlib.suppress(OSError):
                         client.close()
-                    except OSError:
-                        pass
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 if self.running:
@@ -114,10 +111,8 @@ class UnixSocketServer:
         except OSError as e:
             logger.error("Failed to send command response: %s", e)
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 client.close()
-            except OSError:
-                pass
 
     def broadcast(self, json_data: str):
         dead_clients = []
@@ -128,46 +123,38 @@ class UnixSocketServer:
                     client.sendall(data)
                 except OSError:
                     dead_clients.append(client)
-            
+
             for client in dead_clients:
                 self.clients.remove(client)
         for client in dead_clients:
-            try:
+            with contextlib.suppress(OSError):
                 client.close()
-            except OSError:
-                pass
 
     def stop(self):
         self.running = False
         if self.server:
-            try:
+            with contextlib.suppress(OSError):
                 self.server.close()
-            except OSError:
-                pass
         with self._clients_lock:
             for client in self.clients:
-                try:
+                with contextlib.suppress(OSError):
                     client.close()
-                except OSError:
-                    pass
             self.clients.clear()
         if os.path.exists(SOCKET_PATH):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(SOCKET_PATH)
-            except OSError:
-                pass
 
 
 def send_command(command: dict, timeout: float = 5.0) -> dict:
     """Send a command to the Unix socket server and return the response.
-    
+
     Args:
         command: Dict with at least a "command" key.
         timeout: Socket timeout in seconds.
-    
+
     Returns:
         Response dict from the server.
-    
+
     Raises:
         ConnectionError: If the server is not running.
         TimeoutError: If the server doesn't respond in time.
@@ -188,8 +175,8 @@ def send_command(command: dict, timeout: float = 5.0) -> dict:
         if not response_data:
             raise ConnectionError("Empty response from server")
         return json.loads(response_data.decode('utf-8').strip())
-    except socket.timeout:
-        raise TimeoutError("Server did not respond in time")
+    except TimeoutError:
+        raise TimeoutError("Server did not respond in time") from None
     except OSError as e:
         raise ConnectionError(f"Cannot connect to server: {e}") from e
     finally:

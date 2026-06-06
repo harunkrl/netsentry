@@ -24,14 +24,13 @@ Usage in widgets (Rich markup)::
 """
 from __future__ import annotations
 
-from typing import Dict
-
+import contextlib
 
 # ═══════════════════════════════════════════════════════════════
 # 1. Theme palette definitions
 # ═══════════════════════════════════════════════════════════════
 
-THEMES: Dict[str, Dict[str, str]] = {
+THEMES: dict[str, dict[str, str]] = {
     "dark": {
         "surface":          "#121212",
         "panel-bg":         "#1e1e2e",
@@ -97,7 +96,7 @@ THEMES: Dict[str, Dict[str, str]] = {
 DEFAULT_THEME = "dark"
 
 # User-facing theme names → internal theme keys
-THEME_DISPLAY_MAP: Dict[str, str] = {
+THEME_DISPLAY_MAP: dict[str, str] = {
     "Cyberpunk": "dark",
     "Midnight": "nord",
     "Hacker": "solarized",
@@ -122,14 +121,14 @@ def key_to_display_name(key: str) -> str:
 # 2. Rich markup colour maps
 # ═══════════════════════════════════════════════════════════════
 
-ALERT_COLOURS: Dict[str, str] = {
+ALERT_COLOURS: dict[str, str] = {
     "CRITICAL": "bold red",
     "WARNING":  "bold yellow",
     "INFO":     "cyan",
     "LOW":      "dim cyan",
 }
 
-STATE_COLOURS: Dict[str, str] = {
+STATE_COLOURS: dict[str, str] = {
     "ESTABLISHED": "bold green",
     "LISTEN":      "bold cyan",
     "TIME_WAIT":   "dim",
@@ -301,10 +300,8 @@ def apply_theme(app, theme_name: str) -> None:
 
     # Remove old theme class
     old_class = f"theme-{_current_theme}"
-    try:
+    with contextlib.suppress(Exception):
         app.remove_class(old_class)
-    except Exception:
-        pass
 
     _current_theme = theme_name
 

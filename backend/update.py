@@ -26,9 +26,8 @@ import os
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
-from typing import Optional, Tuple
+import urllib.request
 
 from shared.constants import APP_VERSION, GITHUB_REPO, UPDATE_STATE_FILE
 
@@ -40,7 +39,7 @@ _TAGS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/tags"
 
 # ── Version comparison ────────────────────────────────────────
 
-def parse_version(version_str: str) -> Tuple[int, ...]:
+def parse_version(version_str: str) -> tuple[int, ...]:
     """Parse a version string like 'v2.1.0' or '2.1.0' into a tuple of ints.
 
     Strips leading 'v' and splits on '.'.
@@ -58,7 +57,7 @@ def get_local_version() -> str:
     return APP_VERSION
 
 
-def get_latest_version() -> Optional[str]:
+def get_latest_version() -> str | None:
     """Fetch the latest tag name from GitHub Tags API.
 
     Returns:
@@ -81,7 +80,7 @@ def get_latest_version() -> Optional[str]:
     return None
 
 
-def check_for_update() -> Optional[str]:
+def check_for_update() -> str | None:
     """Check if a newer version is available on GitHub.
 
     Returns:
@@ -105,7 +104,7 @@ def check_for_update() -> Optional[str]:
 
 def write_update_state(
     current: str,
-    latest: Optional[str] = None,
+    latest: str | None = None,
     update_available: bool = False,
     path: str = UPDATE_STATE_FILE,
 ) -> None:
@@ -128,10 +127,10 @@ def write_update_state(
         pass
 
 
-def read_update_state(path: str = UPDATE_STATE_FILE) -> Optional[dict]:
+def read_update_state(path: str = UPDATE_STATE_FILE) -> dict | None:
     """Read the update state file. Returns None on error."""
     try:
-        with open(path, "r") as fh:
+        with open(path) as fh:
             return json.load(fh)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
@@ -200,7 +199,7 @@ def perform_update(restart_daemon: bool = True) -> bool:
     return True
 
 
-def _find_project_dir() -> Optional[str]:
+def _find_project_dir() -> str | None:
     """Find the project root directory by walking up from this file."""
     current = os.path.dirname(os.path.abspath(__file__))
     for _ in range(10):

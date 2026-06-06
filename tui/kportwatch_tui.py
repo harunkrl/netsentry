@@ -20,15 +20,21 @@ warnings.filterwarnings(
     category=RuntimeWarning,
 )
 
-from textual.app import App, ComposeResult
-from textual.binding import Binding
+from shared.config import get_config, load_config  # noqa: E402
+from shared.constants import APP_VERSION as VERSION  # noqa: E402
+from textual.app import App  # noqa: E402
+from textual.binding import Binding  # noqa: E402
 
-from shared.config import load_config, get_config
-from shared.constants import APP_VERSION as VERSION
-from tui.screens.main_screen import MainScreen
-from tui.data.provider import DataProvider
-from tui.themes import ALL_THEME_CSS, apply_theme, current_theme, DEFAULT_THEME, THEMES
-from tui.themes import key_to_display_name
+from tui.data.provider import DataProvider  # noqa: E402
+from tui.screens.main_screen import MainScreen  # noqa: E402
+from tui.themes import (  # noqa: E402
+    ALL_THEME_CSS,
+    DEFAULT_THEME,
+    THEMES,
+    apply_theme,
+    current_theme,
+    key_to_display_name,
+)
 
 
 class KPortWatchTUI(App):
@@ -70,7 +76,6 @@ class KPortWatchTUI(App):
 
     def action_open_settings(self) -> None:
         from tui.screens.settings_screen import SettingsScreen
-        from shared.config import get_config
         cfg = get_config()
         theme_display = key_to_display_name(current_theme())
         self.push_screen(SettingsScreen(

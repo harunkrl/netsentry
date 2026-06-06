@@ -20,7 +20,6 @@ from backend.history import (
     export_history_csv,
     export_history_json,
     list_available_dates,
-    read_history,
 )
 
 
@@ -77,7 +76,6 @@ def main() -> None:
     if args.output:
         outpath = args.output
     else:
-        import os
         ext = "csv" if args.format == "csv" else "json"
         date = args.date or "today"
         outpath = f"kportwatch-export-{date}.{ext}"

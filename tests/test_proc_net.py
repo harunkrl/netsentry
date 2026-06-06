@@ -14,8 +14,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from backend.parsers.proc_net import (
     _decode_state,
     _parse_hex_ip,
@@ -23,7 +21,6 @@ from backend.parsers.proc_net import (
     parse_all_proc,
     parse_proc_net,
 )
-
 
 # ── Hex IP parsing ─────────────────────────────────────────────
 
@@ -247,7 +244,7 @@ class TestParseAllProc:
         )
         udp6_file.write_text("")
 
-        mock_paths = [
+        [
             (str(tcp_file), "tcp"),
             (str(tcp6_file), "tcp6"),
             (str(udp_file), "udp"),

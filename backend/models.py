@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from shared import AlertLevel
 
@@ -20,7 +20,7 @@ class ProcessInfo:
     state: str             # single char: S, R, Z, T, etc.
     uid: int               # from /proc/[pid]/status
     has_network: bool = False  # True if process owns sockets
-    children: List[int] = field(default_factory=list)
+    children: list[int] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ProcessInfo:
@@ -62,20 +62,20 @@ class SocketEntry:
     state_code: str         # "0A" raw hex
     uid: int
     inode: int
-    pid: Optional[int] = None
-    process_name: Optional[str] = None
-    cmdline: Optional[str] = None
-    remote_hostname: Optional[str] = None
+    pid: int | None = None
+    process_name: str | None = None
+    cmdline: str | None = None
+    remote_hostname: str | None = None
     # GeoIP data (filled by backend.parsers.geoip)
-    remote_country: Optional[str] = None
-    remote_country_code: Optional[str] = None
-    remote_city: Optional[str] = None
-    remote_lat: Optional[float] = None
-    remote_lon: Optional[float] = None
-    remote_isp: Optional[str] = None
-    remote_org: Optional[str] = None
+    remote_country: str | None = None
+    remote_country_code: str | None = None
+    remote_city: str | None = None
+    remote_lat: float | None = None
+    remote_lon: float | None = None
+    remote_isp: str | None = None
+    remote_org: str | None = None
     # Ö1: First-seen timestamp (epoch seconds) for connection duration
-    first_seen: Optional[float] = None
+    first_seen: float | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SocketEntry:
@@ -89,8 +89,8 @@ class Alert:
     level: AlertLevel
     port: int
     proto: str
-    process_name: Optional[str]
-    pid: Optional[int]
+    process_name: str | None
+    pid: int | None
     message: str
     timestamp: float = field(default_factory=time.time)
 
@@ -105,17 +105,17 @@ class Snapshot:
     """Complete network state snapshot written to JSON."""
     timestamp: float = field(default_factory=time.time)
     poll_interval_ms: int = 2000
-    listening: List[SocketEntry] = field(default_factory=list)
-    established: List[SocketEntry] = field(default_factory=list)
-    alerts: List[Alert] = field(default_factory=list)
-    summary: Dict[str, int] = field(default_factory=lambda: {
+    listening: list[SocketEntry] = field(default_factory=list)
+    established: list[SocketEntry] = field(default_factory=list)
+    alerts: list[Alert] = field(default_factory=list)
+    summary: dict[str, int] = field(default_factory=lambda: {
         "total_listening": 0,
         "total_established": 0,
         "alert_count": 0,
     })
-    traffic: Dict[str, InterfaceStats] = field(default_factory=dict)
-    processes: Dict[str, dict] = field(default_factory=dict)  # flat {pid_str: ProcessInfo_dict}
-    geo_stats: Dict[str, Any] = field(default_factory=lambda: {
+    traffic: dict[str, InterfaceStats] = field(default_factory=dict)
+    processes: dict[str, dict] = field(default_factory=dict)  # flat {pid_str: ProcessInfo_dict}
+    geo_stats: dict[str, Any] = field(default_factory=lambda: {
         "countries_count": 0,
         "unique_ips_per_country": {},
         "top_countries": [],
@@ -153,7 +153,7 @@ class Snapshot:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Snapshot:
         traffic_raw = d.get("traffic", {})
-        traffic: Dict[str, InterfaceStats] = {}
+        traffic: dict[str, InterfaceStats] = {}
         if isinstance(traffic_raw, dict):
             for name, stats in traffic_raw.items():
                 if isinstance(stats, dict):

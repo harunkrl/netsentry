@@ -10,16 +10,15 @@ K10: Uses standard ``.hidden`` CSS class consistently.
 """
 from __future__ import annotations
 
-import asyncio
+import contextlib
 
+from shared.config import save_config_setting
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.containers import Vertical, Horizontal, Container
-from textual.widgets import Label, Switch, Static, Button, TabbedContent, TabPane
-
-from shared.config import save_config_setting
+from textual.widgets import Button, Label, Static, Switch, TabbedContent, TabPane
 
 # Available themes (must match tui/themes.py)
 AVAILABLE_THEMES = ["Cyberpunk", "Midnight", "Hacker"]
@@ -300,7 +299,7 @@ class SettingsScreen(ModalScreen[None]):
         with Vertical(id="settings-dialog"):
             yield Static("SETTINGS", id="settings-header")
 
-            with Vertical(id="settings-body"):
+            with Vertical(id="settings-body"):  # noqa: SIM117
                 with TabbedContent(initial="tab-notifications"):
                     # Notifications Tab
                     with TabPane("Notifications", id="tab-notifications"):
@@ -383,10 +382,8 @@ class SettingsScreen(ModalScreen[None]):
 
     def on_mount(self) -> None:
         """Auto-focus the first setting row on open."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one(SettingRow).focus()
-        except Exception:
-            pass
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
         """Auto-save on every toggle change."""
@@ -475,6 +472,7 @@ class SettingsScreen(ModalScreen[None]):
         """
         import os
         import signal
+
         from shared.constants import PID_FILE
 
         sent = False
@@ -514,9 +512,9 @@ class SettingsScreen(ModalScreen[None]):
         """Handle button presses."""
         if event.button.id == "btn-restart-daemon":
             # O13: Show confirmation before restarting daemon
+            from textual.containers import Horizontal, Vertical
             from textual.screen import ModalScreen
             from textual.widgets import Button as Btn
-            from textual.containers import Vertical, Horizontal
 
             class ConfirmRestart(ModalScreen[bool]):
                 CSS = """

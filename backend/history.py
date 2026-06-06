@@ -26,10 +26,7 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 from shared.constants import BASELINE_DIR
 
@@ -42,13 +39,13 @@ class HistoryRecorder:
 
     def __init__(
         self,
-        history_dir: Optional[str] = None,
+        history_dir: str | None = None,
         retention_days: int = DEFAULT_RETENTION_DAYS,
     ) -> None:
         self.history_dir = history_dir or HISTORY_DIR
         self.retention_days = retention_days
-        self._current_file: Optional[str] = None
-        self._current_date: Optional[str] = None
+        self._current_file: str | None = None
+        self._current_date: str | None = None
 
     def _prune_old_files(self) -> None:
         """Delete history files older than retention_days."""
@@ -111,10 +108,10 @@ class HistoryRecorder:
 
 
 def read_history(
-    history_dir: Optional[str] = None,
-    date: Optional[str] = None,
-    event_type: Optional[str] = None,
-    last_n: Optional[int] = None,
+    history_dir: str | None = None,
+    date: str | None = None,
+    event_type: str | None = None,
+    last_n: int | None = None,
 ) -> list[dict]:
     """Read history entries from JSONL files.
 
@@ -132,7 +129,7 @@ def read_history(
     entries: list[dict] = []
 
     try:
-        with open(path, "r") as fh:
+        with open(path) as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -153,7 +150,7 @@ def read_history(
     return entries
 
 
-def list_available_dates(history_dir: Optional[str] = None) -> list[str]:
+def list_available_dates(history_dir: str | None = None) -> list[str]:
     """Return sorted list of dates that have history files."""
     hdir = history_dir or HISTORY_DIR
     dates: list[str] = []
@@ -168,9 +165,9 @@ def list_available_dates(history_dir: Optional[str] = None) -> list[str]:
 
 def export_history_csv(
     output_path: str,
-    history_dir: Optional[str] = None,
-    date: Optional[str] = None,
-    event_type: Optional[str] = None,
+    history_dir: str | None = None,
+    date: str | None = None,
+    event_type: str | None = None,
 ) -> int:
     """Export history entries to a CSV file.
 
@@ -201,9 +198,9 @@ def export_history_csv(
 
 def export_history_json(
     output_path: str,
-    history_dir: Optional[str] = None,
-    date: Optional[str] = None,
-    event_type: Optional[str] = None,
+    history_dir: str | None = None,
+    date: str | None = None,
+    event_type: str | None = None,
 ) -> int:
     """Export history entries to a JSON file.
 

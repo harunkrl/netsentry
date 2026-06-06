@@ -2,20 +2,16 @@
 from __future__ import annotations
 
 import os
-import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-
 from shared.config import (
     AppConfig,
-    load_config,
-    get_config,
     apply_cli_overrides,
     generate_example_config,
+    get_config,
+    load_config,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 

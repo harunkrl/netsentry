@@ -1,8 +1,7 @@
+import logging
 import socket
 import threading
-import logging
 from collections import OrderedDict
-from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger("kportwatch.rdns")
@@ -16,7 +15,7 @@ _lock = threading.Lock()
 _executor = ThreadPoolExecutor(max_workers=4)
 
 
-def get_hostname(ip: str) -> Optional[str]:
+def get_hostname(ip: str) -> str | None:
     """Get hostname for IP from cache, or trigger a background lookup."""
     with _lock:
         if ip in _rdns_cache:

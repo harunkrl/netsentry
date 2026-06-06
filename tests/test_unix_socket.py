@@ -1,6 +1,7 @@
 """Tests for backend.writers.unix_socket — Unix domain socket server."""
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
@@ -8,9 +9,7 @@ import time
 from pathlib import Path
 
 import pytest
-
 from backend.writers.unix_socket import UnixSocketServer, send_command
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -42,10 +41,8 @@ def client_sock(server: UnixSocketServer) -> socket.socket:
     s.connect(us_mod.SOCKET_PATH)
     time.sleep(0.5)  # wait for accept loop to probe and register as broadcast client
     yield s
-    try:
+    with contextlib.suppress(OSError):
         s.close()
-    except OSError:
-        pass
 
 
 # ── Server lifecycle tests ────────────────────────────────────────

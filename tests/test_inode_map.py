@@ -1,5 +1,7 @@
 from unittest.mock import patch
+
 from backend.parsers.inode_map import _read_file_safe, build_inode_to_pid_map
+
 
 def test_read_file_safe(tmp_path):
     f = tmp_path / "test.txt"
@@ -11,7 +13,7 @@ def test_read_file_safe(tmp_path):
 @patch("backend.parsers.inode_map.os.readlink")
 @patch("backend.parsers.inode_map._read_file_safe")
 def test_build_inode_to_pid_map(mock_read_file, mock_readlink, mock_listdir):
-    def listdir_side_effect(path):
+    def listdir_side_effect(path):  # noqa: SIM116
         if path == "/proc":
             return ["123", "abc", "456"]
         elif path == "/proc/123/fd":
@@ -20,7 +22,7 @@ def test_build_inode_to_pid_map(mock_read_file, mock_readlink, mock_listdir):
             return ["0"]
         raise FileNotFoundError()
 
-    def readlink_side_effect(path):
+    def readlink_side_effect(path):  # noqa: SIM116
         if path == "/proc/123/fd/1":
             return "socket:[9999]"
         elif path == "/proc/123/fd/2":

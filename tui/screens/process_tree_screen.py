@@ -11,22 +11,20 @@ Keyboard shortcuts:
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import signal
 import time
-from dataclasses import asdict
-from typing import Dict, Optional
 
+from backend.models import ProcessInfo
+from backend.parsers.process_tree import get_tree_roots
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Tree, Static, Input
-from textual.containers import Vertical
+from textual.widgets import Footer, Header, Input, Static, Tree
 
-from backend.models import ProcessInfo, Snapshot
-from backend.parsers.process_tree import get_tree_roots
 from tui.data.provider import DataProvider
 
 log = logging.getLogger(__name__)
@@ -69,15 +67,15 @@ class ProcessTreeScreen(Screen):
         # Y15: Use singleton provider from app if available
         app = self.app
         self.provider = getattr(app, 'data_provider', None) or DataProvider()
-        self._processes: Dict[int, ProcessInfo] = {}
+        self._processes: dict[int, ProcessInfo] = {}
         self._filter_text: str = ""
         # O7: Preserve expand/collapse state across refreshes
         self._expanded_pids: set[int] = set()
         # PID → TreeNode mapping for in-place label updates
-        self._pid_to_node: Dict[int, object] = {}
+        self._pid_to_node: dict[int, object] = {}
         # Two-tier hashing: structure (PIDs, parent-child) vs display (state, network)
-        self._last_structure_hash: Optional[int] = None
-        self._last_display_hash: Optional[int] = None
+        self._last_structure_hash: int | None = None
+        self._last_display_hash: int | None = None
         self._last_filter: str = ""
 
     # ── Layout ────────────────────────────────────────────────
@@ -121,9 +119,9 @@ class ProcessTreeScreen(Screen):
             return
 
         # Parse processes from flat dict
-        processes: Dict[int, ProcessInfo] = {}
+        processes: dict[int, ProcessInfo] = {}
         raw = getattr(snapshot, "processes", {}) or {}
-        for pid_str, data in raw.items():
+        for _pid_str, data in raw.items():
             try:
                 info = ProcessInfo.from_dict(data)
                 processes[info.pid] = info
@@ -151,7 +149,7 @@ class ProcessTreeScreen(Screen):
         self._last_filter = self._filter_text
         self._rebuild_tree()
 
-    def _compute_structure_hash(self, processes: Dict[int, ProcessInfo]) -> int:
+    def _compute_structure_hash(self, processes: dict[int, ProcessInfo]) -> int:
         """Hash of PIDs and parent-child relationships only.
 
         Changes when processes appear/disappear or parent relationships change.
@@ -166,7 +164,7 @@ class ProcessTreeScreen(Screen):
         except Exception:
             return hash(time.time())
 
-    def _compute_display_hash(self, processes: Dict[int, ProcessInfo]) -> int:
+    def _compute_display_hash(self, processes: dict[int, ProcessInfo]) -> int:
         """Hash of display-relevant data: state, network flag, cmdline.
 
         Changes when a process state flips (S↔R) or network status changes.
@@ -217,10 +215,8 @@ class ProcessTreeScreen(Screen):
             info = self._processes.get(pid)
             if info is None:
                 continue
-            try:
+            with contextlib.suppress(Exception):
                 node.set_label(self._make_node_label(info))
-            except Exception:
-                pass
 
     # ── Tree rendering ────────────────────────────────────────
     def _rebuild_tree(self) -> None:
@@ -265,16 +261,12 @@ class ProcessTreeScreen(Screen):
             if focused_pid is not None:
                 def _find_and_focus(node):
                     if getattr(node, "data", None) == focused_pid:
-                        try:
-                            # Use cursor_line, cursor_node has no setter
+                        import contextlib
+
+                        with contextlib.suppress(Exception):
                             tree.cursor_line = node.line
-                        except Exception:
-                            pass
                         return True
-                    for child in getattr(node, 'children', []):
-                        if _find_and_focus(child):
-                            return True
-                    return False
+                    return any(_find_and_focus(child) for child in getattr(node, 'children', []))
                 _find_and_focus(tree.root)
 
             # Update info bar
@@ -296,12 +288,10 @@ class ProcessTreeScreen(Screen):
             return
 
         # Apply filter
-        if self._filter_text:
+        if self._filter_text and not self._descendant_matches(pid, self._filter_text):
             searchable = f"{info.name} {info.cmdline} {info.pid}".lower()
-            # Also check children — keep node if any descendant matches
-            if not self._descendant_matches(pid, self._filter_text):
-                if self._filter_text not in searchable:
-                    return
+            if self._filter_text not in searchable:
+                return
 
         label = self._make_node_label(info)
 
@@ -392,7 +382,7 @@ class ProcessTreeScreen(Screen):
     # ── Tree interaction ──────────────────────────────────────
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Toggle expand/collapse on node selection (Enter or click).
-        
+
         We handle this manually because auto_expand is disabled to prevent
         Textual's internal toggle from collapsing programmatically expanded nodes.
         """
@@ -403,7 +393,7 @@ class ProcessTreeScreen(Screen):
     # ── O7: Expand state persistence ─────────────────────────
     def _save_expand_state(self) -> None:
         """Save which PIDs are currently expanded in the tree.
-        
+
         Uses cumulative set: does NOT clear, so expand state from manual
         user interactions (on_tree_node_expanded) is preserved even if
         the DOM query fails.

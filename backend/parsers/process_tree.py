@@ -21,21 +21,20 @@ Usage::
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional, Set, Tuple
 
 from backend.models import ProcessInfo
 
 
-def _read_file_safe(path: str) -> Optional[str]:
+def _read_file_safe(path: str) -> str | None:
     """Read a small /proc file, returning None on any error."""
     try:
-        with open(path, "r") as fh:
+        with open(path) as fh:
             return fh.read().strip()
     except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
         return None
 
 
-def _parse_stat(path: str) -> Optional[Tuple[int, str, str, int]]:
+def _parse_stat(path: str) -> tuple[int, str, str, int] | None:
     """Parse /proc/[pid]/stat → (pid, name, state, ppid).
 
     The comm field is wrapped in parens and may contain spaces.
@@ -93,8 +92,8 @@ def _read_uid(pid: int) -> int:
 # ── Public API ─────────────────────────────────────────────────
 
 def build_process_tree(
-    inode_map: Optional[Dict[int, Tuple[int, str, str]]] = None,
-) -> Dict[int, ProcessInfo]:
+    inode_map: dict[int, tuple[int, str, str]] | None = None,
+) -> dict[int, ProcessInfo]:
     """Scan /proc to build a process tree.
 
     Args:
@@ -106,12 +105,12 @@ def build_process_tree(
         Dict of {pid: ProcessInfo} with children lists populated.
     """
     # Build set of PIDs that own sockets
-    network_pids: Set[int] = set()
+    network_pids: set[int] = set()
     if inode_map:
         for _inode, (pid, _name, _cmdline) in inode_map.items():
             network_pids.add(pid)
 
-    processes: Dict[int, ProcessInfo] = {}
+    processes: dict[int, ProcessInfo] = {}
 
     try:
         proc_entries = os.listdir("/proc")
@@ -155,13 +154,13 @@ def build_process_tree(
     return processes
 
 
-def get_tree_roots(processes: Dict[int, ProcessInfo]) -> List[int]:
+def get_tree_roots(processes: dict[int, ProcessInfo]) -> list[int]:
     """Return PIDs that are roots of the process tree.
 
     A root is a process whose PPID is 0 or not present in the dict.
     Results are sorted by PID.
     """
-    roots: List[int] = []
+    roots: list[int] = []
     for pid, info in processes.items():
         if info.ppid == 0 or info.ppid not in processes:
             roots.append(pid)

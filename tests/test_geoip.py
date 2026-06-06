@@ -4,12 +4,10 @@ from __future__ import annotations
 import json
 import os
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 from backend.parsers import geoip as geoip_mod
-
 
 # ── Fixtures ────────────────────────────────────────────────────
 
@@ -113,7 +111,7 @@ class TestPrivateIPDetection:
 
 class TestCacheHit:
     def test_cache_hit_returns_entry(self):
-        entry = _seed_cache("8.8.8.8")
+        _seed_cache("8.8.8.8")
         result = geoip_mod.get_geoip("8.8.8.8")
         assert result is not None
         assert result["country"] == "Turkey"

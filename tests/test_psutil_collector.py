@@ -1,0 +1,161 @@
+"""Tests for backend.collectors.psutil_collector — psutil-based data collection."""
+from __future__ import annotations
+
+import psutil
+import pytest
+from backend.collectors.psutil_collector import (
+    collect_connections,
+    collect_network_pids,
+    collect_process_tree,
+    collect_traffic,
+)
+from backend.models import InterfaceStats, ProcessInfo, SocketEntry
+
+# ── collect_connections ────────────────────────────────────────
+
+class TestCollectConnections:
+    def test_returns_list_of_socket_entries(self):
+        """collect_connections returns a list of SocketEntry."""
+        entries = collect_connections()
+        assert isinstance(entries, list)
+        for e in entries:
+            assert isinstance(e, SocketEntry)
+
+    def test_entries_have_required_fields(self):
+        """Each entry has proto, local_ip, local_port, state, etc."""
+        entries = collect_connections()
+        if not entries:
+            pytest.skip("No network connections on this host")
+        e = entries[0]
+        assert e.proto in ("tcp", "tcp6", "udp", "udp6")
+        assert isinstance(e.local_ip, str)
+        assert isinstance(e.local_port, int)
+        assert isinstance(e.state, str)
+        assert isinstance(e.state_code, str)
+
+    def test_no_zero_inode_entries_skipped(self):
+        """Entries with no addresses should be filtered out."""
+        entries = collect_connections()
+        for e in entries:
+            # Should have at least a local or remote address
+            assert e.local_ip != "0.0.0.0" or e.remote_ip != "0.0.0.0" or e.local_port != 0
+
+    def test_listening_sockets_present(self):
+        """At least some LISTEN sockets should exist on any host."""
+        entries = collect_connections()
+        listening = [e for e in entries if e.state == "LISTEN"]
+        # Most hosts have at least something listening (e.g. cups, sshd)
+        # Not guaranteed in CI, so just check structure
+        for e in listening:
+            assert e.local_port > 0
+
+    def test_process_info_populated_when_available(self):
+        """Entries should have pid/process_name when accessible."""
+        entries = collect_connections()
+        with_pid = [e for e in entries if e.pid is not None]
+        if not with_pid:
+            pytest.skip("No connections with PID info (needs root or CAP_NET_ADMIN)")
+        e = with_pid[0]
+        assert isinstance(e.pid, int)
+        assert e.pid > 0
+
+
+# ── collect_traffic ────────────────────────────────────────────
+
+class TestCollectTraffic:
+    def test_returns_list_of_interface_stats(self):
+        """collect_traffic returns a list of InterfaceStats."""
+        stats = collect_traffic()
+        assert isinstance(stats, list)
+        for s in stats:
+            assert isinstance(s, InterfaceStats)
+
+    def test_loopback_excluded(self):
+        """Loopback interface should not be in results."""
+        stats = collect_traffic()
+        iface_names = [s.interface for s in stats]
+        assert "lo" not in iface_names
+
+    def test_stats_have_counters(self):
+        """Each InterfaceStats has rx/tx bytes and packets."""
+        stats = collect_traffic()
+        if not stats:
+            pytest.skip("No non-loopback interfaces")
+        s = stats[0]
+        assert s.rx_bytes >= 0
+        assert s.tx_bytes >= 0
+        assert s.rx_packets >= 0
+        assert s.tx_packets >= 0
+        assert s.rx_errors >= 0
+        assert s.tx_errors >= 0
+        assert isinstance(s.interface, str)
+        assert len(s.interface) > 0
+
+    def test_matches_psutil_direct(self):
+        """Results should match direct psutil.net_io_counters call."""
+        stats = collect_traffic()
+        direct = psutil.net_io_counters(pernic=True)
+        for s in stats:
+            assert s.interface in direct
+            assert s.rx_bytes == direct[s.interface].bytes_recv
+
+
+# ── collect_process_tree ───────────────────────────────────────
+
+class TestCollectProcessTree:
+    def test_returns_dict_of_process_info(self):
+        """collect_process_tree returns Dict[int, ProcessInfo]."""
+        tree = collect_process_tree()
+        assert isinstance(tree, dict)
+        for pid, info in tree.items():
+            assert isinstance(pid, int)
+            assert isinstance(info, ProcessInfo)
+
+    def test_current_process_in_tree(self):
+        """The current Python process should be in the tree."""
+        tree = collect_process_tree()
+        import os
+        assert os.getpid() in tree
+
+    def test_children_populated(self):
+        """Some processes should have children."""
+        tree = collect_process_tree()
+        has_children = [p for p in tree.values() if len(p.children) > 0]
+        assert len(has_children) > 0  # At least init/systemd has children
+
+    def test_process_info_fields(self):
+        """ProcessInfo has expected fields."""
+        import os
+        tree = collect_process_tree()
+        my_pid = os.getpid()
+        assert my_pid in tree
+        me = tree[my_pid]
+        assert me.pid == my_pid
+        assert isinstance(me.name, str)
+        assert isinstance(me.cmdline, str)
+        assert isinstance(me.state, str)
+        assert me.ppid > 0  # has a parent
+        assert me.uid >= 0
+
+    def test_network_pids_flag(self):
+        """network_pids parameter marks processes correctly."""
+        tree = collect_process_tree(network_pids={1, 999999})
+        assert tree[1].has_network is True
+        # PID 999999 likely doesn't exist — just check flag for others
+        for pid, info in tree.items():
+            if pid == 1:
+                assert info.has_network is True
+            elif pid not in {1, 999999}:
+                assert info.has_network is False
+
+
+# ── collect_network_pids ───────────────────────────────────────
+
+class TestCollectNetworkPids:
+    def test_returns_set_of_ints(self):
+        """collect_network_pids returns a set of integers."""
+        pids = collect_network_pids()
+        assert isinstance(pids, set)
+        for p in pids:
+            assert isinstance(p, int)
+            assert p > 0

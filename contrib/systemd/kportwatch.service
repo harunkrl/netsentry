@@ -22,8 +22,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/KPortWatch/.venv/bin/python -m backend.kportwatch_daemon --foreground
-WorkingDirectory=%h/KPortWatch
+ExecStart=%h/.local/bin/kportwatch-daemon --foreground
+WorkingDirectory=%h/.local/share/kportwatch
 Restart=on-failure
 RestartSec=5
 

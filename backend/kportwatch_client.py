@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """KPortWatch Client — Streams JSON data from the Unix socket to stdout."""
+import contextlib
 import socket
 import sys
 
@@ -21,7 +22,7 @@ def main():
             print(line.strip(), flush=True)
     except KeyboardInterrupt:
         sys.exit(0)
-    except socket.timeout:
+    except TimeoutError:
         print('{"error": "Timed out connecting to daemon — is kportwatch running?"}')
         sys.exit(1)
     except FileNotFoundError:
@@ -35,10 +36,8 @@ def main():
         sys.exit(1)
     finally:
         if s:
-            try:
+            with contextlib.suppress(Exception):
                 s.close()
-            except Exception:
-                pass
 
 
 if __name__ == "__main__":

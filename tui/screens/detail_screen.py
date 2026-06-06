@@ -12,16 +12,12 @@ from __future__ import annotations
 import time
 from datetime import datetime
 
+from backend.models import SocketEntry
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.containers import VerticalScroll, Vertical
-from textual.widgets import Header, Footer, Label, Static, Rule
-
-from backend.models import SocketEntry
-
-
-import time as _time_mod
+from textual.widgets import Footer, Header, Label, Rule, Static
 
 
 def _format_duration(seconds: float) -> str:
@@ -45,7 +41,6 @@ def _format_duration(seconds: float) -> str:
 
 def _format_time(ts: float) -> str:
     """Format epoch timestamp as HH:MM:SS."""
-    from datetime import datetime
     return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
 
 

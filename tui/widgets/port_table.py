@@ -8,13 +8,12 @@ selection loss on every refresh cycle.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import contextlib
 import logging
-
-from textual.widgets import DataTable
 
 from backend.models import Alert, SocketEntry
 from shared import KNOWN_SAFE_PORTS
+from textual.widgets import DataTable
 
 log = logging.getLogger(__name__)
 
@@ -118,9 +117,9 @@ class PortTable(DataTable):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._row_pids: Dict[str, Optional[int]] = {}
-        self._row_entries: Dict[str, SocketEntry] = {}
-        self._last_row_key: Optional[str] = None
+        self._row_pids: dict[str, int | None] = {}
+        self._row_entries: dict[str, SocketEntry] = {}
+        self._last_row_key: str | None = None
         self._last_scroll_x: float = 0.0
         # D5: Filter/sort state (plain attributes for testability)
         self.filter_text: str = ""
@@ -130,8 +129,8 @@ class PortTable(DataTable):
         self.sort_column: int = -1
         self.sort_reverse: bool = False
         # Data storage
-        self._all_entries: List[SocketEntry] = []
-        self._all_alerts: List[Alert] = []
+        self._all_entries: list[SocketEntry] = []
+        self._all_alerts: list[Alert] = []
         # Previous row-key set for diff detection
         self._prev_keys: set[str] = set()
 
@@ -187,7 +186,7 @@ class PortTable(DataTable):
         self._rebuild_table()
 
     # ── Populate data (diff-based) ────────────────────────────
-    def update_data(self, entries: List[SocketEntry], alerts: List[Alert]) -> None:
+    def update_data(self, entries: list[SocketEntry], alerts: list[Alert]) -> None:
         """Store data and update the table using diff logic.
 
         Compares new keys against previous keys.  Rows that already
@@ -221,7 +220,7 @@ class PortTable(DataTable):
             alerts = self._all_alerts or []
 
             # Build alert lookup
-            alert_map: Dict[int, str] = {}
+            alert_map: dict[int, str] = {}
             for a in alerts:
                 if hasattr(a, 'port') and hasattr(a, 'level'):
                     alert_map.setdefault(a.port, a.level)
@@ -231,7 +230,7 @@ class PortTable(DataTable):
                 self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
 
             # Build filtered + sorted row list
-            rows: List[tuple[str, SocketEntry]] = []
+            rows: list[tuple[str, SocketEntry]] = []
             for entry in entries:
                 if self.filter_text and not self._matches_filter(entry, alert_map):
                     continue
@@ -245,10 +244,8 @@ class PortTable(DataTable):
 
             # Remove rows that no longer exist
             for old_key in list(self._prev_keys - new_keys):
-                try:
+                with contextlib.suppress(Exception):
                     self.remove_row(old_key)
-                except Exception:
-                    pass
                 self._row_pids.pop(old_key, None)
                 self._row_entries.pop(old_key, None)
 
@@ -267,10 +264,8 @@ class PortTable(DataTable):
 
             # Remove empty-state placeholder if real data arrived
             if "_empty" in self._prev_keys and rows:
-                try:
+                with contextlib.suppress(Exception):
                     self.remove_row("_empty")
-                except Exception:
-                    pass
 
             # Add/update rows
             for row_key, entry in rows:
@@ -296,7 +291,7 @@ class PortTable(DataTable):
                     # Update existing row cells
                     try:
                         for col_idx, val in enumerate(cell_values):
-                            coordinate = self.coordinate_to_cell_key(
+                            self.coordinate_to_cell_key(
                                 (self._find_row_index(row_key), col_idx)
                             )
                             # Use update_cell_at for efficiency
@@ -308,10 +303,8 @@ class PortTable(DataTable):
                                 )
                     except Exception:
                         # Fall back to remove + re-add
-                        try:
+                        with contextlib.suppress(Exception):
                             self.remove_row(row_key)
-                        except Exception:
-                            pass
                         self.add_row(*cell_values, key=row_key)
                 else:
                     self.add_row(*cell_values, key=row_key)
@@ -332,17 +325,15 @@ class PortTable(DataTable):
 
             # Restore horizontal scroll position
             if self._last_scroll_x:
-                try:
+                with contextlib.suppress(Exception):
                     self.scroll_x = self._last_scroll_x
-                except Exception:
-                    pass
 
         except Exception as e:
             log.error("Failed to diff-update table: %s", e, exc_info=True)
             # Fall back to full rebuild on error
             self._rebuild_table()
 
-    def _find_row_index(self, row_key: str) -> Optional[int]:
+    def _find_row_index(self, row_key: str) -> int | None:
         """Find the row index for a given row key string."""
         try:
             for row_idx in range(self.row_count):
@@ -353,7 +344,7 @@ class PortTable(DataTable):
             pass
         return None
 
-    def _row_key_for(self, row_key: str) -> Optional[object]:
+    def _row_key_for(self, row_key: str) -> object | None:
         """Get the DataTable RowKey for a row key string."""
         try:
             for row_idx in range(self.row_count):
@@ -364,7 +355,7 @@ class PortTable(DataTable):
             pass
         return None
 
-    def _matches_filter(self, entry: SocketEntry, alert_map: Dict[int, str]) -> bool:
+    def _matches_filter(self, entry: SocketEntry, alert_map: dict[int, str]) -> bool:
         """Check if an entry matches ALL active filters (text + proto + port range)."""
         # 1) Protocol filter
         if self.filter_proto != "ALL" and entry.proto.upper() != self.filter_proto:
@@ -400,7 +391,7 @@ class PortTable(DataTable):
             alerts = self._all_alerts or []
 
             # Build a quick lookup of port→alert-level
-            alert_map: Dict[int, str] = {}
+            alert_map: dict[int, str] = {}
             for a in alerts:
                 if hasattr(a, 'port') and hasattr(a, 'level'):
                     alert_map.setdefault(a.port, a.level)
@@ -423,7 +414,7 @@ class PortTable(DataTable):
                 return
 
             # Build row data
-            rows: List[tuple[str, SocketEntry]] = []
+            rows: list[tuple[str, SocketEntry]] = []
             for entry in entries:
                 if self.filter_text and not self._matches_filter(entry, alert_map):
                     continue
@@ -471,15 +462,13 @@ class PortTable(DataTable):
 
             # Restore horizontal scroll position
             if self._last_scroll_x:
-                try:
+                with contextlib.suppress(Exception):
                     self.scroll_x = self._last_scroll_x
-                except Exception:
-                    pass
 
         except Exception as e:
             log.error("Failed to rebuild table: %s", e, exc_info=True)
 
-    def _sort_rows(self, rows: List[tuple[str, SocketEntry]], alert_map: Dict[int, str]) -> List[tuple[str, SocketEntry]]:
+    def _sort_rows(self, rows: list[tuple[str, SocketEntry]], alert_map: dict[int, str]) -> list[tuple[str, SocketEntry]]:
         """Sort rows based on _sort_column."""
         col = self.sort_column
 
@@ -541,7 +530,7 @@ class PortTable(DataTable):
         self.toggle_sort(event.column_index)
 
     # ── Selection helpers ─────────────────────────────────────
-    def get_selected_entry(self) -> Optional[SocketEntry]:
+    def get_selected_entry(self) -> SocketEntry | None:
         """Return the ``SocketEntry`` for the currently selected row."""
         try:
             cell_key = self.coordinate_to_cell_key(self.cursor_coordinate)
@@ -549,7 +538,7 @@ class PortTable(DataTable):
         except Exception:
             return None
 
-    def get_selected_pid(self) -> Optional[int]:
+    def get_selected_pid(self) -> int | None:
         """Return the PID of the currently selected row, if any."""
         try:
             cell_key = self.coordinate_to_cell_key(self.cursor_coordinate)
@@ -558,7 +547,7 @@ class PortTable(DataTable):
             return None
 
     # ── Port scan detection ────────────────────────────────────
-    def detect_port_scan(self, threshold: int | None = None) -> List[dict]:
+    def detect_port_scan(self, threshold: int | None = None) -> list[dict]:
         """Detect potential port scans based on unique ports per remote IP.
 
         Args:
@@ -577,7 +566,7 @@ class PortTable(DataTable):
                 threshold = 5
 
         # Count unique ports per remote IP
-        ip_ports: Dict[str, set[int]] = {}
+        ip_ports: dict[str, set[int]] = {}
         for entry in self._all_entries:
             if entry.state != "LISTEN" and entry.remote_ip:
                 ip_ports.setdefault(entry.remote_ip, set()).add(
@@ -585,7 +574,7 @@ class PortTable(DataTable):
                 )
 
         # Find IPs exceeding the threshold
-        results: List[dict] = []
+        results: list[dict] = []
         for ip, ports in ip_ports.items():
             if len(ports) >= threshold:
                 results.append({
@@ -599,6 +588,6 @@ class PortTable(DataTable):
         return results
 
     @property
-    def scan_suspects(self) -> List[dict]:
+    def scan_suspects(self) -> list[dict]:
         """Convenience accessor for detected port scan suspects."""
         return self.detect_port_scan()

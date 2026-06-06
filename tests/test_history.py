@@ -2,22 +2,19 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from backend.history import (
     HistoryRecorder,
-    read_history,
-    list_available_dates,
     export_history_csv,
     export_history_json,
+    list_available_dates,
+    read_history,
 )
-from backend.models import Snapshot, SocketEntry, Alert
+from backend.models import Alert, Snapshot, SocketEntry
 from shared import AlertLevel
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 

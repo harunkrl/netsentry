@@ -22,24 +22,23 @@ Usage::
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Set, Tuple
-
 from shared.constants import (
-    MALICIOUS_PORTS,
     KNOWN_SAFE_PORTS,
+    MALICIOUS_PORTS,
     PRIVILEGED_PORT_MAX,
 )
+
 from backend.models import SocketEntry
 
 
 def calculate_risk_score(
     entry: SocketEntry,
     *,
-    malicious_ports: Optional[Set[int]] = None,
-    known_safe_ports: Optional[Dict[int, str]] = None,
-    baseline_ports: Optional[Set[int]] = None,
-    port_blacklist: Optional[Set[int]] = None,
-) -> Dict:
+    malicious_ports: set[int] | None = None,
+    known_safe_ports: dict[int, str] | None = None,
+    baseline_ports: set[int] | None = None,
+    port_blacklist: set[int] | None = None,
+) -> dict:
     """Calculate risk score and contributing factors for a socket entry.
 
     Returns:
@@ -51,7 +50,7 @@ def calculate_risk_score(
     blacklist = port_blacklist or set()
 
     score = 0
-    factors: List[str] = []
+    factors: list[str] = []
 
     # Malicious port
     if entry.local_port in mal_ports:
@@ -90,9 +89,9 @@ def calculate_risk_score(
 
 
 def score_entries(
-    entries: List[SocketEntry],
+    entries: list[SocketEntry],
     **kwargs,
-) -> List[Tuple[SocketEntry, Dict]]:
+) -> list[tuple[SocketEntry, dict]]:
     """Score a list of entries, returning (entry, score_dict) pairs sorted by risk."""
     scored = [(e, calculate_risk_score(e, **kwargs)) for e in entries]
     scored.sort(key=lambda x: x[1]["score"], reverse=True)

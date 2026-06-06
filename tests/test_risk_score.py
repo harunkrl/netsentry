@@ -1,12 +1,8 @@
 """Tests for backend.risk_score — Port risk scoring."""
 from __future__ import annotations
 
-import pytest
-
 from backend.models import SocketEntry
 from backend.risk_score import calculate_risk_score, score_entries
-from shared import MALICIOUS_PORTS
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 

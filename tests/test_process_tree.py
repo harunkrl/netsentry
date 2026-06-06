@@ -1,21 +1,15 @@
 """Tests for process tree builder and ProcessInfo model."""
 from __future__ import annotations
 
-import json
-import os
-import time
 from dataclasses import asdict
-from unittest.mock import patch
 
 import pytest
-
 from backend.models import ProcessInfo, Snapshot
 from backend.parsers.process_tree import (
     _parse_stat,
     build_process_tree,
     get_tree_roots,
 )
-
 
 # ── _parse_stat tests ──────────────────────────────────────────
 
@@ -110,7 +104,7 @@ class TestBuildProcessTree:
     def test_all_pids_have_required_fields(self):
         """Every ProcessInfo should have non-None required fields."""
         tree = build_process_tree()
-        for pid, info in tree.items():
+        for _pid, info in tree.items():
             assert isinstance(info.pid, int)
             assert isinstance(info.ppid, int)
             assert isinstance(info.name, str)

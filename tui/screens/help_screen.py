@@ -4,9 +4,9 @@ Auto-generated keyboard shortcut reference. Bindings are read
 from the app's BINDINGS list to avoid stale/duplicate entries.
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
 from textual.containers import VerticalScroll
-from textual.widgets import Header, Footer, Markdown
+from textual.screen import Screen
+from textual.widgets import Footer, Header, Markdown
 
 HELP_MD = """
 # KPortWatch TUI — Keyboard Shortcuts

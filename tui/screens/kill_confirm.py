@@ -12,18 +12,16 @@ from __future__ import annotations
 import asyncio
 import os
 import signal as sig
-from typing import Optional
-
-from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.screen import ModalScreen
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Label, Static
 
 from backend.models import SocketEntry
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Label, Static
 
 
-class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
+class KillConfirmScreen(ModalScreen[tuple[bool, str] | None]):
     """Modal dialog asking the user to confirm process termination.
 
     Supports Escape to close, and proper error handling for kill
@@ -145,13 +143,13 @@ class KillConfirmScreen(ModalScreen[Optional[tuple[bool, str]]]):
         success, msg = await asyncio.to_thread(_kill)
         self._safe_dismiss((success, msg))
 
-    def _safe_dismiss(self, result: Optional[tuple[bool, str]]) -> None:
+    def _safe_dismiss(self, result: tuple[bool, str] | None) -> None:
         """Dismiss the modal, guarding against the screen already being popped.
 
         If the user quit while the kill worker was running, the screen may
-        no longer be on the stack. Catching ScreenError prevents a crash.
+        no longer be on the stack. Catching exceptions prevents a crash.
         """
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             self.dismiss(result)
-        except Exception:
-            pass  # Screen already removed from stack

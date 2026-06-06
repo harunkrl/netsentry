@@ -8,14 +8,13 @@ rendered without Rich bracket markup to avoid parsing confusion.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
-from typing import Dict, List, Optional
-
-from textual.widgets import Static
 
 from shared.constants import DATA_FILE
+from textual.widgets import Static
 
 # Heartbeat cache TTL (seconds)
 _HB_CACHE_TTL = 8.0
@@ -25,7 +24,7 @@ def _check_daemon_alive() -> bool:
     """Check if daemon is alive by reading the heartbeat file."""
     hb_path = os.path.join(os.path.dirname(DATA_FILE), "kportwatch-heartbeat.json")
     try:
-        with open(hb_path, "r") as fh:
+        with open(hb_path) as fh:
             data = json.load(fh)
         ts = data.get("ts", 0)
         return (time.time() - ts) < 15.0
@@ -49,9 +48,9 @@ class StatusBar(Static):
         self._last_hb_result: bool = False
         self._filter_info: str = ""
         # Cache last update args for responsive re-render
-        self._last_summary: Dict[str, int] = {}
-        self._last_alerts: List = []
-        self._last_daemon_alive: Optional[bool] = None
+        self._last_summary: dict[str, int] = {}
+        self._last_alerts: list = []
+        self._last_daemon_alive: bool | None = None
         self._last_screen: str = ""
 
     def on_mount(self) -> None:
@@ -66,15 +65,13 @@ class StatusBar(Static):
     def rerender(self) -> None:
         """Re-render with cached data (called on terminal resize)."""
         if self._last_summary:
-            try:
+            with contextlib.suppress(Exception):
                 self._build_line(
                     self._last_summary or {},
                     self._last_alerts or [],
                     self._last_daemon_alive,
                     self._last_screen or "",
                 )
-            except Exception:
-                pass
 
     def set_notification_state(self, enabled: bool) -> None:
         """Update the desktop notification indicator."""
@@ -93,9 +90,9 @@ class StatusBar(Static):
 
     def update_display(
         self,
-        summary: Dict[str, int],
-        alerts: List,
-        daemon_alive: Optional[bool] = None,
+        summary: dict[str, int],
+        alerts: list,
+        daemon_alive: bool | None = None,
         current_screen: str = "",
     ) -> None:
         """Store data and render."""
@@ -107,9 +104,9 @@ class StatusBar(Static):
 
     def _build_line(
         self,
-        summary: Dict[str, int],
-        alerts: List,
-        daemon_alive: Optional[bool],
+        summary: dict[str, int],
+        alerts: list,
+        daemon_alive: bool | None,
         current_screen: str,
     ) -> None:
         """Build the status line, adapting to terminal width."""
@@ -117,10 +114,7 @@ class StatusBar(Static):
             daemon_alive = self._cached_daemon_check()
 
         # ── Core segments (always shown) ──────────────────────
-        if daemon_alive:
-            daemon_seg = "\u2713 Connected"
-        else:
-            daemon_seg = "\u2717 OFFLINE"
+        daemon_seg = "✓ Connected" if daemon_alive else "✗ OFFLINE"
 
         listening = summary.get("total_listening", 0)
         established = summary.get("total_established", 0)
@@ -132,10 +126,7 @@ class StatusBar(Static):
             has_critical = any(
                 getattr(a, "level", "") == "CRITICAL" for a in alerts
             )
-            if has_critical:
-                status_seg = "\u2717 CRITICAL"
-            else:
-                status_seg = "\u26A0 Warning"
+            status_seg = "✗ CRITICAL" if has_critical else "⚠ Warning"
 
         # Desktop notifications indicator
         notif_seg = "notif \u2713" if self._desktop_notifications else "notif \u2717"

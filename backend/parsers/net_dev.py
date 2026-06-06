@@ -11,14 +11,11 @@ Each data line: "iface: rx_bytes rx_packets rx_errs rx_drop rx_fifo rx_frame rx_
 """
 from __future__ import annotations
 
-from typing import List, Optional
-
 from backend.models import InterfaceStats
-
 
 # ── Internal helpers ───────────────────────────────────────────
 
-def _parse_line(line: str) -> Optional[InterfaceStats]:
+def _parse_line(line: str) -> InterfaceStats | None:
     """Parse a single /proc/net/dev data line into InterfaceStats.
 
     Returns None for malformed lines or loopback interface.
@@ -59,7 +56,7 @@ def _parse_line(line: str) -> Optional[InterfaceStats]:
 
 # ── Public API ─────────────────────────────────────────────────
 
-def parse_proc_net_dev(path: str = "/proc/net/dev") -> List[InterfaceStats]:
+def parse_proc_net_dev(path: str = "/proc/net/dev") -> list[InterfaceStats]:
     """Parse /proc/net/dev into a list of InterfaceStats.
 
     Skips the 2 header lines and the loopback interface.
@@ -70,9 +67,9 @@ def parse_proc_net_dev(path: str = "/proc/net/dev") -> List[InterfaceStats]:
     Returns:
         List of InterfaceStats objects, one per non-loopback interface.
     """
-    entries: List[InterfaceStats] = []
+    entries: list[InterfaceStats] = []
     try:
-        with open(path, "r") as fh:
+        with open(path) as fh:
             lines = fh.readlines()
     except (FileNotFoundError, PermissionError, OSError):
         return entries

@@ -3,10 +3,8 @@ import json
 import time
 
 import pytest
-
-from backend.models import Alert, InterfaceStats, SocketEntry, Snapshot
+from backend.models import Alert, InterfaceStats, Snapshot, SocketEntry
 from shared import AlertLevel
-
 
 # ── SocketEntry ────────────────────────────────────────────────
 

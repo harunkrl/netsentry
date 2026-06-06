@@ -2,9 +2,7 @@
 import json
 import os
 
-import pytest
-
-from backend.models import Snapshot, SocketEntry, Alert
+from backend.models import Alert, Snapshot, SocketEntry
 from backend.writers.json_file import read_snapshot, write_snapshot, write_widget_snapshot
 from shared import AlertLevel
 
@@ -121,7 +119,7 @@ class TestAtomicWrite:
         snapshot = _make_sample_snapshot()
         write_snapshot(snapshot, path=str(tmp_data_file))
 
-        with open(str(tmp_data_file), "r") as f:
+        with open(str(tmp_data_file)) as f:
             content = f.read()
         parsed = json.loads(content)
         assert isinstance(parsed, dict)

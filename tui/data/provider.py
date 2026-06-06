@@ -13,7 +13,6 @@ import json
 import os
 import signal
 import time
-from typing import Optional, Tuple
 
 from backend.models import Snapshot
 from shared import DATA_FILE
@@ -30,14 +29,14 @@ class DataProvider:
         self.data_path = data_path
 
     # ── Fetch snapshot ────────────────────────────────────────
-    def fetch(self) -> Optional[Snapshot]:
+    def fetch(self) -> Snapshot | None:
         """Read the latest JSON snapshot from disk.
 
         Returns ``None`` when the file is missing, unreadable, or
         contains invalid JSON.
         """
         try:
-            with open(self.data_path, "r") as fh:
+            with open(self.data_path) as fh:
                 raw = fh.read()
         except FileNotFoundError:
             return None
@@ -52,7 +51,7 @@ class DataProvider:
             return None
 
     # ── Kill a process ────────────────────────────────────────
-    def kill_process(self, pid: int) -> Tuple[bool, str]:
+    def kill_process(self, pid: int) -> tuple[bool, str]:
         """Attempt to terminate *pid* gracefully, then forcibly.
 
         Returns ``(success, message)``.

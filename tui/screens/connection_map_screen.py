@@ -16,15 +16,14 @@ import asyncio
 import ipaddress
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
 
+from backend.models import SocketEntry
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Header, Footer, DataTable, Static, Input
+from textual.widgets import DataTable, Footer, Header, Input, Static
 
-from backend.models import SocketEntry, Snapshot
 from tui.data.provider import DataProvider
 
 log = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ _WORLD_MAP: list[str] = [
     r"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
 ]
 
-_MAP_ROWS = len(_WORLD_MAP)     
+_MAP_ROWS = len(_WORLD_MAP)
 _MAP_COLS = len(_WORLD_MAP[0])
 
 
@@ -71,7 +70,7 @@ def _is_private_ip(ip: str) -> bool:
         return True  # unparseable → skip
 
 
-def _lat_lon_to_grid(lat: float, lon: float) -> Tuple[int, int]:
+def _lat_lon_to_grid(lat: float, lon: float) -> tuple[int, int]:
     """Convert lat/lon to (row, col) on the ASCII map grid."""
     # Equirectangular projection
     row = int((90 - lat) / 180 * (_MAP_ROWS - 1))
@@ -83,9 +82,9 @@ def _lat_lon_to_grid(lat: float, lon: float) -> Tuple[int, int]:
 
 
 def _render_map(
-    connections: List[dict],
-    home_lat: Optional[float] = None,
-    home_lon: Optional[float] = None,
+    connections: list[dict],
+    home_lat: float | None = None,
+    home_lon: float | None = None,
 ) -> str:
     """Render the ASCII world map with connection markers."""
     # Build mutable grid
@@ -93,7 +92,7 @@ def _render_map(
 
     # Aggregate connections per grid cell
     # O6: Skip (0, 0) coordinates — Null Island fix
-    cell_counts: Dict[Tuple[int, int], int] = defaultdict(int)
+    cell_counts: dict[tuple[int, int], int] = defaultdict(int)
     for conn in connections:
         lat = conn.get("lat")
         lon = conn.get("lon")
@@ -119,9 +118,9 @@ def _render_map(
 
     # Build string with Rich markup for markers
     lines: list[str] = []
-    for r_idx, row in enumerate(grid):
+    for _r_idx, row in enumerate(grid):
         line_chars: list[str] = []
-        for c_idx, ch in enumerate(row):
+        for _c_idx, ch in enumerate(row):
             if ch == "●":
                 line_chars.append("[green]●[/]")
             elif ch == "◎":
@@ -199,7 +198,7 @@ class ConnectionMapScreen(Screen):
         self._sort_index: int = 0
         self._sort_reverse: bool = False
         self._map_visible: bool = True
-        self._connections: List[dict] = []
+        self._connections: list[dict] = []
         self._geo_stats: dict = {}
 
     def compose(self) -> ComposeResult:
@@ -243,10 +242,10 @@ class ConnectionMapScreen(Screen):
         # Save focus before updating widgets
         focused = self.focused
 
-        established: List[SocketEntry] = getattr(snapshot, "established", []) or []
+        established: list[SocketEntry] = getattr(snapshot, "established", []) or []
         geo_stats: dict = getattr(snapshot, "geo_stats", {}) or {}
 
-        connections: List[dict] = []
+        connections: list[dict] = []
         for e in established:
             if not e.remote_ip or _is_private_ip(e.remote_ip):
                 continue
@@ -270,13 +269,13 @@ class ConnectionMapScreen(Screen):
         if focused and self.focused is not focused:
             focused.focus()
 
-    def _update_map(self, connections: List[dict], geo_stats: dict) -> None:
+    def _update_map(self, connections: list[dict], geo_stats: dict) -> None:
         countries = geo_stats.get("countries_count", 0)
         unique_ips = len({c["ip"] for c in connections})
         total = len(connections)
 
         header = self.query_one("#map-header", Static)
-        
+
         # FIX: Changed [s]ort to <o> sort to prevent Textual/Rich markup collisions.
         header.update(
             f"[bold]Connection Map[/]  |  "
@@ -290,7 +289,7 @@ class ConnectionMapScreen(Screen):
             map_widget = self.query_one("#world-map", Static)
             map_widget.update(_render_map(connections))
 
-    def _update_table(self, connections: List[dict]) -> None:
+    def _update_table(self, connections: list[dict]) -> None:
         table = self.query_one("#geo-table", DataTable)
         table.clear()
 
@@ -305,7 +304,7 @@ class ConnectionMapScreen(Screen):
                 or ft in c["process"].lower()
             ]
 
-        grouped: Dict[Tuple[str, str], dict] = {}
+        grouped: dict[tuple[str, str], dict] = {}
         for c in filtered:
             key = (c.get("country_code", "") or c["country"], c["ip"])
             if key not in grouped:
@@ -418,7 +417,6 @@ class ConnectionMapScreen(Screen):
             self._update_table(self._connections)
 
     def action_cycle_sort(self) -> None:
-        prev = self._sort_index
         self._sort_index = (self._sort_index + 1) % len(_SORT_COLUMNS)
         if self._sort_index == 0:
             self._sort_reverse = not self._sort_reverse

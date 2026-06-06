@@ -11,39 +11,57 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import fcntl
 import logging
 import os
 import signal
 import sys
 import time
-import fcntl
-import atexit
 from dataclasses import asdict
-from typing import Dict, List, Tuple
 
 from shared import (
-    BASELINE_FILE,
-    DATA_FILE,
     DEFAULT_POLL_INTERVAL,
-    KNOWN_SAFE_PORTS,
     PID_FILE,
     AlertLevel,
 )
-from shared.config import load_config, get_config, apply_cli_overrides, AppConfig
+from shared.config import apply_cli_overrides, load_config
+
 from backend.models import InterfaceStats, Snapshot, SocketEntry
-from backend.parsers.proc_net import parse_all_proc
-from backend.parsers.net_dev import parse_proc_net_dev
 from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
+from backend.parsers.net_dev import parse_proc_net_dev
+from backend.parsers.proc_net import parse_all_proc
 from backend.parsers.process_tree import build_process_tree
-from backend.alert_engine import AlertEngine
-from backend.writers.json_file import write_snapshot, write_widget_snapshot
-from backend.parsers.rdns import get_hostname
-from backend.parsers import geoip as geoip_mod
-from backend.writers.unix_socket import UnixSocketServer
-from backend.history import HistoryRecorder
-from backend.risk_score import calculate_risk_score
-from backend.update import check_for_update, write_update_state, get_local_version
+
+# psutil-based collectors (preferred, with /proc fallback)
+try:
+    import psutil as _psutil  # noqa: F401 — checked at runtime
+    _HAS_PSUTIL = True
+except ImportError:
+    _HAS_PSUTIL = False
+
+import contextlib
 import subprocess
+
+from backend.alert_engine import AlertEngine
+from backend.collectors.psutil_collector import (
+    collect_connections as _psutil_connections,
+)
+from backend.collectors.psutil_collector import (
+    collect_network_pids as _psutil_network_pids,
+)
+from backend.collectors.psutil_collector import (
+    collect_process_tree as _psutil_process_tree,
+)
+from backend.collectors.psutil_collector import (
+    collect_traffic as _psutil_traffic,
+)
+from backend.history import HistoryRecorder
+from backend.parsers import geoip as geoip_mod
+from backend.parsers.rdns import get_hostname
+from backend.risk_score import calculate_risk_score
+from backend.update import check_for_update, get_local_version, write_update_state
+from backend.writers.json_file import write_snapshot, write_widget_snapshot
+from backend.writers.unix_socket import UnixSocketServer
 
 logger = logging.getLogger("kportwatch")
 
@@ -99,7 +117,7 @@ def setup_logging(verbose: bool) -> None:
     )
 
 
-def merge_inode_map(entries: List[SocketEntry]) -> None:
+def merge_inode_map(entries: list[SocketEntry]) -> None:
     """Resolve PIDs for socket entries by scanning /proc fd symlinks."""
     inode_map = build_inode_to_pid_map()
     uid_map = build_uid_process_map()
@@ -117,15 +135,15 @@ def merge_inode_map(entries: List[SocketEntry]) -> None:
 
 
 def classify_entries(
-    entries: List[SocketEntry],
-) -> tuple[List[SocketEntry], List[SocketEntry]]:
+    entries: list[SocketEntry],
+) -> tuple[list[SocketEntry], list[SocketEntry]]:
     """Split entries into listening and established lists.
 
     Listening: state is LISTEN or UNCONN (UDP listening).
     Everything else goes to established.
     """
-    listening: List[SocketEntry] = []
-    established: List[SocketEntry] = []
+    listening: list[SocketEntry] = []
+    established: list[SocketEntry] = []
     for e in entries:
         if e.state in ("LISTEN", "UNCONN"):
             listening.append(e)
@@ -135,10 +153,10 @@ def classify_entries(
 
 
 def compute_traffic_deltas(
-    current: List[InterfaceStats],
-    prev: Dict[str, Tuple[float, InterfaceStats]],
+    current: list[InterfaceStats],
+    prev: dict[str, tuple[float, InterfaceStats]],
     now: float,
-) -> Dict[str, InterfaceStats]:
+) -> dict[str, InterfaceStats]:
     """Compute per-second RX/TX rates from cumulative counters.
 
     Args:
@@ -149,7 +167,7 @@ def compute_traffic_deltas(
     Returns:
         Dict of {iface: InterfaceStats} with rx_rate/tx_rate filled.
     """
-    result: Dict[str, InterfaceStats] = {}
+    result: dict[str, InterfaceStats] = {}
     for stats in current:
         if stats.interface in prev:
             prev_ts, prev_stats = prev[stats.interface]
@@ -214,10 +232,8 @@ def daemon_loop(args: argparse.Namespace) -> None:
             cfg.notifications_enabled, cfg.poll_interval,
         )
 
-    try:
+    with contextlib.suppress(AttributeError):  # Windows compatibility
         signal.signal(signal.SIGHUP, reload_config)
-    except AttributeError:
-        pass # Windows compatibility
 
     running = True
     last_snapshot_hash: str = ""
@@ -225,7 +241,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     prev_baseline: frozenset = frozenset()
     notified_alerts: dict[str, float] = {}  # alert_hash → timestamp
     notification_timestamps: list[float] = []  # for rate limiting
-    _prev_traffic: Dict[str, Tuple[float, InterfaceStats]] = {}  # iface → (ts, stats)
+    _prev_traffic: dict[str, tuple[float, InterfaceStats]] = {}  # iface → (ts, stats)
     _last_update_check: float = 0.0
 
     # Start Unix Socket Server
@@ -252,7 +268,6 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     def daemon_kill_process(pid: int) -> dict:
         """Kill a process by PID with SIGTERM → wait → SIGKILL fallback."""
-        import errno as _errno
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:
@@ -307,28 +322,38 @@ def daemon_loop(args: argparse.Namespace) -> None:
         cycle_start = time.time()
 
         try:
-            # 1. Parse /proc/net files
-            entries = parse_all_proc()
-            logger.debug("Parsed %d socket entries", len(entries))
+            # 1. Collect network connections (psutil preferred, /proc fallback)
+            if _HAS_PSUTIL:
+                entries = _psutil_connections()
+                logger.debug("Collected %d socket entries via psutil", len(entries))
+            else:
+                entries = parse_all_proc()
+                logger.debug("Parsed %d socket entries via /proc", len(entries))
 
-            # 2. Resolve PIDs
-            inode_map = build_inode_to_pid_map()
-            uid_map = build_uid_process_map()
-            for entry in entries:
-                info = inode_map.get(entry.inode)
-                if info:
-                    pid, proc_name, cmdline = info
-                    entry.pid = pid
-                    entry.process_name = proc_name
-                    entry.cmdline = cmdline
-                elif entry.uid in uid_map:
-                    # Fallback: couldn't scan fd/ (other user's process), use UID lookup
-                    username, proc_name, cmdline = uid_map[entry.uid]
-                    entry.process_name = f"{proc_name} ({username})"
-                    entry.cmdline = cmdline
+            # 1b. Resolve PIDs (only needed for /proc path — psutil already has them)
+            if not _HAS_PSUTIL or any(e.pid is None for e in entries):
+                inode_map = build_inode_to_pid_map()
+                uid_map = build_uid_process_map()
+                for entry in entries:
+                    if entry.pid is None:
+                        info = inode_map.get(entry.inode)
+                        if info:
+                            pid, proc_name, cmdline = info
+                            entry.pid = pid
+                            entry.process_name = proc_name
+                            entry.cmdline = cmdline
+                        elif entry.uid in uid_map:
+                            username, proc_name, cmdline = uid_map[entry.uid]
+                            entry.process_name = f"{proc_name} ({username})"
+                            entry.cmdline = cmdline
 
-            # 2.5 Build process tree (reuses inode_map for has_network flag)
-            process_tree = build_process_tree(inode_map)
+            # 2. Build process tree
+            if _HAS_PSUTIL:
+                network_pids = _psutil_network_pids()
+                process_tree = _psutil_process_tree(network_pids)
+            else:
+                inode_map_local = build_inode_to_pid_map()
+                process_tree = build_process_tree(inode_map_local)
 
             # 3. Classify listening vs established
             listening, established = classify_entries(entries)
@@ -359,9 +384,9 @@ def daemon_loop(args: argparse.Namespace) -> None:
                             e.remote_isp = geo.get("isp")
                             e.remote_org = geo.get("org")
 
-            # 3.6 Parse /proc/net/dev for traffic statistics
+            # 3.6 Collect traffic statistics
             now_ts = time.time()
-            raw_traffic = parse_proc_net_dev()
+            raw_traffic = _psutil_traffic() if _HAS_PSUTIL else parse_proc_net_dev()
             traffic = compute_traffic_deltas(raw_traffic, _prev_traffic, now_ts)
             # Store current readings for next cycle's delta computation
             _prev_traffic = {
@@ -402,7 +427,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
             }
 
             # 6b. Compute geo_stats from established connections
-            country_ips: Dict[str, set] = {}
+            country_ips: dict[str, set] = {}
             for e in established:
                 cc = e.remote_country_code
                 if cc and e.remote_ip:
@@ -446,7 +471,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
             history.record_summary(snapshot)
             for alert in alerts:
                 history.record_alert(alert)
-            
+
             logger.debug(
                 "Snapshot: %d listening, %d established, %d alerts",
                 len(listening), len(established), len(alerts),
@@ -464,7 +489,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 interval = cfg.alert_poll_interval
                 for a in alerts:
                     logger.info("ALERT [%s] %s", a.level, a.message)
-                    
+
                     # Desktop notification for WARNING and CRITICAL
                     if cfg.notifications_enabled and a.level in (AlertLevel.WARNING, AlertLevel.CRITICAL):
                         alert_hash = f"{a.level}:{a.message}"
@@ -508,7 +533,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                                    if (now_ts - v) > cfg.alert_ttl]
                         for k in expired:
                             del notified_alerts[k]
-                                
+
             elif (time.time() - last_change_time) > cfg.idle_threshold_secs:
                 interval = cfg.idle_poll_interval
             else:
@@ -553,10 +578,8 @@ def daemon_loop(args: argparse.Namespace) -> None:
         socket_server.stop()
 
     # Clean up PID file
-    try:
+    with contextlib.suppress(OSError):
         os.unlink(PID_FILE)
-    except OSError:
-        pass
 
     logger.info("KPortWatch daemon stopped")
 
@@ -585,10 +608,8 @@ def _daemonize() -> None:
     except (AttributeError, ValueError):
         max_fd = 1024
     for fd in range(3, min(max_fd, 256)):  # Cap at 256 to avoid slowness
-        try:
+        with contextlib.suppress(OSError):
             os.close(fd)
-        except OSError:
-            pass
 
     # Redirect stdin/stdout/stderr to /dev/null
     devnull = os.open(os.devnull, os.O_RDWR)
@@ -620,7 +641,7 @@ def main() -> None:
 
     # Prevent duplicate daemons and write PID file
     try:
-        pid_fd = open(PID_FILE, "w")
+        pid_fd = open(PID_FILE, "w")  # noqa: SIM115 — fd intentionally held open for lock
         fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         pid_fd.write(str(os.getpid()))
         pid_fd.flush()
@@ -639,7 +660,8 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        import traceback, pathlib
+        import pathlib
+        import traceback
         crash_log = pathlib.Path.home() / ".local" / "share" / "kportwatch" / "crash.log"
         crash_log.parent.mkdir(parents=True, exist_ok=True)
         with open(crash_log, "a") as f:

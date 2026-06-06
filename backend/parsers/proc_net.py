@@ -9,14 +9,16 @@ IPv6 addresses are 32-hex-char, stored as 4 × 32-bit words in little-endian.
 from __future__ import annotations
 
 import ipaddress
-import os
-from typing import List
 
 from shared import (
-    PROC_TCP, PROC_TCP6, PROC_UDP, PROC_UDP6, TCP_STATES,
+    PROC_TCP,
+    PROC_TCP6,
+    PROC_UDP,
+    PROC_UDP6,
+    TCP_STATES,
 )
-from backend.models import SocketEntry
 
+from backend.models import SocketEntry
 
 # ── Internal helpers ───────────────────────────────────────────
 
@@ -72,7 +74,7 @@ def _decode_state(state_hex: str, proto: str) -> str:
 
 # ── Public API ─────────────────────────────────────────────────
 
-def parse_proc_net(path: str, proto: str) -> List[SocketEntry]:
+def parse_proc_net(path: str, proto: str) -> list[SocketEntry]:
     """Parse a single /proc/net/ file into a list of SocketEntry.
 
     Args:
@@ -82,9 +84,9 @@ def parse_proc_net(path: str, proto: str) -> List[SocketEntry]:
     Returns:
         List of SocketEntry objects.
     """
-    entries: List[SocketEntry] = []
+    entries: list[SocketEntry] = []
     try:
-        with open(path, "r") as fh:
+        with open(path) as fh:
             lines = fh.readlines()
     except (FileNotFoundError, PermissionError, OSError):
         return entries
@@ -134,12 +136,12 @@ def parse_proc_net(path: str, proto: str) -> List[SocketEntry]:
     return entries
 
 
-def parse_all_proc() -> List[SocketEntry]:
+def parse_all_proc() -> list[SocketEntry]:
     """Parse all four /proc/net files (tcp, tcp6, udp, udp6).
 
     Returns combined list of SocketEntry objects.
     """
-    all_entries: List[SocketEntry] = []
+    all_entries: list[SocketEntry] = []
     for path, proto in [
         (PROC_TCP, "tcp"),
         (PROC_TCP6, "tcp6"),

@@ -1,19 +1,14 @@
 """Tests for tui.data.provider — TUI data provider and process killer."""
 from __future__ import annotations
 
-import json
-import os
 import signal
-import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-
-from backend.models import Snapshot, SocketEntry, Alert
+from backend.models import Alert, Snapshot, SocketEntry
 from shared import AlertLevel
 from tui.data.provider import DataProvider
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -125,12 +120,8 @@ class TestKillProcess:
 
         def mock_kill_fn(pid, sig):
             call_count["n"] += 1
-            if sig == signal.SIGTERM:
-                pass  # send SIGTERM ok
-            elif sig == 0:
-                # First check: process exists. Second check: gone.
-                if call_count["n"] > 2:
-                    raise ProcessLookupError
+            if sig == 0 and call_count["n"] > 2:
+                raise ProcessLookupError
 
         mock_kill.side_effect = mock_kill_fn
         # Speed up the sleep
@@ -163,9 +154,7 @@ class TestKillProcess:
     def test_kill_permission_denied_on_sigterm(self, mock_kill, provider: DataProvider):
         """If SIGTERM raises PermissionError, should return failure."""
         def mock_kill_fn(pid, sig):
-            if sig == signal.SIGTERM:
-                raise PermissionError
-            elif sig == signal.SIGKILL:
+            if sig == signal.SIGTERM or sig == signal.SIGKILL:
                 raise PermissionError
 
         mock_kill.side_effect = mock_kill_fn

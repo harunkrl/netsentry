@@ -2,11 +2,8 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from backend.update import (
     check_for_update,
@@ -16,7 +13,6 @@ from backend.update import (
     read_update_state,
     write_update_state,
 )
-
 
 # ── Version parsing ───────────────────────────────────────────
 

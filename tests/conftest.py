@@ -5,9 +5,7 @@ import time
 from pathlib import Path
 
 import pytest
-
 from backend.models import Alert, AlertLevel, InterfaceStats, ProcessInfo, Snapshot, SocketEntry
-
 
 # ── File paths ─────────────────────────────────────────────────
 

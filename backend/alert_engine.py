@@ -14,18 +14,17 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Dict, List, Optional, Set
 
 from shared import (
-    AlertLevel,
-    BASELINE_DIR,
     BASELINE_FILE,
     KNOWN_SAFE_PORTS,
     MALICIOUS_PORTS,
     PRIVILEGED_PORT_MAX,
+    AlertLevel,
 )
-from backend.models import Alert, SocketEntry
 from shared.config import CustomRule
+
+from backend.models import Alert, SocketEntry
 
 
 class AlertEngine:
@@ -33,29 +32,29 @@ class AlertEngine:
 
     def __init__(
         self,
-        known_safe_ports: Optional[Dict[int, str]] = None,
+        known_safe_ports: dict[int, str] | None = None,
         baseline_duration: float = 300.0,
-        malicious_ports: Optional[Set[int]] = None,
+        malicious_ports: set[int] | None = None,
         burst_threshold: int = 3,
         privileged_port_max: int = PRIVILEGED_PORT_MAX,
-        custom_rules: Optional[List[CustomRule]] = None,
-        port_whitelist: Optional[Set[int]] = None,
-        port_blacklist: Optional[Set[int]] = None,
-        ip_blacklist: Optional[List[str]] = None,
+        custom_rules: list[CustomRule] | None = None,
+        port_whitelist: set[int] | None = None,
+        port_blacklist: set[int] | None = None,
+        ip_blacklist: list[str] | None = None,
     ) -> None:
-        self.known_safe: Dict[int, str] = dict(known_safe_ports or KNOWN_SAFE_PORTS)
+        self.known_safe: dict[int, str] = dict(known_safe_ports or KNOWN_SAFE_PORTS)
         self.baseline_duration = baseline_duration
-        self.malicious_ports: Set[int] = set(malicious_ports or MALICIOUS_PORTS)
+        self.malicious_ports: set[int] = set(malicious_ports or MALICIOUS_PORTS)
         self.burst_threshold = burst_threshold
         self.privileged_port_max = privileged_port_max
-        self.custom_rules: List[CustomRule] = list(custom_rules or [])
-        self.port_whitelist: Set[int] = set(port_whitelist or set())
-        self.port_blacklist: Set[int] = set(port_blacklist or set())
-        self.ip_blacklist: List[str] = list(ip_blacklist or [])
-        self._baseline_ports: Set[int] = set()
-        self._baseline_start: Optional[float] = None
+        self.custom_rules: list[CustomRule] = list(custom_rules or [])
+        self.port_whitelist: set[int] = set(port_whitelist or set())
+        self.port_blacklist: set[int] = set(port_blacklist or set())
+        self.ip_blacklist: list[str] = list(ip_blacklist or [])
+        self._baseline_ports: set[int] = set()
+        self._baseline_start: float | None = None
         self._baseline_stable = False
-        self._last_ports: Optional[Set[int]] = None
+        self._last_ports: set[int] | None = None
 
     def reset_baseline(self) -> None:
         """Reset the baseline to start learning again."""
@@ -66,7 +65,7 @@ class AlertEngine:
 
     # ── Baseline management ────────────────────────────────────
 
-    def update_baseline(self, entries: List[SocketEntry]) -> None:
+    def update_baseline(self, entries: list[SocketEntry]) -> None:
         """Learn listening ports during the baseline period (first N seconds).
 
         Once the baseline period completes and ports haven't changed for a
@@ -96,7 +95,7 @@ class AlertEngine:
         """Return True once the baseline learning period has finished."""
         return self._baseline_stable
 
-    def save_baseline(self, path: Optional[str] = None) -> None:
+    def save_baseline(self, path: str | None = None) -> None:
         """Persist the baseline port set to disk."""
         path = path or BASELINE_FILE
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -109,18 +108,18 @@ class AlertEngine:
             json.dump(data, fh, indent=2)
         os.replace(tmp, path)
 
-    def load_baseline(self, path: Optional[str] = None) -> bool:
+    def load_baseline(self, path: str | None = None) -> bool:
         """Load a previously saved baseline. Returns True on success."""
         path = path or BASELINE_FILE
         try:
-            with open(path, "r") as fh:
+            with open(path) as fh:
                 data = json.load(fh)
 
             # Validate schema: must have "ports" as a list of ints
             ports = data.get("ports")
             if not isinstance(ports, list):
                 return False
-            validated_ports: Set[int] = set()
+            validated_ports: set[int] = set()
             for p in ports:
                 if isinstance(p, int) and 0 <= p <= 65535:
                     validated_ports.add(p)
@@ -134,18 +133,18 @@ class AlertEngine:
 
     # ── Analysis ───────────────────────────────────────────────
 
-    def analyze(self, entries: List[SocketEntry]) -> List[Alert]:
+    def analyze(self, entries: list[SocketEntry]) -> list[Alert]:
         """Run all alert rules against the provided listening socket entries.
 
         Also feeds the entries into baseline learning.
         """
         self.update_baseline(entries)
 
-        alerts: List[Alert] = []
+        alerts: list[Alert] = []
         now = time.time()
 
-        current_ports: Set[int] = set()
-        new_ports: List[SocketEntry] = []
+        current_ports: set[int] = set()
+        new_ports: list[SocketEntry] = []
 
         for entry in entries:
             port = entry.local_port

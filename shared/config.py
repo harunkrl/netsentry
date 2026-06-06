@@ -23,12 +23,9 @@ import os
 import tomllib  # Python 3.11+
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from pathlib import Path
-from typing import Dict, FrozenSet, List, Optional
 
 from shared.constants import (
     ALERT_POLL_INTERVAL,
-    BASELINE_DIR,
     BASELINE_FILE,
     DATA_FILE,
     DEFAULT_POLL_INTERVAL,
@@ -54,11 +51,11 @@ CONFIG_FILE: str = os.path.join(CONFIG_DIR, "config.toml")
 class CustomRule:
     """A user-defined alert rule from config.toml."""
     # Match conditions (all must be True — AND logic)
-    port: Optional[int] = None              # exact port match
-    port_pattern: Optional[str] = None      # glob pattern e.g. "808*"
-    remote_ip: Optional[str] = None         # glob pattern e.g. "192.168.1.*"
-    process_name: Optional[str] = None      # glob pattern e.g. "python*"
-    proto: Optional[str] = None             # "tcp" or "udp"
+    port: int | None = None              # exact port match
+    port_pattern: str | None = None      # glob pattern e.g. "808*"
+    remote_ip: str | None = None         # glob pattern e.g. "192.168.1.*"
+    process_name: str | None = None      # glob pattern e.g. "python*"
+    proto: str | None = None             # "tcp" or "udp"
     # Alert properties
     level: str = "WARNING"
     message: str = "Custom rule triggered"
@@ -80,9 +77,7 @@ class CustomRule:
             name = entry.process_name or ""
             if not fnmatch(name, self.process_name):
                 return False
-        if self.proto is not None and entry.proto != self.proto:
-            return False
-        return True
+        return not (self.proto is not None and entry.proto != self.proto)
 
 
 @dataclass
@@ -103,17 +98,17 @@ class AppConfig:
     # Alert engine
     baseline_duration: float = 300.0
     burst_threshold: int = 3
-    malicious_ports: FrozenSet[int] = field(default_factory=lambda: MALICIOUS_PORTS)
-    known_safe_ports: Dict[int, str] = field(default_factory=lambda: dict(KNOWN_SAFE_PORTS))
+    malicious_ports: frozenset[int] = field(default_factory=lambda: MALICIOUS_PORTS)
+    known_safe_ports: dict[int, str] = field(default_factory=lambda: dict(KNOWN_SAFE_PORTS))
     privileged_port_max: int = PRIVILEGED_PORT_MAX
 
     # Custom rules
-    custom_rules: List[CustomRule] = field(default_factory=list)
+    custom_rules: list[CustomRule] = field(default_factory=list)
 
     # Whitelist / Blacklist
-    port_whitelist: FrozenSet[int] = field(default_factory=frozenset)   # never alert on these
-    port_blacklist: FrozenSet[int] = field(default_factory=frozenset)   # always CRITICAL on these
-    ip_blacklist: List[str] = field(default_factory=list)               # glob patterns for IPs
+    port_whitelist: frozenset[int] = field(default_factory=frozenset)   # never alert on these
+    port_blacklist: frozenset[int] = field(default_factory=frozenset)   # always CRITICAL on these
+    ip_blacklist: list[str] = field(default_factory=list)               # glob patterns for IPs
 
     # DNS / rDNS
     dns_cache_size: int = 1024
@@ -150,7 +145,7 @@ class AppConfig:
     history_retention_days: int = 30  # prune files older than this
 
     # Source tracking
-    config_path: Optional[str] = None  # None = defaults only
+    config_path: str | None = None  # None = defaults only
 
     @property
     def effective_heartbeat_file(self) -> str:
@@ -163,7 +158,7 @@ class AppConfig:
 
 # ── Singleton ─────────────────────────────────────────────────────
 
-_current_config: Optional[AppConfig] = None
+_current_config: AppConfig | None = None
 
 
 def get_config() -> AppConfig:
@@ -187,7 +182,7 @@ def _read_toml(path: str) -> dict:
     return {}
 
 
-def _parse_port_list(raw) -> Optional[FrozenSet[int]]:
+def _parse_port_list(raw) -> frozenset[int] | None:
     """Parse a TOML port list into a frozenset of validated port ints."""
     if raw is None:
         return None
@@ -200,13 +195,13 @@ def _parse_port_list(raw) -> Optional[FrozenSet[int]]:
     return frozenset(ports)
 
 
-def _parse_safe_ports(raw) -> Optional[Dict[int, str]]:
+def _parse_safe_ports(raw) -> dict[int, str] | None:
     """Parse a TOML safe-ports table into {port: service_name}."""
     if raw is None:
         return None
     if not isinstance(raw, dict):
         return None
-    result: Dict[int, str] = {}
+    result: dict[int, str] = {}
     for key, val in raw.items():
         try:
             port = int(key)
@@ -217,7 +212,7 @@ def _parse_safe_ports(raw) -> Optional[Dict[int, str]]:
     return result if result else None
 
 
-def load_config(path: Optional[str] = None) -> AppConfig:
+def load_config(path: str | None = None) -> AppConfig:
     """Load configuration from TOML file, merging over defaults.
 
     Args:
@@ -562,7 +557,7 @@ def save_config_setting(section: str, key: str, value: object) -> None:
     raw = ""
     if os.path.isfile(path):
         try:
-            with open(path, "r") as fh:
+            with open(path) as fh:
                 raw = fh.read()
         except OSError:
             return

@@ -10,6 +10,7 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import signal
 import subprocess
@@ -17,6 +18,7 @@ import sys
 import time
 
 from shared.constants import PID_FILE, SOCKET_PATH
+
 from backend.writers.unix_socket import send_command
 
 
@@ -114,10 +116,8 @@ def cmd_stop(_args: argparse.Namespace) -> int:
             stopped_any = True
         else:
             print("⚠️  Daemon did not stop within 5s — sending SIGKILL")
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             stopped_any = True
     else:
         if pid is not None:
@@ -129,20 +129,16 @@ def cmd_stop(_args: argparse.Namespace) -> int:
     if remaining:
         print(f"Found {len(remaining)} remaining daemon process(es): {remaining}")
         for p in remaining:
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(p, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
         time.sleep(1)
         # Force-kill survivors
         survivors = [p for p in remaining if _is_alive(p)]
         if survivors:
             print(f"Force killing survivors: {survivors}")
             for p in survivors:
-                try:
+                with contextlib.suppress(ProcessLookupError):
                     os.kill(p, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
         stopped_any = True
         print("✅ All daemon processes stopped")
 
@@ -160,18 +156,14 @@ def cmd_restart(args: argparse.Namespace) -> int:
     pid = _read_pid()
     if pid is not None and _is_alive(pid):
         print(f"Stopping daemon (PID {pid})...")
-        try:
+        with contextlib.suppress(ProcessLookupError):
             os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
         if _wait_for(pid, timeout=5.0, alive=False):
             print("Daemon stopped")
         else:
             print("⚠️  Force killing daemon...")
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
     else:
         print("No daemon via PID file")
 
@@ -180,17 +172,13 @@ def cmd_restart(args: argparse.Namespace) -> int:
     if remaining:
         print(f"Cleaning up {len(remaining)} orphaned daemon process(es): {remaining}")
         for p in remaining:
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(p, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
         time.sleep(1)
         for p in remaining:
             if _is_alive(p):
-                try:
+                with contextlib.suppress(ProcessLookupError):
                     os.kill(p, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
         print("Orphans cleaned")
 
     _cleanup_pidfile()
@@ -204,7 +192,7 @@ def cmd_restart(args: argparse.Namespace) -> int:
     if args.config:
         cmd.extend(["--config", args.config])
 
-    print(f"Starting daemon...")
+    print("Starting daemon...")
     try:
         proc = subprocess.Popen(
             cmd,
@@ -255,10 +243,8 @@ def cmd_reload(_args: argparse.Namespace) -> int:
         pids = _find_daemon_pids()
         if pids:
             for p in pids:
-                try:
+                with contextlib.suppress(ProcessLookupError):
                     os.kill(p, signal.SIGHUP)
-                except ProcessLookupError:
-                    pass
             print(f"✅ SIGHUP sent to {len(pids)} daemon process(es) — config reloaded")
             sent = True
 
@@ -297,10 +283,8 @@ def cmd_kill(args: argparse.Namespace) -> int:
 def _cleanup_pidfile() -> None:
     """Remove PID file and stale socket."""
     for path in (PID_FILE, SOCKET_PATH):
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.unlink(path)
-        except FileNotFoundError:
-            pass
 
 
 def _find_project_root() -> str:

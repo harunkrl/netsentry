@@ -11,11 +11,9 @@ O15: IEC binary prefixes (KiB/MiB/GiB).
 from __future__ import annotations
 
 from collections import deque
-from typing import Dict
-
-from textual.widgets import Static
 
 from backend.models import InterfaceStats
+from textual.widgets import Static
 
 # Maximum sparkline data points
 _MAX_HISTORY = 20
@@ -24,7 +22,9 @@ _MAX_HISTORY = 20
 def _get_interface_ip(iface: str) -> str:
     """Get the IPv4 address for a network interface."""
     try:
-        import socket, struct, fcntl
+        import fcntl
+        import socket
+        import struct
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             result = fcntl.ioctl(
@@ -81,13 +81,13 @@ class TrafficBar(Static):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         # O14: Per-interface rate history for sparklines
-        self._rx_history: Dict[str, deque[float]] = {}
-        self._tx_history: Dict[str, deque[float]] = {}
+        self._rx_history: dict[str, deque[float]] = {}
+        self._tx_history: dict[str, deque[float]] = {}
 
     def on_mount(self) -> None:
         self.update("[dim]Traffic: waiting for data...[/]")
 
-    def update_data(self, traffic: Dict[str, InterfaceStats]) -> None:
+    def update_data(self, traffic: dict[str, InterfaceStats]) -> None:
         """Refresh the traffic bar with new interface stats."""
         if not traffic:
             self.update("[dim]Traffic: no interfaces[/]")

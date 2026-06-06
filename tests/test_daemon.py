@@ -3,13 +3,11 @@ from __future__ import annotations
 
 import json
 import os
-import signal
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-
 from backend.kportwatch_daemon import (
     classify_entries,
     merge_inode_map,
@@ -17,7 +15,6 @@ from backend.kportwatch_daemon import (
     setup_logging,
 )
 from backend.models import SocketEntry
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 

@@ -5,23 +5,22 @@ search/filter bar, and keyboard-driven interaction.
 """
 from __future__ import annotations
 
-import logging
-
 import asyncio
+import logging
 
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Vertical
 from textual.screen import Screen
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Header, Footer, Input
+from textual.widgets import Footer, Header, Input
 
 from tui.data.provider import DataProvider
-from tui.widgets.port_table import PortTable
-from tui.widgets.connection_log import ConnectionLog
-from tui.widgets.traffic_bar import TrafficBar
-from tui.widgets.status_bar import StatusBar
 from tui.screens.kill_confirm import KillConfirmScreen
+from tui.widgets.connection_log import ConnectionLog
+from tui.widgets.port_table import PortTable
+from tui.widgets.status_bar import StatusBar
+from tui.widgets.traffic_bar import TrafficBar
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +129,7 @@ class MainScreen(Screen):
             try:
                 port_table = self.query_one("#port-table", PortTable)
                 port_table.set_filter(event.value)
-                
+
                 conn_log = self.query_one("#connection-log", ConnectionLog)
                 conn_log.set_filter(event.value)
 
@@ -243,7 +242,7 @@ class MainScreen(Screen):
         snapshot = self.provider.fetch()
         if snapshot:
             try:
-                import json, os
+                import os
                 from datetime import datetime
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 path = os.path.expanduser(f"~/kportwatch_export_{ts}.json")
@@ -319,7 +318,7 @@ class MainScreen(Screen):
         """Cycle the connection log quick-filter mode."""
         try:
             conn_log = self.query_one("#connection-log", ConnectionLog)
-            new_mode = conn_log.cycle_quick_filter()
+            conn_log.cycle_quick_filter()
             label = conn_log.quick_filter_label
             self.app.notify(f"Log filter: {label}", severity="information")
         except Exception:

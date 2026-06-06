@@ -11,6 +11,7 @@ ip-api.com free tier: 45 requests/minute (HTTP, no key required).
 """
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 import json
 import logging
@@ -20,9 +21,8 @@ import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, Optional
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen, Request
+from urllib.request import Request, urlopen
 
 logger = logging.getLogger("kportwatch.geoip")
 
@@ -76,7 +76,7 @@ def _load_cache() -> None:
     if not _cache_file:
         return
     try:
-        with open(_cache_file, "r", encoding="utf-8") as fh:
+        with open(_cache_file, encoding="utf-8") as fh:
             data = json.load(fh)
     except FileNotFoundError:
         logger.debug("GeoIP cache file not found: %s", _cache_file)
@@ -129,10 +129,8 @@ def _save_cache() -> None:
             logger.debug("GeoIP cache saved (%d entries)", len(_memory_cache))
         except Exception:
             # Clean up temp file on failure
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
             raise
     except Exception as exc:
         logger.warning("Failed to save GeoIP cache: %s", exc)
@@ -140,7 +138,7 @@ def _save_cache() -> None:
 
 # ── Initialisation ─────────────────────────────────────────────
 
-def init(config_dict: Optional[dict] = None) -> None:
+def init(config_dict: dict | None = None) -> None:
     """Configure the GeoIP module and load persistent cache.
 
     Called once from the daemon at startup.
@@ -186,7 +184,7 @@ def _do_lookup(ip: str) -> None:
 
     url = f"{_api_url}{ip}?fields=status,message,country,countryCode,city,lat,lon,isp,org"
 
-    geo_info: Optional[dict] = None
+    geo_info: dict | None = None
     try:
         req = Request(url, headers={"User-Agent": "KPortWatch/2.1"})
         with urlopen(req, timeout=_timeout) as resp:
@@ -236,7 +234,7 @@ def _do_lookup(ip: str) -> None:
 
 # ── Public API ─────────────────────────────────────────────────
 
-def get_geoip(ip: str) -> Optional[dict]:
+def get_geoip(ip: str) -> dict | None:
     """Look up geographic info for an IP address.
 
     Returns cached result immediately, or None if not yet available.
@@ -266,13 +264,13 @@ def get_geoip(ip: str) -> Optional[dict]:
     return None
 
 
-def lookup_batch(ips: list[str]) -> Dict[str, Optional[dict]]:
+def lookup_batch(ips: list[str]) -> dict[str, dict | None]:
     """Look up geographic info for a batch of IPs.
 
     Returns a dict mapping each IP to its geo info (or None if
     not yet available). Triggers background lookups for uncached IPs.
     """
-    results: Dict[str, Optional[dict]] = {}
+    results: dict[str, dict | None] = {}
 
     for ip in ips:
         if _is_private_ip(ip):

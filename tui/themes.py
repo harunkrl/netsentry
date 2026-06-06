@@ -1,4 +1,4 @@
-"""NetSentry TUI — Unified theme system.
+"""KPortWatch TUI — Unified theme system.
 
 Single source of truth for:
   1. **TCSS themes** — CSS class-scoped per theme for Textual widgets
@@ -13,7 +13,7 @@ Usage in the app::
 
     from tui.themes import ALL_THEME_CSS, apply_theme
 
-    class NetSentryTUI(App):
+    class KPortWatchTUI(App):
         CSS = ALL_THEME_CSS          # all themes at once
 
     apply_theme(app, "nord")         # toggles class → instant switch
@@ -254,7 +254,7 @@ def _generate_theme_css(theme_name: str) -> str:
 def _generate_all_themes_css() -> str:
     """Generate combined TCSS for all themes, each scoped by class."""
     parts = [
-        "/* ═══ NetSentry Theme System — auto-generated ═══ */\n",
+        "/* ═══ KPortWatch Theme System — auto-generated ═══ */\n",
         ".hidden { display: none; }\n",
     ]
     for name in THEMES:

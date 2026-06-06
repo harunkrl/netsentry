@@ -1,4 +1,4 @@
-"""NetSentry TUI — data provider.
+"""KPortWatch TUI — data provider.
 
 Reads the JSON snapshot written by the backend daemon and provides
 process-kill capability.

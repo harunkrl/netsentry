@@ -30,7 +30,7 @@ PlasmoidItem {
 
     ListModel { id: connectionsModel }
 
-    Plasmoid.title: i18n("NetSentry")
+    Plasmoid.title: i18n("KPortWatch")
     Plasmoid.icon: "security-high"
     toolTipMainText: i18n("Network Monitor")
     toolTipSubText: listeningCount + " listening ports, " + alertCount + " alerts"
@@ -53,7 +53,7 @@ PlasmoidItem {
         engine: 'executable'
         connectedSources: []
 
-        property string _cmd: "sh -c 'cat ${XDG_RUNTIME_DIR:-/tmp}/netsentry-data.json 2>/dev/null'"
+        property string _cmd: "sh -c 'cat ${XDG_RUNTIME_DIR:-/tmp}/kportwatch-data.json 2>/dev/null'"
 
         function execQuery() {
             if (connectedSources.length === 0) {
@@ -164,7 +164,7 @@ PlasmoidItem {
                             }
                         }
                     }
-                } catch(e) { console.log("NetSentry parse error: " + e) }
+                } catch(e) { console.log("KPortWatch parse error: " + e) }
             } else {
                 root.fetchFailures += 1
                 if (root.fetchFailures >= 3) { root.daemonDown = true }
@@ -173,7 +173,7 @@ PlasmoidItem {
     }
 
     function launchTUI() {
-        var defaultCmd = "konsole -e bash -c 'source ~/Projects/NetSentry/.venv/bin/activate && exec netsentry-tui'"
+        var defaultCmd = "konsole -e bash -c 'source ~/Projects/KPortWatch/.venv/bin/activate && exec kportwatch-tui'"
         tuiExecSource.connectedSources = [root.tuiCommand ? root.tuiCommand : defaultCmd]
     }
 

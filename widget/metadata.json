@@ -3,19 +3,19 @@
     "KPlugin": {
         "Authors": [
             {
-                "Email": "netsentry@local",
-                "Name": "NetSentry"
+                "Email": "kportwatch@local",
+                "Name": "KPortWatch"
             }
         ],
         "Category": "System Information",
         "Description": "Local network security and port monitor with real-time alerting",
         "Icon": "security-high",
-        "Id": "com.netsentry.plasmoid",
+        "Id": "com.kportwatch.plasmoid",
         "EnabledByDefault": true,
         "License": "GPL-3.0-or-later",
-        "Name": "NetSentry",
+        "Name": "KPortWatch",
         "Version": "1.0.0",
-        "Website": "https://github.com/netsentry"
+        "Website": "https://github.com/kportwatch"
     },
     "X-KDE-ParentApp": "",
     "X-Plasma-API-Minimum-Version": "6.0",

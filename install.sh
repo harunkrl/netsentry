@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# NetSentry — Installation Script
+# KPortWatch — Installation Script
 # Arch Linux (EndeavourOS) / KDE Plasma 6.6 / Wayland
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLASMOID_ID="com.netsentry.plasmoid"
+PLASMOID_ID="com.kportwatch.plasmoid"
 PLASMOID_DIR="${HOME}/.local/share/plasma/plasmoids/${PLASMOID_ID}"
 
 echo "╔══════════════════════════════════════════╗"
-echo "║       NetSentry Installer v1.0.0        ║"
+echo "║       KPortWatch Installer v1.0.0        ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -48,7 +48,7 @@ echo "   ✅ Dependencies installed (textual, rich)"
 echo "🔧 Installing Plasma 6 widget..."
 mkdir -p "${HOME}/.local/share/plasma/plasmoids"
 # Remove old broken symlink if it exists (from earlier installs)
-rm -f "${HOME}/.local/share/plasma/plasmoids/com.netsentry.helper"
+rm -f "${HOME}/.local/share/plasma/plasmoids/com.kportwatch.helper"
 # Copy files instead of symlink — kpackagetool -r deletes symlinks
 rm -rf "${PLASMOID_DIR}"
 cp -r "${SCRIPT_DIR}/widget" "${PLASMOID_DIR}"
@@ -65,8 +65,8 @@ fi
 
 # ── 4. Config directory ──────────────────────────────────────
 echo "📁 Creating config directory..."
-mkdir -p "${HOME}/.config/netsentry"
-echo "   ✅ ${HOME}/.config/netsentry"
+mkdir -p "${HOME}/.config/kportwatch"
+echo "   ✅ ${HOME}/.config/kportwatch"
 
 # ── 5. Make scripts executable & Create Symlinks ───────────────
 echo "🔐 Setting permissions..."
@@ -75,22 +75,23 @@ echo "   ✅ Scripts executable"
 
 echo "🔗 Creating global symlinks in ~/.local/bin..."
 mkdir -p "${HOME}/.local/bin"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-tui" "${HOME}/.local/bin/netsentry-tui"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-daemon" "${HOME}/.local/bin/netsentry-daemon"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentryctl" "${HOME}/.local/bin/netsentryctl"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-client" "${HOME}/.local/bin/netsentry-client"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-export" "${HOME}/.local/bin/netsentry-export"
-ln -sf "${SCRIPT_DIR}/.venv/bin/netsentry-update" "${HOME}/.local/bin/netsentry-update"
-ln -sf "${HOME}/.local/bin/netsentry-tui" "${HOME}/.local/bin/netsentry"
-echo "   ✅ Symlinks created (you can now run 'netsentry' anywhere)"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatch-tui" "${HOME}/.local/bin/kportwatch-tui"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatch-daemon" "${HOME}/.local/bin/kportwatch-daemon"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatchctl" "${HOME}/.local/bin/kportwatchctl"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatch-client" "${HOME}/.local/bin/kportwatch-client"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatch-export" "${HOME}/.local/bin/kportwatch-export"
+ln -sf "${SCRIPT_DIR}/.venv/bin/kportwatch-update" "${HOME}/.local/bin/kportwatch-update"
+ln -sf "${HOME}/.local/bin/kportwatch-tui" "${HOME}/.local/bin/kportwatch"
+echo "   ✅ Symlinks created (you can now run 'kportwatch' anywhere)"
 
 # ── 6. Install systemd service ─────────────────────────────────
 echo "⚙️ Installing systemd user service..."
 mkdir -p "${HOME}/.config/systemd/user"
-cp "${SCRIPT_DIR}/systemd/netsentry.service" "${HOME}/.config/systemd/user/"
+mkdir -p "${HOME}/.local/share/kportwatch"
+cp "${SCRIPT_DIR}/systemd/kportwatch.service" "${HOME}/.config/systemd/user/"
 systemctl --user daemon-reload
-systemctl --user enable --now netsentry.service
-systemctl --user restart netsentry.service 2>/dev/null || true
+systemctl --user enable --now kportwatch.service
+systemctl --user restart kportwatch.service 2>/dev/null || true
 echo "   ✅ Systemd service installed and started"
 
 # ── 7. Restart Plasma (optional) ─────────────────────────────
@@ -103,12 +104,12 @@ echo "   1. Restart Plasma (to load the widget into the Add Widgets menu):"
 echo "      systemctl restart --user plasma-plasmashell.service"
 echo ""
 echo "   2. Add the widget to your panel:"
-echo "      Right-click panel → Add Widgets → search 'NetSentry'"
+echo "      Right-click panel → Add Widgets → search 'KPortWatch'"
 echo ""
 echo "   3. The daemon is already running via systemd."
 echo ""
 echo "   4. Or test the TUI directly:"
-echo "      netsentry-tui"
+echo "      kportwatch-tui"
 echo ""
 echo "   5. Run tests:"
 echo "      cd ${SCRIPT_DIR} && pytest tests/ -v"

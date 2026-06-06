@@ -1,24 +1,24 @@
-# ── NetSentry — Network Security Monitor ──────────────────────
+# ── KPortWatch — Network Security Monitor ──────────────────────
 #
 # Install (editable, dev extras):
 #   pip install -e ".[dev]"
 #
 # Run:
-#   netsentry-daemon --foreground
-#   netsentry-tui
+#   kportwatch-daemon --foreground
+#   kportwatch-tui
 #
 # Test:
 #   pytest
 # ───────────────────────────────────────────────────────────────
 
 [project]
-name = "netsentry"
+name = "kportwatch"
 version = "2.1.0"
 description = "KDE Plasma 6 network security monitor with daemon, TUI, and plasmoid widget"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "NetSentry Contributors"}]
+authors = [{name = "KPortWatch Contributors"}]
 keywords = ["network", "security", "monitor", "kde", "plasma"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -46,15 +46,15 @@ dev = [
 ]
 
 [project.scripts]
-netsentry-daemon  = "backend.netsentry_daemon:main"
-netsentry-tui     = "tui.netsentry_tui:main"
-netsentry-client  = "backend.netsentry_client:main"
-netsentry-export  = "backend.export:main"
-netsentry-update  = "backend.update:main"
-netsentryctl      = "backend.netsentryctl:main"
+kportwatch-daemon  = "backend.kportwatch_daemon:main"
+kportwatch-tui     = "tui.kportwatch_tui:main"
+kportwatch-client  = "backend.kportwatch_client:main"
+kportwatch-export  = "backend.export:main"
+kportwatch-update  = "backend.update:main"
+kportwatchctl      = "backend.kportwatchctl:main"
 
 [project.urls]
-Repository = "https://github.com/user/netsentry"
+Repository = "https://github.com/user/kportwatch"
 
 # ── Build system ──────────────────────────────────────────────
 [build-system]

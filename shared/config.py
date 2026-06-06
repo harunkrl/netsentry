@@ -1,11 +1,11 @@
-"""NetSentry — Configuration loader.
+"""KPortWatch — Configuration loader.
 
 Loads settings from a TOML config file, falling back to defaults
 from ``shared.constants``.  CLI arguments take highest priority.
 
 Priority (low → high):
   1. Hardcoded defaults in shared/constants.py
-  2. ~/.config/netsentry/config.toml (user config)
+  2. ~/.config/kportwatch/config.toml (user config)
   3. CLI arguments
 
 Usage::
@@ -42,10 +42,10 @@ from shared.constants import (
     SOCKET_PATH,
 )
 
-logger = logging.getLogger("netsentry.config")
+logger = logging.getLogger("kportwatch.config")
 
 # ── Default config file location ──────────────────────────────────
-CONFIG_DIR: str = os.path.expanduser("~/.config/netsentry")
+CONFIG_DIR: str = os.path.expanduser("~/.config/kportwatch")
 CONFIG_FILE: str = os.path.join(CONFIG_DIR, "config.toml")
 
 # ── Config dataclass ──────────────────────────────────────────────
@@ -158,7 +158,7 @@ class AppConfig:
             return self.heartbeat_file
         # Default: same dir as data_file, different name
         import os
-        return os.path.join(os.path.dirname(self.data_file), "netsentry-heartbeat.json")
+        return os.path.join(os.path.dirname(self.data_file), "kportwatch-heartbeat.json")
 
 
 # ── Singleton ─────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ def load_config(path: Optional[str] = None) -> AppConfig:
 
     Args:
         path: Explicit config file path.  Defaults to
-              ``~/.config/netsentry/config.toml``.
+              ``~/.config/kportwatch/config.toml``.
 
     Returns:
         The merged AppConfig instance (also stored as singleton).
@@ -438,8 +438,8 @@ def apply_cli_overrides(cfg: AppConfig, args) -> AppConfig:
 def generate_example_config(path: str) -> None:
     """Write an example config file with all options and comments."""
     example = """\
-# NetSentry Configuration
-# Place at ~/.config/netsentry/config.toml
+# KPortWatch Configuration
+# Place at ~/.config/kportwatch/config.toml
 # All values are optional — defaults are used when omitted.
 
 [polling]
@@ -519,11 +519,11 @@ rate_window = 60.0
 
 [paths]
 # JSON snapshot file (read by widget and TUI)
-# data_file = "/run/user/1000/netsentry-data.json"
+# data_file = "/run/user/1000/kportwatch-data.json"
 # Unix domain socket (for streaming client)
-# socket_path = "/run/user/1000/netsentry.sock"
+# socket_path = "/run/user/1000/kportwatch.sock"
 # Baseline file (learned ports)
-# baseline_file = "~/.config/netsentry/baseline.json"
+# baseline_file = "~/.config/kportwatch/baseline.json"
 
 [geoip]
 # Enable GeoIP lookup for outbound connections
@@ -531,7 +531,7 @@ enabled = true
 # ip-api.com endpoint (free tier: 45 req/min)
 # api_url = "http://ip-api.com/json/"
 # Persistent cache file for offline lookups
-# cache_file = "~/.local/share/netsentry/geoip-cache.json"
+# cache_file = "~/.local/share/kportwatch/geoip-cache.json"
 # Maximum cached IP entries (LRU eviction)
 cache_max_entries = 4096
 # Days before cached entry is considered stale

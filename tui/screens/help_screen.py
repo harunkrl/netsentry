@@ -1,4 +1,4 @@
-"""NetSentry TUI — Help screen.
+"""KPortWatch TUI — Help screen.
 
 Auto-generated keyboard shortcut reference. Bindings are read
 from the app's BINDINGS list to avoid stale/duplicate entries.
@@ -9,7 +9,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Header, Footer, Markdown
 
 HELP_MD = """
-# NetSentry TUI — Keyboard Shortcuts
+# KPortWatch TUI — Keyboard Shortcuts
 
 ## Navigation
 | Key | Action |

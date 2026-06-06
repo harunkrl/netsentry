@@ -1,4 +1,4 @@
-"""NetSentry TUI — Connection map screen.
+"""KPortWatch TUI — Connection map screen.
 
 Displays outbound connections on an ASCII world map with a sortable
 country/IP detail table.  GeoIP data is provided by the daemon via

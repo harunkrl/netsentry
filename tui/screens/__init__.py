@@ -1,1 +1,1 @@
-"""NetSentry TUI — screens package."""
+"""KPortWatch TUI — screens package."""

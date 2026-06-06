@@ -1,4 +1,4 @@
-/* NetSentry — Per-screen / per-widget overrides.
+/* KPortWatch — Per-screen / per-widget overrides.
  *
  * Base theme (dark/nord/solarized/light) is generated at runtime by
  * ``tui.themes.apply_theme()``.  This file only contains overrides

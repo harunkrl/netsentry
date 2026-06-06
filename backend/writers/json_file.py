@@ -1,4 +1,4 @@
-"""NetSentry — Atomic JSON file writer for Snapshot data.
+"""KPortWatch — Atomic JSON file writer for Snapshot data.
 
 Writes to a temporary file then atomically renames, preventing
 partial reads by consumers (widget / TUI).

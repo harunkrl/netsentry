@@ -6,7 +6,7 @@ from typing import List
 
 from shared import SOCKET_PATH
 
-logger = logging.getLogger("netsentry.unix_socket")
+logger = logging.getLogger("kportwatch.unix_socket")
 
 class UnixSocketServer:
     def __init__(self):

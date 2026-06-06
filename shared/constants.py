@@ -1,4 +1,4 @@
-"""NetSentry — Shared constants and configuration.
+"""KPortWatch — Shared constants and configuration.
 
 All project-wide constants live here. Import via ``shared`` package::
 
@@ -11,11 +11,11 @@ from enum import StrEnum
 # Use XDG_RUNTIME_DIR (typically /run/user/$UID, mode 0700) for data files.
 # Falls back to /tmp only if XDG_RUNTIME_DIR is not set.
 _RUNTIME_DIR: str = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
-DATA_FILE: str = os.path.join(_RUNTIME_DIR, "netsentry-data.json")
-SOCKET_PATH: str = os.path.join(_RUNTIME_DIR, "netsentry.sock")
-BASELINE_DIR: str = os.path.expanduser("~/.config/netsentry")
+DATA_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch-data.json")
+SOCKET_PATH: str = os.path.join(_RUNTIME_DIR, "kportwatch.sock")
+BASELINE_DIR: str = os.path.expanduser("~/.config/kportwatch")
 BASELINE_FILE: str = os.path.join(BASELINE_DIR, "baseline.json")
-PID_FILE: str = os.path.join(_RUNTIME_DIR, "netsentry.pid")
+PID_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch.pid")
 
 # ── /proc paths ────────────────────────────────────────────────
 PROC_TCP: str = "/proc/net/tcp"
@@ -87,13 +87,13 @@ TCP_STATES: dict[str, str] = {
 }
 
 # ── GeoIP cache paths ──────────────────────────────────────────
-GEOIP_CACHE_DIR: str = os.path.expanduser("~/.local/share/netsentry")
+GEOIP_CACHE_DIR: str = os.path.expanduser("~/.local/share/kportwatch")
 GEOIP_CACHE_FILE: str = os.path.join(GEOIP_CACHE_DIR, "geoip-cache.json")
 
 # ── App metadata ───────────────────────────────────────────────
-APP_NAME: str = "NetSentry"
+APP_NAME: str = "KPortWatch"
 APP_VERSION: str = "2.1.0"
 
 # ── Update paths ──────────────────────────────────────────────
-UPDATE_STATE_FILE: str = os.path.join(_RUNTIME_DIR, "netsentry-update.json")
-GITHUB_REPO: str = "harunkrl/netsentry"
+UPDATE_STATE_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch-update.json")
+GITHUB_REPO: str = "harunkrl/kportwatch"

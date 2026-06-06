@@ -1,4 +1,4 @@
-"""NetSentry — Tests for backend.models (SocketEntry, Alert, Snapshot)."""
+"""KPortWatch — Tests for backend.models (SocketEntry, Alert, Snapshot)."""
 import json
 import time
 

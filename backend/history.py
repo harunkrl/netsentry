@@ -1,10 +1,10 @@
-"""NetSentry — History recorder.
+"""KPortWatch — History recorder.
 
 Appends per-cycle summaries and alerts to daily JSONL files so the user
 can inspect trends, export data, and review past events.
 
 Files:
-    ~/.config/netsentry/history/YYYY-MM-DD.jsonl
+    ~/.config/kportwatch/history/YYYY-MM-DD.jsonl
 
 Each line is a JSON object.  Two event types:
   - "summary": one per daemon cycle (port counts, alert counts)

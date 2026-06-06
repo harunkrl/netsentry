@@ -1,4 +1,4 @@
-"""NetSentry TUI — Status bar widget (bottom bar).
+"""KPortWatch TUI — Status bar widget (bottom bar).
 
 Compact one-line status bar with daemon health, alert summary,
 connection counts, and keyboard hints.
@@ -23,7 +23,7 @@ _HB_CACHE_TTL = 8.0
 
 def _check_daemon_alive() -> bool:
     """Check if daemon is alive by reading the heartbeat file."""
-    hb_path = os.path.join(os.path.dirname(DATA_FILE), "netsentry-heartbeat.json")
+    hb_path = os.path.join(os.path.dirname(DATA_FILE), "kportwatch-heartbeat.json")
     try:
         with open(hb_path, "r") as fh:
             data = json.load(fh)
@@ -60,7 +60,7 @@ class StatusBar(Static):
     def show_daemon_down(self) -> None:
         self.update(
             "\u2717 DAEMON OFFLINE  |  "
-            "Start: netsentry-daemon --foreground"
+            "Start: kportwatch-daemon --foreground"
         )
 
     def rerender(self) -> None:

@@ -1,4 +1,4 @@
-"""NetSentry — Map socket inodes to PIDs via /proc/[pid]/fd/ scanning.
+"""KPortWatch — Map socket inodes to PIDs via /proc/[pid]/fd/ scanning.
 
 For each numeric /proc/<pid>/ directory, readlink each fd entry.
 If the link target is 'socket:[<inode>]', record the mapping.

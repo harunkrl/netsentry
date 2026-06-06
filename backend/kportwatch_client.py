@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NetSentry Client — Streams JSON data from the Unix socket to stdout."""
+"""KPortWatch Client — Streams JSON data from the Unix socket to stdout."""
 import socket
 import sys
 
@@ -22,10 +22,10 @@ def main():
     except KeyboardInterrupt:
         sys.exit(0)
     except socket.timeout:
-        print('{"error": "Timed out connecting to daemon — is netsentry running?"}')
+        print('{"error": "Timed out connecting to daemon — is kportwatch running?"}')
         sys.exit(1)
     except FileNotFoundError:
-        print(f'{{"error": "Socket not found at {SOCKET_PATH} — is netsentry running?"}}')
+        print(f'{{"error": "Socket not found at {SOCKET_PATH} — is kportwatch running?"}}')
         sys.exit(1)
     except ConnectionRefusedError:
         print('{"error": "Daemon refused connection — may be starting up"}')

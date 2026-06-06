@@ -1,4 +1,4 @@
-"""NetSentry — Build process tree from /proc/[pid]/stat.
+"""KPortWatch — Build process tree from /proc/[pid]/stat.
 
 Scans all numeric /proc/<pid> directories, reads stat/comm/cmdline/status,
 and constructs parent-child relationships using PPID.

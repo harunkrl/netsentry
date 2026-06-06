@@ -1,4 +1,4 @@
-"""NetSentry — Tests for backend.parsers.geoip."""
+"""KPortWatch — Tests for backend.parsers.geoip."""
 from __future__ import annotations
 
 import json

@@ -1,4 +1,4 @@
-"""NetSentry — Alert engine with baseline learning.
+"""KPortWatch — Alert engine with baseline learning.
 
 Built-in alert rules:
   0. Port in blacklist                    → CRITICAL

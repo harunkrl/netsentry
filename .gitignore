@@ -9,8 +9,8 @@ dist/
 .pytest_cache/
 .coverage
 
-# NetSentry runtime
-/tmp/netsentry-data.json
+# KPortWatch runtime
+/tmp/kportwatch-data.json
 *.tmp
 *.sock
 
@@ -34,7 +34,7 @@ research/
 # Review / progress artifacts
 review-*.md
 progress.md
-netsentry-review-*.md
+kportwatch-review-*.md
 
 # Claude Code (dev-only)
 CLAUDE.md

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""NetSentry TUI — Terminal User Interface entry point.
+"""KPortWatch TUI — Terminal User Interface entry point.
 
-Launch with:  python3 tui/netsentry_tui.py
+Launch with:  python3 tui/kportwatch_tui.py
 """
 from __future__ import annotations
 
@@ -31,10 +31,10 @@ from tui.themes import ALL_THEME_CSS, apply_theme, current_theme, DEFAULT_THEME,
 from tui.themes import key_to_display_name
 
 
-class NetSentryTUI(App):
+class KPortWatchTUI(App):
     """Textual application for network security monitoring."""
 
-    TITLE = f"NetSentry {VERSION} — Network Security Analyzer"
+    TITLE = f"KPortWatch {VERSION} — Network Security Analyzer"
 
     # All 4 themes pre-generated at import time, class-scoped.
     # Switching themes = toggling .theme-dark / .theme-nord / etc.
@@ -84,7 +84,7 @@ class NetSentryTUI(App):
 
 
 def main() -> None:
-    app = NetSentryTUI()
+    app = KPortWatchTUI()
     app.run()
 
 

@@ -1,4 +1,4 @@
-"""NetSentry — Parse /proc/net/{tcp,tcp6,udp,udp6} into SocketEntry list.
+"""KPortWatch — Parse /proc/net/{tcp,tcp6,udp,udp6} into SocketEntry list.
 
 Line format (whitespace-separated):
   sl  local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode ...

@@ -56,7 +56,7 @@ ScrollView {
         Item { Kirigami.FormData.isSection: true; Kirigami.FormData.label: i18n("Advanced") }
         TextField {
             id: tuiCommandField; Kirigami.FormData.label: i18n("TUI command:"); Layout.fillWidth: true
-            placeholderText: "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
+            placeholderText: "konsole -e bash -c 'source ~/KPortWatch/.venv/bin/activate && exec kportwatch-tui'"
         }
         Label {
             Kirigami.FormData.label: ""; text: i18n("Command for 'Launch Analyzer' button.")

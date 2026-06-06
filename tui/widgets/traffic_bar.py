@@ -1,4 +1,4 @@
-"""NetSentry TUI — Traffic statistics bar widget.
+"""KPortWatch TUI — Traffic statistics bar widget.
 
 Displays per-interface network traffic rates (RX/TX) with sparkline
 history graphs in a compact horizontal bar.  Data comes from the

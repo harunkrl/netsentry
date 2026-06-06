@@ -1,4 +1,4 @@
-"""NetSentry TUI — Process tree screen.
+"""KPortWatch TUI — Process tree screen.
 
 Displays a hierarchical tree of all running processes, with
 network-active processes highlighted. Built on Textual's Tree widget.

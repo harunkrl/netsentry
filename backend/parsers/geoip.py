@@ -1,4 +1,4 @@
-"""NetSentry — GeoIP lookup with persistent JSON cache and ip-api.com fallback.
+"""KPortWatch — GeoIP lookup with persistent JSON cache and ip-api.com fallback.
 
 Provides geographic information (country, city, lat/lon) for remote IP
 addresses. Uses an in-memory LRU cache backed by a persistent JSON file
@@ -24,7 +24,7 @@ from typing import Dict, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
-logger = logging.getLogger("netsentry.geoip")
+logger = logging.getLogger("kportwatch.geoip")
 
 # ── Module-level state ──────────────────────────────────────────
 _memory_cache: OrderedDict[str, dict] = OrderedDict()
@@ -188,7 +188,7 @@ def _do_lookup(ip: str) -> None:
 
     geo_info: Optional[dict] = None
     try:
-        req = Request(url, headers={"User-Agent": "NetSentry/2.1"})
+        req = Request(url, headers={"User-Agent": "KPortWatch/2.1"})
         with urlopen(req, timeout=_timeout) as resp:
             body = json.loads(resp.read().decode("utf-8"))
 

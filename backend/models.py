@@ -1,4 +1,4 @@
-"""NetSentry — Data models for network state."""
+"""KPortWatch — Data models for network state."""
 from __future__ import annotations
 
 import json

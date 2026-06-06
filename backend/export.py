@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""NetSentry — Export history data to CSV or JSON.
+"""KPortWatch — Export history data to CSV or JSON.
 
 Usage:
-    netsentry-export                    # today's data as JSON
-    netsentry-export --date 2024-06-01  # specific date
-    netsentry-export --format csv       # CSV output
-    netsentry-export --output data.csv  # custom output path
-    netsentry-export --type alert       # only alerts
-    netsentry-export --type summary     # only summaries
-    netsentry-export --last 100         # last 100 entries
-    netsentry-export --list-dates       # show available dates
+    kportwatch-export                    # today's data as JSON
+    kportwatch-export --date 2024-06-01  # specific date
+    kportwatch-export --format csv       # CSV output
+    kportwatch-export --output data.csv  # custom output path
+    kportwatch-export --type alert       # only alerts
+    kportwatch-export --type summary     # only summaries
+    kportwatch-export --last 100         # last 100 entries
+    kportwatch-export --list-dates       # show available dates
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from backend.history import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Export NetSentry history data",
+        description="Export KPortWatch history data",
     )
     parser.add_argument(
         "--date", "-d",
@@ -80,7 +80,7 @@ def main() -> None:
         import os
         ext = "csv" if args.format == "csv" else "json"
         date = args.date or "today"
-        outpath = f"netsentry-export-{date}.{ext}"
+        outpath = f"kportwatch-export-{date}.{ext}"
 
     if args.format == "csv":
         count = export_history_csv(outpath, date=args.date, event_type=args.type)

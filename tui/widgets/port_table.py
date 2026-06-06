@@ -1,4 +1,4 @@
-"""NetSentry TUI — Port table widget (left pane).
+"""KPortWatch TUI — Port table widget (left pane).
 
 Extends ``textual.widgets.DataTable`` to display listening/active
 sockets with colour-coded rows, sortable columns, and search/filter.

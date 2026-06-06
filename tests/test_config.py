@@ -21,7 +21,7 @@ from shared.config import (
 
 @pytest.fixture
 def config_dir(tmp_path: Path) -> Path:
-    return tmp_path / "netsentry-config"
+    return tmp_path / "kportwatch-config"
 
 
 @pytest.fixture
@@ -371,19 +371,19 @@ class TestHeartbeat:
 data_file = "/tmp/custom-data.json"
 """)
         cfg = load_config(str(config_file))
-        assert cfg.effective_heartbeat_file == "/tmp/netsentry-heartbeat.json"
+        assert cfg.effective_heartbeat_file == "/tmp/kportwatch-heartbeat.json"
 
     def test_explicit_heartbeat_path(self, config_file: Path):
         config_file.write_text("""
 [paths]
 data_file = "/tmp/data.json"
 
-heartbeat_file = "/var/run/netsentry-heartbeat.json"
+heartbeat_file = "/var/run/kportwatch-heartbeat.json"
 """)
         cfg = load_config(str(config_file))
         # heartbeat_file is top-level, but we set it via data_file path
         # Let's test with the effective one
-        assert cfg.effective_heartbeat_file.endswith("netsentry-heartbeat.json")
+        assert cfg.effective_heartbeat_file.endswith("kportwatch-heartbeat.json")
 
 
 # ── GeoIP config ────────────────────────────────────────────────────

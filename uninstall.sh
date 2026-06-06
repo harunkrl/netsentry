@@ -1,49 +1,55 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# NetSentry — Uninstallation Script
+# KPortWatch — Uninstallation Script
 # ──────────────────────────────────────────────────────────────
 set -e
 
 echo "╔══════════════════════════════════════════╗"
-echo "║      NetSentry Uninstaller v1.0.0       ║"
+echo "║      KPortWatch Uninstaller v1.0.0       ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
 # ── 1. Stop and disable systemd service ──────────────────────
 echo "🛑 Stopping and disabling background daemon..."
-if systemctl --user is-active --quiet netsentry.service; then
-    systemctl --user disable --now netsentry.service || true
+if systemctl --user is-active --quiet kportwatch.service; then
+    systemctl --user disable --now kportwatch.service || true
     echo "   ✅ Daemon stopped"
 else
     echo "   ✅ Daemon is not running"
 fi
 
 echo "🗑️ Removing systemd service file..."
-rm -f "${HOME}/.config/systemd/user/netsentry.service"
+rm -f "${HOME}/.config/systemd/user/kportwatch.service"
 systemctl --user daemon-reload
 echo "   ✅ Systemd configuration cleaned"
 
 # ── 2. Remove Plasma Widget ──────────────────────────────────
 echo "🗑️ Removing KDE Plasma Widget..."
-rm -rf "${HOME}/.local/share/plasma/plasmoids/com.netsentry.plasmoid"
+rm -rf "${HOME}/.local/share/plasma/plasmoids/com.kportwatch.plasmoid"
 echo "   ✅ Widget removed from ~/.local/share/plasma/plasmoids/"
 
 # ── 3. Remove Global Symlinks ────────────────────────────────
 echo "🔗 Removing global commands from ~/.local/bin..."
-rm -f "${HOME}/.local/bin/netsentry"
-rm -f "${HOME}/.local/bin/netsentry-tui"
-rm -f "${HOME}/.local/bin/netsentry-daemon"
+rm -f "${HOME}/.local/bin/kportwatch"
+rm -f "${HOME}/.local/bin/kportwatch-tui"
+rm -f "${HOME}/.local/bin/kportwatch-daemon"
+rm -f "${HOME}/.local/bin/kportwatchctl"
+rm -f "${HOME}/.local/bin/kportwatch-client"
+rm -f "${HOME}/.local/bin/kportwatch-export"
+rm -f "${HOME}/.local/bin/kportwatch-update"
 echo "   ✅ Symlinks removed"
 
 # ── 4. Remove Config and Runtime Data ────────────────────────
 echo "🧹 Cleaning up configuration and runtime data..."
-rm -rf "${HOME}/.config/netsentry"
+rm -rf "${HOME}/.config/kportwatch"
 
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
-rm -f "${RUNTIME_DIR}/netsentry-data.json"
-rm -f "${RUNTIME_DIR}/netsentry.sock"
-rm -f "${RUNTIME_DIR}/netsentry.pid"
-echo "   ✅ Config and cache files deleted"
+rm -f "${RUNTIME_DIR}/kportwatch-data.json"
+rm -f "${RUNTIME_DIR}/kportwatch.sock"
+rm -f "${RUNTIME_DIR}/kportwatch.pid"
+rm -f "${RUNTIME_DIR}/kportwatch-update.json"
+rm -rf "${HOME}/.local/share/kportwatch"
+echo "   ✅ Config, cache and runtime files deleted"
 
 # ── 5. Restart Plasma ────────────────────────────────────────
 echo "🔄 Restarting KDE Plasma panel to apply changes..."
@@ -55,6 +61,6 @@ fi
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ Uninstallation complete!"
-echo "Note: The NetSentry source folder and Python virtual environment"
+echo "Note: The KPortWatch source folder and Python virtual environment"
 echo "were NOT deleted. You can safely delete the repository folder now."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

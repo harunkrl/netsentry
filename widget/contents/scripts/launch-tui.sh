@@ -6,4 +6,4 @@ if [ -d "$VENV_DIR" ]; then
     source "$VENV_DIR/bin/activate"
 fi
 export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 "$PROJECT_ROOT/tui/netsentry_tui.py"
+exec python3 "$PROJECT_ROOT/tui/kportwatch_tui.py"

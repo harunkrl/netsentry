@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NetSentry Control — Manage the NetSentry daemon.
+"""KPortWatch Control — Manage the KPortWatch daemon.
 
 Subcommands:
     status    Show daemon status
@@ -38,7 +38,7 @@ def _find_daemon_pids() -> list[int]:
     """
     try:
         result = subprocess.run(
-            ["pgrep", "-f", "backend.netsentry_daemon"],
+            ["pgrep", "-f", "backend.kportwatch_daemon"],
             capture_output=True, text=True, timeout=3,
         )
         if result.returncode == 0:
@@ -197,7 +197,7 @@ def cmd_restart(args: argparse.Namespace) -> int:
 
     # ── Start new daemon ──────────────────────────────────
     python = sys.executable
-    cmd = [python, "-m", "backend.netsentry_daemon", "--foreground"]
+    cmd = [python, "-m", "backend.kportwatch_daemon", "--foreground"]
     if args.verbose:
         cmd.append("--verbose")
     if args.config:
@@ -277,7 +277,7 @@ def _cleanup_pidfile() -> None:
 
 
 def _find_project_root() -> str:
-    """Find the NetSentry project root directory."""
+    """Find the KPortWatch project root directory."""
     # Walk up from this file's location
     d = os.path.dirname(os.path.abspath(__file__))
     while d != "/":
@@ -289,8 +289,8 @@ def _find_project_root() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="netsentryctl",
-        description="NetSentry daemon control utility",
+        prog="kportwatchctl",
+        description="KPortWatch daemon control utility",
     )
     parser.set_defaults(func=lambda _: parser.print_help())
 

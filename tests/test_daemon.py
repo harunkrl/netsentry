@@ -1,4 +1,4 @@
-"""Tests for backend.netsentry_daemon — daemon lifecycle and helpers."""
+"""Tests for backend.kportwatch_daemon — daemon lifecycle and helpers."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from backend.netsentry_daemon import (
+from backend.kportwatch_daemon import (
     classify_entries,
     merge_inode_map,
     parse_args,
@@ -89,8 +89,8 @@ class TestClassifyEntries:
 # ── merge_inode_map tests ─────────────────────────────────────────
 
 class TestMergeInodeMap:
-    @patch("backend.netsentry_daemon.build_uid_process_map")
-    @patch("backend.netsentry_daemon.build_inode_to_pid_map")
+    @patch("backend.kportwatch_daemon.build_uid_process_map")
+    @patch("backend.kportwatch_daemon.build_inode_to_pid_map")
     def test_inode_map_enriches_entries(self, mock_build, mock_uid):
         mock_build.return_value = {
             100: (1, "sshd", "/usr/sbin/sshd -D"),
@@ -106,8 +106,8 @@ class TestMergeInodeMap:
         assert entry.process_name == "sshd"
         assert entry.cmdline == "/usr/sbin/sshd -D"
 
-    @patch("backend.netsentry_daemon.build_uid_process_map")
-    @patch("backend.netsentry_daemon.build_inode_to_pid_map")
+    @patch("backend.kportwatch_daemon.build_uid_process_map")
+    @patch("backend.kportwatch_daemon.build_inode_to_pid_map")
     def test_inode_not_found_leaves_pid_none(self, mock_build, mock_uid):
         mock_build.return_value = {}
         mock_uid.return_value = {}  # no UID fallback either
@@ -120,8 +120,8 @@ class TestMergeInodeMap:
         assert entry.pid is None
         assert entry.process_name is None
 
-    @patch("backend.netsentry_daemon.build_uid_process_map")
-    @patch("backend.netsentry_daemon.build_inode_to_pid_map")
+    @patch("backend.kportwatch_daemon.build_uid_process_map")
+    @patch("backend.kportwatch_daemon.build_inode_to_pid_map")
     def test_uid_fallback_resolves_process(self, mock_build, mock_uid):
         mock_build.return_value = {}  # inode not found
         mock_uid.return_value = {0: ("root", "sshd", "/usr/sbin/sshd -D")}
@@ -134,8 +134,8 @@ class TestMergeInodeMap:
         assert entry.pid is None
         assert entry.process_name == "sshd (root)"
 
-    @patch("backend.netsentry_daemon.build_uid_process_map")
-    @patch("backend.netsentry_daemon.build_inode_to_pid_map")
+    @patch("backend.kportwatch_daemon.build_uid_process_map")
+    @patch("backend.kportwatch_daemon.build_inode_to_pid_map")
     def test_empty_entries_list(self, mock_build, mock_uid):
         mock_build.return_value = {100: (1, "test", "./test")}
         mock_uid.return_value = {}
@@ -147,29 +147,29 @@ class TestMergeInodeMap:
 
 class TestParseArgs:
     def test_defaults(self):
-        with patch("sys.argv", ["netsentry-daemon"]):
+        with patch("sys.argv", ["kportwatch-daemon"]):
             args = parse_args()
         assert args.foreground is False
         assert args.verbose is False
         assert args.interval == 2.0  # DEFAULT_POLL_INTERVAL
 
     def test_foreground_flag(self):
-        with patch("sys.argv", ["netsentry-daemon", "--foreground"]):
+        with patch("sys.argv", ["kportwatch-daemon", "--foreground"]):
             args = parse_args()
         assert args.foreground is True
 
     def test_verbose_flag(self):
-        with patch("sys.argv", ["netsentry-daemon", "--verbose"]):
+        with patch("sys.argv", ["kportwatch-daemon", "--verbose"]):
             args = parse_args()
         assert args.verbose is True
 
     def test_custom_interval(self):
-        with patch("sys.argv", ["netsentry-daemon", "--interval", "5"]):
+        with patch("sys.argv", ["kportwatch-daemon", "--interval", "5"]):
             args = parse_args()
         assert args.interval == 5.0
 
     def test_short_flags(self):
-        with patch("sys.argv", ["netsentry-daemon", "-f", "-v", "-i", "3"]):
+        with patch("sys.argv", ["kportwatch-daemon", "-f", "-v", "-i", "3"]):
             args = parse_args()
         assert args.foreground is True
         assert args.verbose is True
@@ -288,13 +288,13 @@ class TestBaselineIntegration:
 
 class TestHeartbeat:
     def test_write_heartbeat_creates_file(self, tmp_path: Path):
-        from backend.netsentry_daemon import _write_heartbeat
+        from backend.kportwatch_daemon import _write_heartbeat
         hb_path = str(tmp_path / "heartbeat.json")
         _write_heartbeat(hb_path)
         assert os.path.exists(hb_path)
 
     def test_heartbeat_contains_timestamp(self, tmp_path: Path):
-        from backend.netsentry_daemon import _write_heartbeat
+        from backend.kportwatch_daemon import _write_heartbeat
         hb_path = str(tmp_path / "heartbeat.json")
         _write_heartbeat(hb_path)
         with open(hb_path) as f:
@@ -304,7 +304,7 @@ class TestHeartbeat:
         assert data["ts"] > 0
 
     def test_heartbeat_updates_on_rewrite(self, tmp_path: Path):
-        from backend.netsentry_daemon import _write_heartbeat
+        from backend.kportwatch_daemon import _write_heartbeat
         hb_path = str(tmp_path / "heartbeat.json")
         _write_heartbeat(hb_path)
         with open(hb_path) as f:
@@ -318,6 +318,6 @@ class TestHeartbeat:
         assert ts2 > ts1
 
     def test_heartbeat_no_error_on_bad_path(self):
-        from backend.netsentry_daemon import _write_heartbeat
+        from backend.kportwatch_daemon import _write_heartbeat
         # Should not raise — heartbeat is best-effort
         _write_heartbeat("/nonexistent/dir/heartbeat.json")

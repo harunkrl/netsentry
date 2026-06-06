@@ -1,4 +1,4 @@
-"""NetSentry TUI — Kill confirmation modal screen.
+"""KPortWatch TUI — Kill confirmation modal screen.
 
 Presents a dialog with process details and three action buttons:
 SIGTERM (graceful), SIGKILL (force), Cancel.

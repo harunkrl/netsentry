@@ -1,4 +1,4 @@
-"""NetSentry — Tests for backend.writers.json_file (atomic JSON I/O)."""
+"""KPortWatch — Tests for backend.writers.json_file (atomic JSON I/O)."""
 import json
 import os
 

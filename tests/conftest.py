@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for NetSentry tests."""
+"""Shared pytest fixtures for KPortWatch tests."""
 from __future__ import annotations
 
 import time
@@ -13,8 +13,8 @@ from backend.models import Alert, AlertLevel, InterfaceStats, ProcessInfo, Snaps
 
 @pytest.fixture
 def tmp_data_file(tmp_path: Path) -> Path:
-    """Return a path inside tmp_path suitable for netsentry data I/O."""
-    return tmp_path / "netsentry-data.json"
+    """Return a path inside tmp_path suitable for kportwatch data I/O."""
+    return tmp_path / "kportwatch-data.json"
 
 
 # ── Model instances ────────────────────────────────────────────

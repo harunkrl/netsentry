@@ -1,7 +1,7 @@
-"""NetSentry TUI — Settings screen.
+"""KPortWatch TUI — Settings screen.
 
 Professional settings panel with toggle switches. Changes auto-save
-to ``~/.config/netsentry/config.toml`` on every toggle.
+to ``~/.config/kportwatch/config.toml`` on every toggle.
 Fully keyboard-navigable: Tab between rows, Enter/Space to toggle.
 
 K2: Fixed text truncation — descriptions use word-wrap with sufficient width.
@@ -209,7 +209,7 @@ class SelectableRow(Container):
 
 
 class SettingsScreen(ModalScreen[None]):
-    """Modal settings screen with NetSentry's dark-green theme.
+    """Modal settings screen with KPortWatch's dark-green theme.
 
     Manages daemon-level and TUI-level notification preferences, plus
     key daemon configuration knobs.  Changes are persisted to config.toml instantly.
@@ -495,7 +495,7 @@ class SettingsScreen(ModalScreen[None]):
             try:
                 import subprocess
                 result = subprocess.run(
-                    ["pgrep", "-f", "backend.netsentry_daemon"],
+                    ["pgrep", "-f", "backend.kportwatch_daemon"],
                     capture_output=True, text=True, timeout=3,
                 )
                 if result.returncode == 0:
@@ -565,7 +565,7 @@ class SettingsScreen(ModalScreen[None]):
 
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "backend.netsentryctl", "restart"],
+                [sys.executable, "-m", "backend.kportwatchctl", "restart"],
                 cwd=self._find_project_root(),
                 capture_output=True,
                 text=True,

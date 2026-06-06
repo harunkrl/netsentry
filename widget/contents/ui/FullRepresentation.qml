@@ -36,7 +36,7 @@ Item {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
             Kirigami.Icon { source: fullRoot.hi; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: Kirigami.Units.iconSizes.small }
-            Label { text: i18n("NetSentry"); font.bold: true; font.pixelSize: fullRoot.df }
+            Label { text: i18n("KPortWatch"); font.bold: true; font.pixelSize: fullRoot.df }
             Item { Layout.fillWidth: true }
             Label {
                 visible: fullRoot.hasData
@@ -171,7 +171,7 @@ Item {
 
             Label {
                 anchors.fill: parent; visible: portListView.count === 0
-                text: fullRoot.hasData ? i18n("No listening ports detected") : i18n("Waiting for data…\nMake sure netsentry-daemon is running.")
+                text: fullRoot.hasData ? i18n("No listening ports detected") : i18n("Waiting for data…\nMake sure kportwatch-daemon is running.")
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 font.pixelSize: fullRoot.sf; color: Kirigami.Theme.disabledTextColor; wrapMode: Text.WordWrap
             }

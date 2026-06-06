@@ -1,4 +1,4 @@
-"""NetSentry TUI — Main screen.
+"""KPortWatch TUI — Main screen.
 
 Combines all widgets in a horizontal split layout with auto-refresh,
 search/filter bar, and keyboard-driven interaction.
@@ -246,7 +246,7 @@ class MainScreen(Screen):
                 import json, os
                 from datetime import datetime
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                path = os.path.expanduser(f"~/netsentry_export_{ts}.json")
+                path = os.path.expanduser(f"~/kportwatch_export_{ts}.json")
                 with open(path, "w") as f:
                     f.write(snapshot.to_json())
                 self.app.notify(f"Exported to {path}", severity="information")

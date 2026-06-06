@@ -1,4 +1,4 @@
-"""NetSentry — Port risk scoring.
+"""KPortWatch — Port risk scoring.
 
 Calculates a 0-100 risk score for each listening port based on
 multiple factors.  Higher score = more dangerous.

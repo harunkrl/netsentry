@@ -1,1 +1,1 @@
-"""NetSentry — Backend daemon, parsers, alert engine, and writers."""
+"""KPortWatch — Backend daemon, parsers, alert engine, and writers."""

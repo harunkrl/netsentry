@@ -3,11 +3,11 @@
  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
 <policyconfig>
-  <vendor>NetSentry</vendor>
-  <vendor_url>https://github.com/netsentry</vendor_url>
+  <vendor>KPortWatch</vendor>
+  <vendor_url>https://github.com/kportwatch</vendor_url>
   <icon_name>security-high</icon_name>
 
-  <action id="com.netsentry.helper.getports">
+  <action id="com.kportwatch.helper.getports">
     <description>Get network socket information with process details</description>
     <message>Authentication is required to view process details for all network sockets</message>
     <defaults>
@@ -15,7 +15,7 @@
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/netsentry-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/kportwatch-helper</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
 </policyconfig>

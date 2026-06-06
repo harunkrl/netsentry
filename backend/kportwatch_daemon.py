@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""NetSentry — Main backend daemon.
+"""KPortWatch — Main backend daemon.
 
 Gathers network socket data from /proc, runs alert analysis,
 and writes JSON snapshots for the Plasma widget and TUI.
 
 Usage:
-    python3 netsentry-daemon.py --foreground --verbose
-    python3 netsentry-daemon.py --interval 5
+    python3 kportwatch-daemon.py --foreground --verbose
+    python3 kportwatch-daemon.py --interval 5
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ from backend.risk_score import calculate_risk_score
 from backend.update import check_for_update, write_update_state, get_local_version
 import subprocess
 
-logger = logging.getLogger("netsentry")
+logger = logging.getLogger("kportwatch")
 
 
 def _write_heartbeat(path: str) -> None:
@@ -63,7 +63,7 @@ def _write_heartbeat(path: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="NetSentry backend daemon — network security monitor",
+        description="KPortWatch backend daemon — network security monitor",
     )
     parser.add_argument(
         "--interval", "-i",
@@ -85,7 +85,7 @@ def parse_args() -> argparse.Namespace:
         "--config", "-c",
         type=str,
         default=None,
-        help="Path to config file (default: ~/.config/netsentry/config.toml)",
+        help="Path to config file (default: ~/.config/kportwatch/config.toml)",
     )
     return parser.parse_args()
 
@@ -424,10 +424,10 @@ def daemon_loop(args: argparse.Namespace) -> None:
                                     subprocess.Popen(
                                         [
                                             "notify-send",
-                                            "-a", "NetSentry",
+                                            "-a", "KPortWatch",
                                             "-u", "critical" if a.level == AlertLevel.CRITICAL else "normal",
                                             "-i", icon,
-                                            f"NetSentry: {a.level}",
+                                            f"KPortWatch: {a.level}",
                                             a.message,
                                         ],
                                         stdout=subprocess.DEVNULL,
@@ -499,7 +499,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     except OSError:
         pass
 
-    logger.info("NetSentry daemon stopped")
+    logger.info("KPortWatch daemon stopped")
 
 
 def _daemonize() -> None:

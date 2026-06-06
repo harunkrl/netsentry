@@ -1,4 +1,4 @@
-"""NetSentry TUI — Connection log widget (right pane).
+"""KPortWatch TUI — Connection log widget (right pane).
 
 Extends ``textual.widgets.RichLog`` to display active connections
 with colour-coded, timestamped entries.

@@ -5,7 +5,7 @@ from collections import OrderedDict
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
-logger = logging.getLogger("netsentry.rdns")
+logger = logging.getLogger("kportwatch.rdns")
 
 _MAX_CACHE_SIZE = 1024
 _MAX_PENDING = 256

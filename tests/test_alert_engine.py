@@ -1,4 +1,4 @@
-"""NetSentry — Tests for backend.alert_engine."""
+"""KPortWatch — Tests for backend.alert_engine."""
 import json
 import time
 

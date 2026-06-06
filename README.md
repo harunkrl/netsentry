@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔒 NetSentry
+# 🔒 KPortWatch
 
 **Local Network Security & Port Monitor**
 
@@ -10,7 +10,7 @@
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python)
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
-![Tests](https://img.shields.io/badge/Tests-343%20passed-success)
+![Tests](https://img.shields.io/badge/Tests-413%20passed-success)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## 🖼️ Overview
 
-NetSentry is a **hybrid architecture** network security monitor designed for Arch Linux (EndeavourOS) running **KDE Plasma 6.6** on **Wayland**. It combines:
+KPortWatch is a **hybrid architecture** network security monitor designed for Arch Linux (EndeavourOS) running **KDE Plasma 6.6** on **Wayland**. It combines:
 
 | Component | Purpose |
 |-----------|---------|
@@ -94,10 +94,10 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 - 🧠 Baseline learning — learns your normal ports during first 5 minutes
 - 🔔 **Native Desktop Notifications** for Warning and Critical alerts via `notify-send`
 - 🌍 **Asynchronous rDNS + GeoIP resolution** with built-in caching
-- 🗺️ **GeoIP lookup** via ip-api.com with persistent offline cache (`~/.local/share/netsentry/geoip-cache.json`)
+- 🗺️ **GeoIP lookup** via ip-api.com with persistent offline cache (`~/.local/share/kportwatch/geoip-cache.json`)
 - 📊 **Network traffic statistics** — per-interface RX/TX rates from `/proc/net/dev`
 - 🌳 **Process tree builder** — parent-child relationships with network activity flags
-- 🚀 **Unix Domain Socket** streaming via `netsentry-client` for zero-latency UI updates
+- 🚀 **Unix Domain Socket** streaming via `kportwatch-client` for zero-latency UI updates
 - 📈 **History recording** — daily JSON files with summary and alert history
 - 🎯 **Port risk scoring** — 0-100 score based on malicious ports, baseline, blacklist
 - 🔄 **Auto-update** — periodic GitHub release check with optional auto-apply
@@ -123,8 +123,8 @@ NetSentry is a **hybrid architecture** network security monitor designed for Arc
 
 ```bash
 # Clone
-git clone https://github.com/harunkrl/netsentry.git
-cd netsentry
+git clone https://github.com/harunkrl/kportwatch.git
+cd kportwatch
 
 # Install (editable mode with dev dependencies)
 pip install -e ".[dev]"
@@ -135,13 +135,13 @@ chmod +x install.sh
 
 # Start the daemon via systemd (auto-starts at boot)
 systemctl --user daemon-reload
-systemctl --user enable --now netsentry
+systemctl --user enable --now kportwatch
 
 # Or run manually in foreground
-netsentry-daemon --foreground
+kportwatch-daemon --foreground
 
 # Add widget to panel
-# Right-click panel → Add Widgets → search "NetSentry"
+# Right-click panel → Add Widgets → search "KPortWatch"
 ```
 
 ### Uninstallation
@@ -155,22 +155,22 @@ chmod +x uninstall.sh
 
 ```bash
 # Start the daemon (foreground, with verbose logging)
-netsentry-daemon --foreground --verbose
+kportwatch-daemon --foreground --verbose
 
 # Launch the TUI analyzer
-netsentry
+kportwatch
 
 # Stream live data via Unix socket
-netsentry-client
+kportwatch-client
 
 # Export snapshot to JSON
-netsentry-export
+kportwatch-export
 
 # Check for updates
-netsentry-update --check
+kportwatch-update --check
 
 # Apply available update
-netsentry-update --apply
+kportwatch-update --apply
 ```
 
 ---
@@ -200,7 +200,7 @@ netsentry-update --apply
 ## 📁 Project Structure
 
 ```
-NetSentry/
+KPortWatch/
 ├── shared/
 │   ├── constants.py              # Paths, alert levels, malicious ports, version
 │   └── config.py                 # TOML config loader (AppConfig dataclass)
@@ -221,10 +221,10 @@ NetSentry/
 │   ├── writers/
 │   │   ├── json_file.py          # Atomic JSON snapshot writer
 │   │   └── unix_socket.py        # Unix domain socket streaming server
-│   ├── netsentry_daemon.py       # Main daemon loop
-│   └── netsentry_client.py       # Unix socket streaming client
+│   ├── kportwatch_daemon.py       # Main daemon loop
+│   └── kportwatch_client.py       # Unix socket streaming client
 ├── tui/
-│   ├── netsentry_tui.py          # Textual App entry point
+│   ├── kportwatch_tui.py          # Textual App entry point
 │   ├── screens/
 │   │   ├── main_screen.py        # Split-pane main layout
 │   │   ├── connection_map_screen.py  # GeoIP world map + country table
@@ -255,7 +255,7 @@ NetSentry/
 │       └── scripts/
 │           └── launch-tui.sh     # Konsole launch wrapper
 ├── polkit/
-│   └── com.netsentry.helper.policy
+│   └── com.kportwatch.helper.policy
 ├── tests/
 │   ├── conftest.py               # Shared fixtures (SocketEntry, Snapshot, etc.)
 │   ├── test_geoip.py             # GeoIP module tests (45 tests)
@@ -284,12 +284,12 @@ NetSentry/
 
 ### TOML Config File
 
-All backend settings are configurable via `~/.config/netsentry/config.toml`.
+All backend settings are configurable via `~/.config/kportwatch/config.toml`.
 Generate an example config:
 
 ```bash
-python -c "from shared.config import generate_example_config; generate_example_config('/tmp/netsentry-example.toml')"
-cat /tmp/netsentry-example.toml
+python -c "from shared.config import generate_example_config; generate_example_config('/tmp/kportwatch-example.toml')"
+cat /tmp/kportwatch-example.toml
 ```
 
 #### Key Sections
@@ -336,20 +336,20 @@ Accessible via **right-click → Configure**:
 | `pollInterval` | 2 | Seconds between data refreshes |
 | `alertThreshold` | WARNING | Minimum alert level to display |
 | `knownSafePorts` | 22,80,443,631,5353 | Comma-separated safe port list |
-| `tuiCommand` | `netsentry-tui` | TUI launch command |
+| `tuiCommand` | `kportwatch-tui` | TUI launch command |
 | `daemonEnabled` | true | Auto-start daemon |
 
 ### Auto-Start with systemd
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now netsentry
+systemctl --user enable --now kportwatch
 
 # Check status
-systemctl --user status netsentry
+systemctl --user status kportwatch
 
 # View logs
-journalctl --user -u netsentry -f
+journalctl --user -u kportwatch -f
 ```
 
 ---
@@ -373,13 +373,13 @@ For full system-wide PID visibility, choose one:
 
 ```bash
 # Option A: sudoers rule
-echo "YOUR_USER ALL=(root) NOPASSWD: /usr/bin/ss -tulnp" | sudo tee /etc/sudoers.d/netsentry
+echo "YOUR_USER ALL=(root) NOPASSWD: /usr/bin/ss -tulnp" | sudo tee /etc/sudoers.d/kportwatch
 
 # Option B: file capabilities on a helper binary
-sudo setcap cap_net_admin+ep /usr/local/bin/netsentry-helper
+sudo setcap cap_net_admin+ep /usr/local/bin/kportwatch-helper
 
 # Option C: Polkit policy (included)
-sudo cp polkit/com.netsentry.helper.policy /usr/share/polkit-1/actions/
+sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 ```
 
 ---

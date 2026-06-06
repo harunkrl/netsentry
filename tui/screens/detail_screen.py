@@ -1,4 +1,4 @@
-"""NetSentry TUI — Detail screen.
+"""KPortWatch TUI — Detail screen.
 
 Shows structured key-value view of a single connection entry with
 full detail including geo, risk, and alert information.

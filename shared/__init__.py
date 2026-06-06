@@ -1,4 +1,4 @@
-"""NetSentry — Shared package.
+"""KPortWatch — Shared package.
 
 Re-exports all constants from :pymod:`shared.constants` so that
 ``from shared import DATA_FILE`` works transparently.

@@ -1,4 +1,4 @@
-"""NetSentry — Parse /proc/net/dev into InterfaceStats list.
+"""KPortWatch — Parse /proc/net/dev into InterfaceStats list.
 
 /proc/net/dev format (whitespace-separated, 16 counters per line):
 

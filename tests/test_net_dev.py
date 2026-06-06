@@ -198,7 +198,7 @@ class TestDeltaComputation:
 
     def test_basic_delta(self):
         """Rate should be (current - prev) / elapsed."""
-        from backend.netsentry_daemon import compute_traffic_deltas
+        from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev: Dict[str, Tuple[float, InterfaceStats]] = {
             "wlan0": (100.0, InterfaceStats(
@@ -229,7 +229,7 @@ class TestDeltaComputation:
 
     def test_no_previous_data(self):
         """With no previous data, rates should be 0."""
-        from backend.netsentry_daemon import compute_traffic_deltas
+        from backend.kportwatch_daemon import compute_traffic_deltas
 
         current = [
             InterfaceStats(
@@ -247,7 +247,7 @@ class TestDeltaComputation:
 
     def test_zero_elapsed(self):
         """Zero elapsed time should not cause division by zero (rates = 0)."""
-        from backend.netsentry_daemon import compute_traffic_deltas
+        from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev = {
             "eth0": (100.0, InterfaceStats(
@@ -276,7 +276,7 @@ class TestDeltaComputation:
 
     def test_multiple_interfaces(self):
         """Delta computation should work independently for each interface."""
-        from backend.netsentry_daemon import compute_traffic_deltas
+        from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev = {
             "wlan0": (100.0, InterfaceStats(

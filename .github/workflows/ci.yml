@@ -1,4 +1,4 @@
-# NetSentry — CI Pipeline
+# KPortWatch — CI Pipeline
 #
 # Runs on every push and PR to main.
 # Steps: lint → test → build verification
@@ -88,6 +88,6 @@ jobs:
 
       - name: Verify wheel
         run: |
-          pip install dist/netsentry-*.whl
-          netsentry-daemon --help
-          netsentry-tui --help
+          pip install dist/kportwatch-*.whl
+          kportwatch-daemon --help
+          kportwatch-tui --help

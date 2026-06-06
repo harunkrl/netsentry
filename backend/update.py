@@ -1,4 +1,4 @@
-"""NetSentry — Auto-update checker and performer.
+"""KPortWatch — Auto-update checker and performer.
 
 Checks GitHub Tags API for new versions and optionally performs
 a ``git pull`` + ``pip install -e .`` + daemon restart.
@@ -15,8 +15,8 @@ Usage::
 
 CLI::
 
-    netsentry-update --check      # check only
-    netsentry-update --apply      # check and apply
+    kportwatch-update --check      # check only
+    kportwatch-update --apply      # check and apply
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from typing import Optional, Tuple
 
 from shared.constants import APP_VERSION, GITHUB_REPO, UPDATE_STATE_FILE
 
-logger = logging.getLogger("netsentry.update")
+logger = logging.getLogger("kportwatch.update")
 
 # GitHub Tags API endpoint
 _TAGS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/tags"
@@ -67,7 +67,7 @@ def get_latest_version() -> Optional[str]:
     try:
         req = urllib.request.Request(
             _TAGS_URL,
-            headers={"User-Agent": f"NetSentry/{APP_VERSION}"},
+            headers={"User-Agent": f"KPortWatch/{APP_VERSION}"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
@@ -214,10 +214,10 @@ def _find_project_dir() -> Optional[str]:
 
 
 def _restart_daemon() -> None:
-    """Restart the netsentry systemd user service (best-effort)."""
+    """Restart the kportwatch systemd user service (best-effort)."""
     try:
         subprocess.run(
-            ["systemctl", "--user", "restart", "netsentry.service"],
+            ["systemctl", "--user", "restart", "kportwatch.service"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -230,11 +230,11 @@ def _restart_daemon() -> None:
 # ── CLI entry point ───────────────────────────────────────────
 
 def main() -> None:
-    """CLI entry point for ``netsentry-update``."""
+    """CLI entry point for ``kportwatch-update``."""
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="NetSentry — Check for and apply updates",
+        description="KPortWatch — Check for and apply updates",
     )
     parser.add_argument(
         "--check", action="store_true",
@@ -256,7 +256,7 @@ def main() -> None:
     )
 
     local = get_local_version()
-    print(f"NetSentry v{local}")
+    print(f"KPortWatch v{local}")
 
     latest = get_latest_version()
     if latest is None:

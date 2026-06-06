@@ -17,7 +17,7 @@ from backend.writers.unix_socket import UnixSocketServer
 @pytest.fixture
 def socket_path(tmp_path: Path) -> str:
     """Return a unique socket path inside tmp_path."""
-    return str(tmp_path / "test-netsentry.sock")
+    return str(tmp_path / "test-kportwatch.sock")
 
 
 @pytest.fixture

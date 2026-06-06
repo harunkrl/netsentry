@@ -230,6 +230,64 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     # Start Unix Socket Server
     socket_server = UnixSocketServer()
+
+    # ── Socket command handler ──────────────────────────────────
+    def handle_socket_command(cmd: dict) -> dict:
+        """Handle commands sent over the Unix socket (e.g. kill)."""
+        command = cmd.get("command", "")
+
+        if command == "kill":
+            pid_raw = cmd.get("pid")
+            if pid_raw is None:
+                return {"status": "error", "message": "Missing 'pid' field"}
+            try:
+                pid = int(pid_raw)
+            except (ValueError, TypeError):
+                return {"status": "error", "message": f"Invalid pid: {pid_raw}"}
+            if pid <= 0:
+                return {"status": "error", "message": f"Invalid pid: {pid}"}
+            return daemon_kill_process(pid)
+
+        return {"status": "error", "message": f"Unknown command: {command}"}
+
+    def daemon_kill_process(pid: int) -> dict:
+        """Kill a process by PID with SIGTERM → wait → SIGKILL fallback."""
+        import errno as _errno
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return {"status": "ok", "message": f"Process {pid} not found (already gone)"}
+        except PermissionError:
+            return {"status": "error", "message": f"Permission denied killing PID {pid}"}
+        except OSError as e:
+            return {"status": "error", "message": f"Error sending SIGTERM to {pid}: {e}"}
+
+        # Wait up to 2 seconds for graceful exit
+        deadline = time.time() + 2.0
+        while time.time() < deadline:
+            try:
+                os.kill(pid, 0)  # Check if process still exists
+                time.sleep(0.1)
+            except ProcessLookupError:
+                logger.info("Process %d terminated gracefully after SIGTERM", pid)
+                return {"status": "ok", "message": f"Process {pid} terminated (SIGTERM)"}
+            except PermissionError:
+                # Process exists but we can't signal — might have changed user
+                break
+
+        # Process still alive — escalate to SIGKILL
+        try:
+            os.kill(pid, signal.SIGKILL)
+            logger.info("Process %d killed with SIGKILL after timeout", pid)
+            return {"status": "ok", "message": f"Process {pid} killed (SIGKILL)"}
+        except ProcessLookupError:
+            return {"status": "ok", "message": f"Process {pid} terminated between checks"}
+        except PermissionError:
+            return {"status": "error", "message": f"Permission denied sending SIGKILL to PID {pid}"}
+        except OSError as e:
+            return {"status": "error", "message": f"Error sending SIGKILL to {pid}: {e}"}
+
+    socket_server.set_command_handler(handle_socket_command)
     socket_server.start()
 
     # Start history recorder

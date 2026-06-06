@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from backend.models import Alert, SocketEntry, Snapshot
+from backend.models import Alert, InterfaceStats, SocketEntry, Snapshot
 from shared import AlertLevel
 
 
@@ -348,3 +348,88 @@ class TestSnapshot:
         """Non-dict geo_stats value falls back to empty dict."""
         snap = Snapshot.from_dict({"geo_stats": "not a dict"})
         assert isinstance(snap.geo_stats, dict)
+
+
+# ── Widget payload ────────────────────────────────────────────
+
+class TestWidgetPayload:
+    """Tests for Snapshot.to_widget_dict() — the lightweight widget payload."""
+
+    def test_widget_dict_has_expected_keys(self, sample_snapshot):
+        """Widget payload contains exactly the keys the widget needs."""
+        d = sample_snapshot.to_widget_dict()
+        assert set(d.keys()) == {
+            "timestamp", "poll_interval_ms",
+            "listening", "established", "alerts", "summary", "traffic",
+        }
+
+    def test_widget_dict_omits_processes(self, sample_snapshot):
+        """Widget payload must NOT contain the potentially large processes dict."""
+        d = sample_snapshot.to_widget_dict()
+        assert "processes" not in d
+
+    def test_widget_dict_omits_geo_stats(self, sample_snapshot):
+        """Widget payload must NOT contain geo_stats."""
+        d = sample_snapshot.to_widget_dict()
+        assert "geo_stats" not in d
+
+    def test_widget_dict_listening_data(self, sample_snapshot):
+        """Listening ports are fully serialized in widget payload."""
+        d = sample_snapshot.to_widget_dict()
+        assert len(d["listening"]) == 2
+        assert d["listening"][0]["local_port"] == 22
+        assert d["listening"][1]["local_port"] == 80
+
+    def test_widget_dict_established_data(self, sample_snapshot):
+        """Established connections are fully serialized in widget payload."""
+        d = sample_snapshot.to_widget_dict()
+        assert len(d["established"]) == 1
+        assert d["established"][0]["remote_ip"] == "142.250.80.14"
+
+    def test_widget_dict_alerts(self, sample_snapshot):
+        """Alerts are included in widget payload."""
+        d = sample_snapshot.to_widget_dict()
+        assert len(d["alerts"]) == 1
+        assert d["alerts"][0]["port"] == 500
+
+    def test_widget_dict_summary(self, sample_snapshot):
+        """Summary counts are included in widget payload."""
+        d = sample_snapshot.to_widget_dict()
+        assert d["summary"]["total_listening"] == 2
+        assert d["summary"]["total_established"] == 1
+
+    def test_widget_dict_smaller_than_full(self, sample_snapshot):
+        """Widget payload should be smaller than the full snapshot."""
+        import json
+        full = len(json.dumps(sample_snapshot.to_dict()))
+        widget = len(json.dumps(sample_snapshot.to_widget_dict()))
+        assert widget < full
+
+    def test_widget_dict_with_processes_data(self):
+        """Widget payload omits processes even when snapshot has large process tree."""
+        snap = Snapshot(
+            processes={str(i): {"pid": i, "name": f"proc_{i}"} for i in range(100)},
+            geo_stats={"countries_count": 50, "unique_ips_per_country": {"US": 100}},
+        )
+        d = snap.to_widget_dict()
+        assert "processes" not in d
+        assert "geo_stats" not in d
+        assert len(d["listening"]) == 0  # defaults still work
+
+    def test_widget_dict_with_traffic(self):
+        """Traffic stats are included in widget payload."""
+        snap = Snapshot(
+            traffic={
+                "wlan0": InterfaceStats(
+                    interface="wlan0",
+                    rx_bytes=1000, tx_bytes=500,
+                    rx_packets=10, tx_packets=5,
+                    rx_errors=0, tx_errors=0,
+                    rx_drops=0, tx_drops=0,
+                    rx_rate=100.0, tx_rate=50.0,
+                ),
+            },
+        )
+        d = snap.to_widget_dict()
+        assert "wlan0" in d["traffic"]
+        assert d["traffic"]["wlan0"]["rx_rate"] == 100.0

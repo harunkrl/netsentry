@@ -17,6 +17,7 @@ import sys
 import time
 
 from shared.constants import PID_FILE, SOCKET_PATH
+from backend.writers.unix_socket import send_command
 
 
 def _read_pid() -> int | None:
@@ -267,6 +268,32 @@ def cmd_reload(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_kill(args: argparse.Namespace) -> int:
+    """Kill a process via the daemon's Unix socket.
+
+    Routes through the daemon so it can enforce permission checks,
+    audit logging, and proper SIGTERM→SIGKILL escalation.
+    """
+    pid = args.pid
+    try:
+        response = send_command({"command": "kill", "pid": pid})
+    except ConnectionError:
+        print("❌ Cannot connect to daemon — is it running?")
+        return 1
+    except TimeoutError:
+        print("❌ Daemon did not respond (timeout)")
+        return 1
+
+    status = response.get("status", "error")
+    message = response.get("message", "")
+    if status == "ok":
+        print(f"✅ {message}")
+        return 0
+    else:
+        print(f"❌ {message}")
+        return 1
+
+
 def _cleanup_pidfile() -> None:
     """Remove PID file and stale socket."""
     for path in (PID_FILE, SOCKET_PATH):
@@ -309,6 +336,10 @@ def main() -> int:
 
     p_reload = sub.add_parser("reload", help="Reload daemon config (SIGHUP)")
     p_reload.set_defaults(func=cmd_reload)
+
+    p_kill = sub.add_parser("kill", help="Kill a process via the daemon (SIGTERM→SIGKILL)")
+    p_kill.add_argument("pid", type=int, help="Process ID to kill")
+    p_kill.set_defaults(func=cmd_kill)
 
     args = parser.parse_args()
     return args.func(args)

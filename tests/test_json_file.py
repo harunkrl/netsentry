@@ -5,7 +5,7 @@ import os
 import pytest
 
 from backend.models import Snapshot, SocketEntry, Alert
-from backend.writers.json_file import read_snapshot, write_snapshot
+from backend.writers.json_file import read_snapshot, write_snapshot, write_widget_snapshot
 from shared import AlertLevel
 
 
@@ -150,3 +150,85 @@ class TestParentDirCreation:
 
         restored = read_snapshot(path=nested_path)
         assert restored.listening[0].local_port == 80
+
+
+# ── Widget snapshot ───────────────────────────────────────────
+
+class TestWriteWidgetSnapshot:
+    def test_write_widget_snapshot_creates_file(self, tmp_path):
+        """write_widget_snapshot creates a valid JSON file."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        write_widget_snapshot(snap, path=out)
+        assert os.path.exists(out)
+
+    def test_widget_snapshot_is_valid_json(self, tmp_path):
+        """Widget snapshot file contains valid JSON."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        write_widget_snapshot(snap, path=out)
+        with open(out) as f:
+            data = json.load(f)
+        assert isinstance(data, dict)
+
+    def test_widget_snapshot_omits_processes(self, tmp_path):
+        """Widget snapshot file must NOT contain processes."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        snap.processes = {"1": {"pid": 1, "name": "big_proc_tree"}}
+        write_widget_snapshot(snap, path=out)
+        with open(out) as f:
+            data = json.load(f)
+        assert "processes" not in data
+
+    def test_widget_snapshot_omits_geo_stats(self, tmp_path):
+        """Widget snapshot file must NOT contain geo_stats."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        snap.geo_stats = {"countries_count": 99}
+        write_widget_snapshot(snap, path=out)
+        with open(out) as f:
+            data = json.load(f)
+        assert "geo_stats" not in data
+
+    def test_widget_snapshot_contains_used_keys(self, tmp_path):
+        """Widget snapshot has all keys the widget actually uses."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        write_widget_snapshot(snap, path=out)
+        with open(out) as f:
+            data = json.load(f)
+        assert "listening" in data
+        assert "established" in data
+        assert "alerts" in data
+        assert "summary" in data
+        assert "traffic" in data
+        assert data["summary"]["total_listening"] == 1
+        assert len(data["alerts"]) == 1
+
+    def test_widget_snapshot_is_atomic(self, tmp_path):
+        """Widget snapshot uses atomic write (no leftover .tmp on success)."""
+        out = str(tmp_path / "widget-data.json")
+        snap = _make_sample_snapshot()
+        write_widget_snapshot(snap, path=out)
+        assert not os.path.exists(out + ".tmp")
+
+    def test_widget_snapshot_creates_parent_dirs(self, tmp_path):
+        """Widget snapshot creates nested parent directories."""
+        out = str(tmp_path / "deep" / "nested" / "widget.json")
+        snap = _make_sample_snapshot()
+        write_widget_snapshot(snap, path=out)
+        assert os.path.exists(out)
+
+    def test_widget_snapshot_smaller_than_full(self, tmp_path):
+        """Widget snapshot should be smaller than the full snapshot."""
+        full_out = str(tmp_path / "full.json")
+        widget_out = str(tmp_path / "widget.json")
+        snap = _make_sample_snapshot()
+        snap.processes = {str(i): {"pid": i} for i in range(50)}
+        snap.geo_stats = {"countries_count": 10, "data": list(range(100))}
+        write_snapshot(snap, path=full_out)
+        write_widget_snapshot(snap, path=widget_out)
+        full_size = os.path.getsize(full_out)
+        widget_size = os.path.getsize(widget_out)
+        assert widget_size < full_size

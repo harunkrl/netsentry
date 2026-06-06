@@ -320,18 +320,12 @@ PlasmoidItem {
         id: killExecSource
         engine: 'executable'
         connectedSources: []
-        property int _pendingPid: 0
         onNewData: (sourceName, data) => {
             connectedSources = []
-            if (_pendingPid > 0 && data['exit code'] === 0) {
-                connectedSources = ["sh -c 'kill -0 " + _pendingPid + " 2>/dev/null && kill -9 " + _pendingPid + " || true'"]
-                _pendingPid = 0
-            }
         }
     }
 
     function killProcess(pid) {
-        killExecSource._pendingPid = pid
-        killExecSource.connectedSources = ["sh -c 'kill -15 " + pid + " 2>/dev/null; sleep 1; kill -0 " + pid + " 2>/dev/null'"]
+        killExecSource.connectedSources = ["sh -c 'kportwatchctl kill " + pid + "'"]
     }
 }

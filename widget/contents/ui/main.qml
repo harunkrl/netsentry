@@ -37,8 +37,11 @@ PlasmoidItem {
     property bool daemonDown: false
     property bool dataStale: false
     property string searchText: ""
-    property string sortColumn: plasmoid.configuration.sortColumn || ""
-    property bool sortDescending: plasmoid.configuration.sortDescending || false
+    // Per-tab sort state (avoids cross-tab sort conflicts)
+    property string sortColumnListening: ""
+    property bool sortDescListening: false
+    property string sortColumnEstablished: ""
+    property bool sortDescEstablished: false
     property int activeTab: 0   // 0 = listening, 1 = established
 
     // Traffic stats
@@ -106,7 +109,6 @@ PlasmoidItem {
         interval: 50
         onTriggered: dataSource.connectedSources = []
     }
-    }
 
     // ── Notification source ────────────────────────────────────
     Plasma5Support.DataSource {
@@ -118,8 +120,11 @@ PlasmoidItem {
 
     function sendDesktopNotification(title, body, urgency) {
         var urg = urgency || "normal"
+        // Sanitize: remove any character that could break shell quoting
+        var safeTitle = title.replace(/["'`\\$!?;|&(){}[\]<>\n\r]/g, " ").substring(0, 120)
+        var safeBody = body.replace(/["'`\\$!?;|&(){}[\]<>\n\r]/g, " ").substring(0, 200)
         notifySource.connectedSources = [
-            "sh -c 'notify-send -a KPortWatch -u " + urg + " \"" + title.replace(/"/g, "'") + "\" \"" + body.replace(/"/g, "'") + "\" 2>/dev/null || true'"
+            "sh -c 'notify-send -a KPortWatch -u " + urg + " \"" + safeTitle + "\" \"" + safeBody + "\" 2>/dev/null || true'"
         ]
     }
 
@@ -235,7 +240,7 @@ PlasmoidItem {
         if (filter) {
             newListening = applyFilter(newListening, filter)
         }
-        if (root.sortColumn) {
+        if (root.sortColumnListening) {
             newListening = applySort(newListening)
         }
         reconcileModel(connectionsModel, newListening)
@@ -244,6 +249,9 @@ PlasmoidItem {
         var newEstablished = parsed.established || []
         if (filter) {
             newEstablished = applyFilter(newEstablished, filter)
+        }
+        if (root.sortColumnEstablished) {
+            newEstablished = applySort(newEstablished)
         }
         reconcileModel(establishedModel, newEstablished)
     }
@@ -271,41 +279,48 @@ PlasmoidItem {
         return result
     }
 
+    // Unique key for a socket entry — avoids inode=0 collisions from psutil
+    function itemKey(item) {
+        return item.proto + "-" + item.inode + "-" + item.local_ip + "-" + item.local_port + "-" + (item.remote_ip || "0") + "-" + (item.remote_port || 0) + "-" + (item.pid || 0)
+    }
+
     function applySort(items) {
         // Clone to avoid mutating the original
         var sorted = items.slice()
+        var col = root.activeTab === 0 ? root.sortColumnListening : root.sortColumnEstablished
+        var desc = root.activeTab === 0 ? root.sortDescListening : root.sortDescEstablished
         sorted.sort(function(a, b) {
-            var valA = a[root.sortColumn] || ""
-            var valB = b[root.sortColumn] || ""
+            var valA = a[col] || ""
+            var valB = b[col] || ""
             if (typeof valA === "string") valA = valA.toLowerCase()
             if (typeof valB === "string") valB = valB.toLowerCase()
             var cmp = 0
             if (valA < valB) cmp = -1
             else if (valA > valB) cmp = 1
-            return root.sortDescending ? -cmp : cmp
+            return desc ? -cmp : cmp
         })
         return sorted
     }
 
     // ── List model reconciliation ──────────────────────────────
     function reconcileModel(model, newItems) {
-        // Build index of current items by key (proto-inode)
+        // Build index of current items by unique key
         var currentMap = {}   // key → index
         for (var i = 0; i < model.count; i++) {
             var m = model.get(i)
-            currentMap[m.proto + "-" + m.inode] = i
+            currentMap[itemKey(m)] = i
         }
 
         // Build set of incoming keys
         var newSet = {}
         for (var i = 0; i < newItems.length; i++) {
-            newSet[newItems[i].proto + "-" + newItems[i].inode] = true
+            newSet[itemKey(newItems[i])] = true
         }
 
         // Step 1: Update existing items in-place or append new ones
         for (var i = 0; i < newItems.length; i++) {
             var item = newItems[i]
-            var key = item.proto + "-" + item.inode
+            var key = itemKey(item)
             if (currentMap[key] !== undefined) {
                 model.set(currentMap[key], item)
             } else {
@@ -316,19 +331,19 @@ PlasmoidItem {
         // Step 2: Remove stale entries (no longer in new data)
         for (var i = model.count - 1; i >= 0; i--) {
             var m = model.get(i)
-            if (!newSet[m.proto + "-" + m.inode]) {
+            if (!newSet[itemKey(m)]) {
                 model.remove(i)
             }
         }
 
         // Step 3: Reorder to match incoming sort order
         for (var i = 0; i < newItems.length && i < model.count; i++) {
-            var expectedKey = newItems[i].proto + "-" + newItems[i].inode
+            var expectedKey = itemKey(newItems[i])
             var actualItem = model.get(i)
-            if (actualItem && (actualItem.proto + "-" + actualItem.inode !== expectedKey)) {
+            if (actualItem && itemKey(actualItem) !== expectedKey) {
                 for (var j = i + 1; j < model.count; j++) {
                     var itemJ = model.get(j)
-                    if (itemJ.proto + "-" + itemJ.inode === expectedKey) {
+                    if (itemKey(itemJ) === expectedKey) {
                         model.move(j, i, 1)
                         break
                     }

@@ -33,7 +33,7 @@ from shared.config import load_config, get_config, apply_cli_overrides, AppConfi
 from backend.models import InterfaceStats, Snapshot, SocketEntry
 from backend.parsers.proc_net import parse_all_proc
 from backend.parsers.net_dev import parse_proc_net_dev
-from backend.parsers.inode_map import build_inode_to_pid_map
+from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
 from backend.parsers.process_tree import build_process_tree
 from backend.alert_engine import AlertEngine
 from backend.writers.json_file import write_snapshot
@@ -102,12 +102,17 @@ def setup_logging(verbose: bool) -> None:
 def merge_inode_map(entries: List[SocketEntry]) -> None:
     """Resolve PIDs for socket entries by scanning /proc fd symlinks."""
     inode_map = build_inode_to_pid_map()
+    uid_map = build_uid_process_map()
     for entry in entries:
         info = inode_map.get(entry.inode)
         if info:
             pid, proc_name, cmdline = info
             entry.pid = pid
             entry.process_name = proc_name
+            entry.cmdline = cmdline
+        elif entry.uid in uid_map:
+            username, proc_name, cmdline = uid_map[entry.uid]
+            entry.process_name = f"{proc_name} ({username})"
             entry.cmdline = cmdline
 
 
@@ -250,12 +255,18 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
             # 2. Resolve PIDs
             inode_map = build_inode_to_pid_map()
+            uid_map = build_uid_process_map()
             for entry in entries:
                 info = inode_map.get(entry.inode)
                 if info:
                     pid, proc_name, cmdline = info
                     entry.pid = pid
                     entry.process_name = proc_name
+                    entry.cmdline = cmdline
+                elif entry.uid in uid_map:
+                    # Fallback: couldn't scan fd/ (other user's process), use UID lookup
+                    username, proc_name, cmdline = uid_map[entry.uid]
+                    entry.process_name = f"{proc_name} ({username})"
                     entry.cmdline = cmdline
 
             # 2.5 Build process tree (reuses inode_map for has_network flag)
@@ -287,6 +298,8 @@ def daemon_loop(args: argparse.Namespace) -> None:
                             e.remote_city = geo.get("city")
                             e.remote_lat = geo.get("lat")
                             e.remote_lon = geo.get("lon")
+                            e.remote_isp = geo.get("isp")
+                            e.remote_org = geo.get("org")
 
             # 3.6 Parse /proc/net/dev for traffic statistics
             now_ts = time.time()

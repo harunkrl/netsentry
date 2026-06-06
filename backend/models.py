@@ -72,6 +72,8 @@ class SocketEntry:
     remote_city: Optional[str] = None
     remote_lat: Optional[float] = None
     remote_lon: Optional[float] = None
+    remote_isp: Optional[str] = None
+    remote_org: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SocketEntry:

@@ -89,11 +89,13 @@ class TestClassifyEntries:
 # ── merge_inode_map tests ─────────────────────────────────────────
 
 class TestMergeInodeMap:
+    @patch("backend.netsentry_daemon.build_uid_process_map")
     @patch("backend.netsentry_daemon.build_inode_to_pid_map")
-    def test_inode_map_enriches_entries(self, mock_build):
+    def test_inode_map_enriches_entries(self, mock_build, mock_uid):
         mock_build.return_value = {
             100: (1, "sshd", "/usr/sbin/sshd -D"),
         }
+        mock_uid.return_value = {}
         entry = SocketEntry(
             proto="tcp", local_ip="0.0.0.0", local_port=22,
             remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
@@ -104,9 +106,11 @@ class TestMergeInodeMap:
         assert entry.process_name == "sshd"
         assert entry.cmdline == "/usr/sbin/sshd -D"
 
+    @patch("backend.netsentry_daemon.build_uid_process_map")
     @patch("backend.netsentry_daemon.build_inode_to_pid_map")
-    def test_inode_not_found_leaves_pid_none(self, mock_build):
+    def test_inode_not_found_leaves_pid_none(self, mock_build, mock_uid):
         mock_build.return_value = {}
+        mock_uid.return_value = {}  # no UID fallback either
         entry = SocketEntry(
             proto="tcp", local_ip="0.0.0.0", local_port=22,
             remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
@@ -116,9 +120,25 @@ class TestMergeInodeMap:
         assert entry.pid is None
         assert entry.process_name is None
 
+    @patch("backend.netsentry_daemon.build_uid_process_map")
     @patch("backend.netsentry_daemon.build_inode_to_pid_map")
-    def test_empty_entries_list(self, mock_build):
+    def test_uid_fallback_resolves_process(self, mock_build, mock_uid):
+        mock_build.return_value = {}  # inode not found
+        mock_uid.return_value = {0: ("root", "sshd", "/usr/sbin/sshd -D")}
+        entry = SocketEntry(
+            proto="tcp", local_ip="0.0.0.0", local_port=22,
+            remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
+            state_code="0A", uid=0, inode=99999,
+        )
+        merge_inode_map([entry])
+        assert entry.pid is None
+        assert entry.process_name == "sshd (root)"
+
+    @patch("backend.netsentry_daemon.build_uid_process_map")
+    @patch("backend.netsentry_daemon.build_inode_to_pid_map")
+    def test_empty_entries_list(self, mock_build, mock_uid):
         mock_build.return_value = {100: (1, "test", "./test")}
+        mock_uid.return_value = {}
         merge_inode_map([])  # should not crash
         mock_build.assert_called_once()
 

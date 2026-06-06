@@ -13,8 +13,8 @@ def test_read_file_safe(tmp_path):
 @patch("backend.parsers.inode_map.os.readlink")
 @patch("backend.parsers.inode_map._read_file_safe")
 def test_build_inode_to_pid_map(mock_read_file, mock_readlink, mock_listdir):
-    def listdir_side_effect(path):  # noqa: SIM116
-        if path == "/proc":
+    def listdir_side_effect(path):
+        if path == "/proc":  # noqa: SIM116
             return ["123", "abc", "456"]
         elif path == "/proc/123/fd":
             return ["0", "1", "2"]
@@ -22,8 +22,8 @@ def test_build_inode_to_pid_map(mock_read_file, mock_readlink, mock_listdir):
             return ["0"]
         raise FileNotFoundError()
 
-    def readlink_side_effect(path):  # noqa: SIM116
-        if path == "/proc/123/fd/1":
+    def readlink_side_effect(path):
+        if path == "/proc/123/fd/1":  # noqa: SIM116
             return "socket:[9999]"
         elif path == "/proc/123/fd/2":
             return "anon_inode:[eventpoll]"

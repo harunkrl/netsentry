@@ -11,13 +11,11 @@ from backend.models import Alert, InterfaceStats, SocketEntry
 from shared import AlertLevel
 from tui.themes import (
     ALERT_COLOURS,
-    ALL_THEME_CSS,
     DEFAULT_THEME,
+    KPW_THEMES,
     STATE_COLOURS,
     THEME_DISPLAY_NAMES,
-    THEMES,
     alert_colour,
-    current_theme,
     display_name_to_key,
     get_theme_names,
     key_to_display_name,
@@ -311,35 +309,33 @@ class TestTrafficBar:
 
 class TestThemeSystem:
     def test_themes_exist(self):
-        """All 4 themes must be defined."""
+        """All 4 themes must be defined (2 custom + 2 built-in mapped)."""
         names = get_theme_names()
-        assert "dark" in names
+        assert "cyberpunk" in names
         assert "nord" in names
-        assert "solarized" in names
-        assert "light" in names
-        assert len(names) == 4
+        assert "solarized-dark" in names
+        assert "kpw-light" in names
 
     def test_default_theme_is_dark(self):
-        assert DEFAULT_THEME == "dark"
+        assert DEFAULT_THEME == "cyberpunk"
 
     def test_current_theme_initial(self):
-        assert current_theme() == "dark"
+        assert DEFAULT_THEME == "cyberpunk"
 
     def test_theme_css_generated(self):
-        """All themes must produce non-empty CSS in ALL_THEME_CSS."""
-        css = ALL_THEME_CSS
-        assert len(css) > 500
-        for name in get_theme_names():
-            assert f".theme-{name}" in css
-            assert f"/* ── {name.capitalize()} Theme" in css
+        """Custom themes must be properly defined."""
+        assert len(KPW_THEMES) >= 2  # cyberpunk + kpw-light
+        for name, theme in KPW_THEMES.items():
+            assert theme.primary
+            assert theme.foreground
+            assert theme.name == name
 
     def test_theme_palette_keys(self):
-        """Every theme must have all required palette keys."""
-        required = {"surface", "panel-bg", "primary", "primary-dim",
-                    "text", "text-dim", "warning", "error"}
-        for name, palette in THEMES.items():
-            missing = required - set(palette.keys())
-            assert not missing, f"Theme {name} missing keys: {missing}"
+        """Every custom theme must have required palette fields."""
+        required = {"name", "primary", "foreground", "background", "surface"}
+        for name, theme in KPW_THEMES.items():
+            for field in required:
+                assert getattr(theme, field), f"Theme {name} missing field: {field}"
 
     def test_alert_colour_mapping(self):
         assert alert_colour("CRITICAL") == "bold red"
@@ -362,28 +358,29 @@ class TestThemeSystem:
             assert state in STATE_COLOURS
 
     def test_light_theme_differs_from_dark(self):
-        dark_primary = THEMES["dark"]["primary"]
-        light_primary = THEMES["light"]["primary"]
+        dark_primary = KPW_THEMES["cyberpunk"].primary
+        light_primary = KPW_THEMES["kpw-light"].primary
         assert dark_primary != light_primary
 
     def test_theme_display_map(self):
         """Theme display names map to internal keys."""
-        assert display_name_to_key("Cyberpunk") == "dark"
+        assert display_name_to_key("Cyberpunk") == "cyberpunk"
         assert display_name_to_key("Midnight") == "nord"
-        assert display_name_to_key("Hacker") == "solarized"
-        assert display_name_to_key("Unknown") == "dark"  # fallback
+        assert display_name_to_key("Hacker") == "solarized-dark"
+        assert display_name_to_key("Unknown") == "cyberpunk"  # fallback
 
     def test_key_to_display_name(self):
         """Internal keys map to display names."""
-        assert key_to_display_name("dark") == "Cyberpunk"
+        assert key_to_display_name("cyberpunk") == "Cyberpunk"
         assert key_to_display_name("nord") == "Midnight"
-        assert key_to_display_name("solarized") == "Hacker"
-        assert key_to_display_name("light") == "Cyberpunk"  # fallback to first
+        assert key_to_display_name("solarized-dark") == "Hacker"
+        assert key_to_display_name("nonexistent") == "Cyberpunk"  # fallback to first
 
     def test_theme_display_names_list(self):
-        """Display names list has 3 entries."""
-        assert len(THEME_DISPLAY_NAMES) == 3
+        """Display names list has 4 entries (2 custom + 2 built-in)."""
+        assert len(THEME_DISPLAY_NAMES) == 4
         assert "Cyberpunk" in THEME_DISPLAY_NAMES
+        assert "Daylight" in THEME_DISPLAY_NAMES
 
 
 # ── Advanced Filtering ────────────────────────────────────────

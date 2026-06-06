@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import sys
 import warnings
+from pathlib import Path
 
 # Ensure the project root is on sys.path
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,13 +29,16 @@ from textual.binding import Binding  # noqa: E402
 from tui.data.provider import DataProvider  # noqa: E402
 from tui.screens.main_screen import MainScreen  # noqa: E402
 from tui.themes import (  # noqa: E402
-    ALL_THEME_CSS,
     DEFAULT_THEME,
-    THEMES,
+    KPW_THEMES,
+    THEME_DISPLAY_MAP,
     apply_theme,
-    current_theme,
+    current_theme_key,
     key_to_display_name,
+    register_kpw_themes,
 )
+
+_TCSS_DIR = Path(__file__).parent / "styles.tcss"
 
 
 class KPortWatchTUI(App):
@@ -42,9 +46,7 @@ class KPortWatchTUI(App):
 
     TITLE = f"KPortWatch {VERSION} — Network Security Analyzer"
 
-    # All 4 themes pre-generated at import time, class-scoped.
-    # Switching themes = toggling .theme-dark / .theme-nord / etc.
-    CSS = ALL_THEME_CSS
+    CSS_PATH = _TCSS_DIR
 
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
@@ -56,18 +58,27 @@ class KPortWatchTUI(App):
         cfg = load_config()
         self.notifications_enabled: bool = cfg.tui_notifications_enabled
         self.data_provider = DataProvider()
-        self._theme_name: str = getattr(cfg, "color_theme", DEFAULT_THEME)
-        if self._theme_name not in THEMES:
-            self._theme_name = DEFAULT_THEME
+        # Resolve saved theme key — may be old key name
+        self._theme_name: str = self._resolve_theme_key(
+            getattr(cfg, "color_theme", DEFAULT_THEME)
+        )
+
+    @staticmethod
+    def _resolve_theme_key(key: str) -> str:
+        """Resolve a theme key, handling old names gracefully."""
+        # Old → new mapping
+        legacy_map = {"dark": "cyberpunk", "nord": "nord", "solarized": "solarized-dark", "light": "kpw-light"}
+        return legacy_map.get(key, key) if key not in KPW_THEMES and key not in THEME_DISPLAY_MAP.values() else key
 
     def on_mount(self) -> None:
-        """Apply the persisted theme before showing the main screen."""
+        """Register custom themes and apply the persisted theme."""
+        register_kpw_themes(self)
         apply_theme(self, self._theme_name)
         self.push_screen(MainScreen(provider=self.data_provider))
 
     @property
     def theme_name(self) -> str:
-        return current_theme()
+        return current_theme_key(self)
 
     def notify(self, message: str = "", *, severity: str = "information", **kwargs) -> None:
         if not self.notifications_enabled:
@@ -77,7 +88,7 @@ class KPortWatchTUI(App):
     def action_open_settings(self) -> None:
         from tui.screens.settings_screen import SettingsScreen
         cfg = get_config()
-        theme_display = key_to_display_name(current_theme())
+        theme_display = key_to_display_name(current_theme_key(self))
         self.push_screen(SettingsScreen(
             desktop_notifications=cfg.notifications_enabled,
             tui_notifications=self.notifications_enabled,

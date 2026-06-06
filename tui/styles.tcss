@@ -1,8 +1,29 @@
 /* KPortWatch — Per-screen / per-widget overrides.
  *
- * Base theme (dark/nord/solarized/light) is generated at runtime by
- * ``tui.themes.apply_theme()``.  This file only contains overrides
- * that are *not* theme-dependent (layout, spacing, animations).
+ * Theming is handled by Textual's native theme system (app.theme).
+ * This file only contains layout, spacing, and non-theme overrides.
  */
 
-/* Screen-level layout is handled by themes.py — nothing here. */
+/* Port table layout */
+#port-table {
+    height: auto;
+    min-height: 8;
+    max-height: 60%;
+    padding: 0 1;
+    overflow-y: auto;
+}
+
+/* Connection log layout */
+#connection-log {
+    height: 1fr;
+    padding: 0 1;
+    overflow-y: auto;
+}
+
+/* Status bar layout */
+#status-bar {
+    height: auto;
+    content-align: center middle;
+    text-style: bold;
+    padding: 0 1;
+}

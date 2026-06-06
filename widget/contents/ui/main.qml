@@ -38,6 +38,16 @@ PlasmoidItem {
     compactRepresentation: CompactRepresentation {}
     fullRepresentation: FullRepresentation {}
 
+    // ── Data polling timer (top-level, not inside DataSource) ──────
+    Timer {
+        id: pollTimer
+        interval: root.pollInterval * 1000
+        running: true
+        repeat: true
+        onTriggered: dataSource.execQuery()
+    }
+
+    // ── Data source for reading daemon JSON ────────────────────────
     Plasma5Support.DataSource {
         id: dataSource
         engine: 'executable'
@@ -45,19 +55,13 @@ PlasmoidItem {
 
         property string _cmd: "sh -c 'cat ${XDG_RUNTIME_DIR:-/tmp}/netsentry-data.json 2>/dev/null'"
 
-        Timer {
-            id: pollTimer
-            interval: root.pollInterval * 1000
-            running: true
-            repeat: true
-            onTriggered: {
-                if (dataSource.connectedSources.length === 0) {
-                    dataSource.connectedSources = [dataSource._cmd]
-                }
+        function execQuery() {
+            if (connectedSources.length === 0) {
+                connectedSources = [_cmd]
             }
         }
 
-        Component.onCompleted: { connectedSources = [_cmd] }
+        Component.onCompleted: connectedSources = [_cmd]
 
         onNewData: (sourceName, data) => {
             connectedSources = []
@@ -169,7 +173,7 @@ PlasmoidItem {
     }
 
     function launchTUI() {
-        var defaultCmd = "konsole -e bash -c 'source ~/NetSentry/.venv/bin/activate && exec netsentry-tui'"
+        var defaultCmd = "konsole -e bash -c 'source ~/Projects/NetSentry/.venv/bin/activate && exec netsentry-tui'"
         tuiExecSource.connectedSources = [root.tuiCommand ? root.tuiCommand : defaultCmd]
     }
 

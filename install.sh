@@ -43,10 +43,21 @@ echo "   ✅ Dependencies installed (textual, rich)"
 # ── 3. Install Plasma widget ─────────────────────────────────
 echo "🔧 Installing Plasma 6 widget..."
 mkdir -p "${HOME}/.local/share/plasma/plasmoids"
+# Remove old broken symlink if it exists (from earlier installs)
+rm -f "${HOME}/.local/share/plasma/plasmoids/com.netsentry.helper"
 # Copy files instead of symlink — kpackagetool -r deletes symlinks
 rm -rf "${PLASMOID_DIR}"
 cp -r "${SCRIPT_DIR}/widget" "${PLASMOID_DIR}"
 echo "   ✅ Widget installed to ${PLASMOID_DIR}"
+
+# Register with kpackagetool6 so plasmoidviewer/Plasma can discover it
+if command -v kpackagetool6 &>/dev/null; then
+    kpackagetool6 --type Plasma/Applet --install "${SCRIPT_DIR}/widget" 2>/dev/null || \
+    kpackagetool6 --type Plasma/Applet --upgrade "${SCRIPT_DIR}/widget" 2>/dev/null || true
+    echo "   ✅ Registered with kpackagetool6"
+else
+    echo "   ⚠️  kpackagetool6 not found, skipping package registration"
+fi
 
 # ── 4. Config directory ──────────────────────────────────────
 echo "📁 Creating config directory..."

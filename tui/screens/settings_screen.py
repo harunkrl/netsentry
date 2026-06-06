@@ -34,10 +34,8 @@ class SettingRow(Horizontal):
     CSS = """
     SettingRow {
         height: auto;
-        min-height: 5;
-        padding: 1 3;
+        padding: 1 2;
         border-bottom: solid #1a3a2a 80%;
-        focusable: true;
     }
     SettingRow:focus {
         background: #0a2a1a;
@@ -49,27 +47,23 @@ class SettingRow(Horizontal):
 
     SettingRow > .setting-info {
         width: 1fr;
-        padding: 1 0;
     }
 
     SettingRow > .setting-info > .setting-title {
         color: #00ff99;
         text-style: bold;
-        width: 100%;
     }
 
     SettingRow > .setting-info > .setting-desc {
         color: #6a6a7a;
         margin-top: 1;
-        width: 100%;
         text-wrap: wrap;
+        width: 100%;
     }
 
     SettingRow > .setting-switch-container {
         width: auto;
-        min-width: 6;
-        height: 100%;
-        padding: 0 1;
+        padding: 1 0 0 2;
         content-align: center middle;
     }
     """
@@ -120,11 +114,8 @@ class SelectableRow(Horizontal):
     CSS = """
     SelectableRow {
         height: auto;
-        min-height: 5;
-        padding: 1 3;
+        padding: 1 2;
         border-bottom: solid #1a3a2a 80%;
-        focusable: true;
-        layout: horizontal;
     }
     SelectableRow:focus {
         background: #0a2a1a;
@@ -136,27 +127,23 @@ class SelectableRow(Horizontal):
 
     SelectableRow > .setting-info {
         width: 1fr;
-        padding: 1 0;
     }
 
     SelectableRow > .setting-info > .setting-title {
         color: #00ff99;
         text-style: bold;
-        width: 100%;
     }
 
     SelectableRow > .setting-info > .setting-desc {
         color: #6a6a7a;
         margin-top: 1;
-        width: 100%;
         text-wrap: wrap;
+        width: 100%;
     }
 
     SelectableRow > .setting-value-container {
         width: auto;
-        min-width: 10;
-        height: 100%;
-        padding: 1 0 1 2;
+        padding: 1 0 0 2;
         content-align: center middle;
     }
 
@@ -165,7 +152,6 @@ class SelectableRow(Horizontal):
         text-style: bold;
         background: #0a2a1a;
         padding: 0 2;
-        width: auto;
     }
     """
 
@@ -229,10 +215,10 @@ class SettingsScreen(ModalScreen[None]):
     }
 
     #settings-dialog {
-        width: 76;
-        max-width: 92%;
+        width: 72;
+        max-width: 90%;
         height: auto;
-        max-height: 85%;
+        max-height: 80%;
         background: #0d0d0d;
         border: round #008855;
         padding: 0;
@@ -241,7 +227,7 @@ class SettingsScreen(ModalScreen[None]):
     #settings-header {
         dock: top;
         height: 3;
-        padding: 0 3;
+        padding: 0 2;
         background: #008855;
         color: #000;
         text-style: bold;
@@ -251,14 +237,14 @@ class SettingsScreen(ModalScreen[None]):
     .settings-section-label {
         dock: top;
         height: 1;
-        padding: 1 3 0 3;
+        padding: 1 2 0 2;
         color: #008855;
         text-style: bold;
     }
 
     #settings-body {
         height: auto;
-        max-height: 22;
+        max-height: 28;
         padding: 0 1;
     }
 

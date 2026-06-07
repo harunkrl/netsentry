@@ -9,8 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLASMOID_ID="com.kportwatch.plasmoid"
 PLASMOID_DIR="${HOME}/.local/share/plasma/plasmoids/${PLASMOID_ID}"
 
+# Read version from pyproject.toml
+KPW_VERSION=$(python3 -c "import tomllib, pathlib; d = tomllib.loads(pathlib.Path(f'${SCRIPT_DIR}/pyproject.toml').read_text()); print(d.get('project', {}).get('version', '0.0.0'))" 2>/dev/null || echo "2.1.0")
+
 echo "╔══════════════════════════════════════════╗"
-echo "║       KPortWatch Installer v2.1.0        ║"
+printf "║   KPortWatch Installer v%%s   ║\n" "$KPW_VERSION"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -94,7 +97,23 @@ systemctl --user enable --now kportwatch.service
 systemctl --user restart kportwatch.service 2>/dev/null || true
 echo "   ✅ Systemd service installed and started"
 
-# ── 7. Restart Plasma (optional) ─────────────────────────────
+# ── 7. Install Polkit policy (optional, requires sudo) ──────────
+echo "🔒 Installing Polkit policy (for kill action)..."
+POLKIT_DIR="/usr/share/polkit-1/actions"
+POLKIT_FILE="${POLKIT_DIR}/com.kportwatch.helper.policy"
+if [ -w "${POLKIT_DIR}" ] 2>/dev/null || command -v sudo &>/dev/null; then
+    if cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/" 2>/dev/null \
+       || sudo cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/" 2>/dev/null; then
+        echo "   ✅ Polkit policy installed"
+    else
+        echo "   ⚠️  Polkit policy install skipped (needs root)"
+        echo "      Run manually: sudo cp polkit/com.kportwatch.helper.policy ${POLKIT_DIR}/"
+    fi
+else
+    echo "   ⚠️  Polkit policy install skipped (no sudo available)"
+fi
+
+# ── 8. Restart Plasma (optional) ─────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

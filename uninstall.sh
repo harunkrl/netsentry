@@ -4,9 +4,16 @@
 # ──────────────────────────────────────────────────────────────
 set -e
 
-echo "╔══════════════════════════════════════════╗"
-echo "║      KPortWatch Uninstaller v2.1.0       ║"
-echo "╚══════════════════════════════════════════╝"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KPW_VERSION=$(python3 -c "
+import tomllib, pathlib
+d = tomllib.loads(pathlib.Path('${SCRIPT_DIR}/pyproject.toml').read_text())
+print(d.get('project', {}).get('version', '0.0.0'))
+" 2>/dev/null || echo "2.1.0")
+
+echo "╔════════════════════════════════════════════╗"
+printf "║   KPortWatch Uninstaller v%%s   ║\n" "$KPW_VERSION"
+echo "╚════════════════════════════════════════════╝"
 echo ""
 
 # ── 1. Stop and disable systemd service ──────────────────────
@@ -58,7 +65,21 @@ rm -f "${RUNTIME_DIR}/kportwatch-update.json"
 rm -rf "${HOME}/.local/share/kportwatch"
 echo "   ✅ Config, cache and runtime files deleted"
 
-# ── 5. Restart Plasma ────────────────────────────────────────
+# ── 5. Remove Polkit policy ──────────────────────────────────
+echo "🔒 Removing Polkit policy..."
+POLKIT_FILE="/usr/share/polkit-1/actions/com.kportwatch.helper.policy"
+if [ -f "${POLKIT_FILE}" ]; then
+    if rm "${POLKIT_FILE}" 2>/dev/null || sudo rm "${POLKIT_FILE}" 2>/dev/null; then
+        echo "   ✅ Polkit policy removed"
+    else
+        echo "   ⚠️  Could not remove Polkit policy (needs root)"
+        echo "      Run manually: sudo rm ${POLKIT_FILE}"
+    fi
+else
+    echo "   ✅ Polkit policy not installed"
+fi
+
+# ── 6. Restart Plasma ────────────────────────────────────────
 read -p "   Restart KDE Plasma panel now? (y/N) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then

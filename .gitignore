@@ -46,5 +46,7 @@ CONTRIBUTING.md
 # Ruff cache
 .ruff_cache/
 
-# Design specs and implementation plans (local only)
+# Design specs, analysis reports and plans (local only)
 docs/superpowers/
+docs/KPortWatch-Full-Analysis-Report.md
+docs/v3-roadmap.md

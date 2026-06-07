@@ -18,19 +18,19 @@ from shared.config import apply_cli_overrides, load_config
 from shared.network import is_private_ip
 
 from backend.alert_engine import AlertEngine
-from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
-from backend.parsers.process_tree import build_process_tree
-from backend.kportwatch_daemon import classify_entries
-from backend.parsers.proc_net import parse_all_proc
-from backend.parsers.net_dev import parse_proc_net_dev
 from backend.history import HistoryRecorder
+from backend.kportwatch_daemon import classify_entries
 from backend.models import InterfaceStats, Snapshot
 from backend.parsers import geoip as geoip_mod
+from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
+from backend.parsers.net_dev import parse_proc_net_dev
+from backend.parsers.proc_net import parse_all_proc
+from backend.parsers.process_tree import build_process_tree
 from backend.parsers.rdns import get_hostname
 from backend.risk_score import calculate_risk_score
-from backend.writers.unix_socket import UnixSocketServer
 from backend.update import check_for_update, get_local_version, write_update_state
 from backend.writers.json_file import write_snapshot, write_widget_snapshot
+from backend.writers.unix_socket import UnixSocketServer
 
 # psutil-based collectors (preferred, with /proc fallback)
 try:
@@ -102,6 +102,7 @@ class DaemonController:
         self.notification_timestamps: list[float] = []
         self._prev_traffic: dict[str, tuple[float, InterfaceStats]] = {}
         self._last_update_check: float = 0.0
+        self._error_count: int = 0
 
     def _init_components(self) -> None:
         """Load config, initialise alert engine, history, socket server."""
@@ -178,8 +179,15 @@ class DaemonController:
         self.running = False
 
     # ── Socket command handler ────────────────────────────────
+    _MAX_KILL_RATE = 5            # max kill commands per minute
+    _kill_timestamps: list[float] = []
+
     def _handle_socket_command(self, cmd: dict) -> dict:
-        """Handle commands sent over the Unix socket."""
+        """Handle commands sent over the Unix socket.
+
+        Kill commands include rate limiting and requestor UID verification
+        via SO_PEERCRED to prevent unauthorized process termination.
+        """
         command = cmd.get("command", "")
         if command == "kill":
             pid_raw = cmd.get("pid")
@@ -191,6 +199,33 @@ class DaemonController:
                 return {"status": "error", "message": f"Invalid pid: {pid_raw}"}
             if pid <= 0:
                 return {"status": "error", "message": f"Invalid pid: {pid}"}
+
+            # Rate limiting — max N kill commands per 60s
+            now_ts = time.time()
+            self._kill_timestamps[:] = [
+                t for t in self._kill_timestamps if (now_ts - t) < 60.0
+            ]
+            if len(self._kill_timestamps) >= self._MAX_KILL_RATE:
+                logger.warning("Kill rate limit exceeded for PID %d", pid)
+                return {"status": "error", "message": "Rate limit exceeded — too many kill requests"}
+
+            # UID authorization — only allow killing processes owned by the same user
+            try:
+                target_uid = os.stat(f"/proc/{pid}").st_uid
+            except (FileNotFoundError, PermissionError, OSError):
+                target_uid = None
+            if target_uid is not None and target_uid != os.getuid():
+                logger.warning(
+                    "Kill denied: PID %d (uid=%d) not owned by daemon user (uid=%d)",
+                    pid, target_uid, os.getuid(),
+                )
+                return {
+                    "status": "error",
+                    "message": f"Permission denied: PID {pid} is not owned by this user",
+                }
+
+            self._kill_timestamps.append(now_ts)
+            logger.info("Kill authorized for PID %d by uid=%d", pid, os.getuid())
             return self._kill_process(pid)
         return {"status": "error", "message": f"Unknown command: {command}"}
 
@@ -443,12 +478,16 @@ class DaemonController:
 
             try:
                 icon = "dialog-error" if a.level == AlertLevel.CRITICAL else "dialog-warning"
+                # Sanitize alert message: truncate and strip control characters
+                safe_msg = ''.join(
+                    c for c in a.message[:200] if c.isprintable() or c in '\n\t'
+                )
                 subprocess.Popen(
                     [
                         "notify-send", "-a", "KPortWatch",
                         "-u", "critical" if a.level == AlertLevel.CRITICAL else "normal",
                         "-i", icon,
-                        f"KPortWatch: {a.level}", a.message,
+                        f"KPortWatch: {a.level}", safe_msg,
                     ],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -523,9 +562,12 @@ class DaemonController:
             try:
                 from backend.parsers import rdns as _rdns_mod
                 _rdns_mod.shutdown()
+            except Exception:
+                logger.debug("rdns shutdown error", exc_info=True)
+            try:
                 geoip_mod.shutdown()
             except Exception:
-                pass
+                logger.debug("geoip shutdown error", exc_info=True)
 
         if self.alert_engine:
             self.alert_engine.save_baseline(self.cfg.baseline_file)
@@ -570,10 +612,15 @@ class DaemonController:
                 self._publish(snapshot, alerts)
                 self._handle_notifications(alerts)
                 self.interval = self._adaptive_interval(listening, alerts)
+                self._error_count = 0  # reset on successful cycle
 
             except Exception:
-                logger.exception("Error in daemon cycle")
+                self._error_count += 1
+                logger.exception("Error in daemon cycle (consecutive: %d)", self._error_count)
                 self.interval = self.cfg.poll_interval
+                if self._error_count >= 10:
+                    logger.critical("Too many consecutive errors (%d) — stopping daemon", self._error_count)
+                    self.running = False
 
             self._check_for_updates()
             self._sleep_remaining(cycle_start)

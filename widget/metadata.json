@@ -15,7 +15,7 @@
         "License": "GPL-3.0-or-later",
         "Name": "KPortWatch",
         "Version": "2.1.0",
-        "Website": "https://github.com/kportwatch"
+        "Website": "https://github.com/harunkrl/kportwatch"
     },
     "X-KDE-ParentApp": "",
     "X-Plasma-API-Minimum-Version": "6.0",

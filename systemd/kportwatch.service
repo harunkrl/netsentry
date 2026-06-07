@@ -26,6 +26,7 @@ ExecStart=%h/.local/bin/kportwatch-daemon --foreground
 WorkingDirectory=%h/.local/share/kportwatch
 Restart=on-failure
 RestartSec=5
+WatchdogSec=120
 
 # Logging → journal (view with journalctl --user -u kportwatch)
 StandardOutput=journal
@@ -43,7 +44,12 @@ ProtectKernelTunables=true
 RestrictNamespaces=true
 RestrictRealtime=true
 SystemCallFilter=@system-service
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_PTRACE
+# Daemon runs unprivileged; /proc/net is world-readable on Linux.
+# Capabilities listed for documentation only — not actually usable without root.
+# CAP_NET_ADMIN: reserved for future traffic-filtering features
+# CAP_SYS_PTRACE: reserved for future deep-process inspection
+CapabilityBoundingSet=
+AmbientCapabilities=
 
 [Install]
 WantedBy=default.target

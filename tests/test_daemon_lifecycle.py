@@ -5,18 +5,12 @@ so they run without a real systemd installation.
 """
 from __future__ import annotations
 
-import json
 import os
-import signal
 import subprocess
-import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
-
-from shared.constants import PID_FILE, DATA_FILE
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -67,7 +61,7 @@ def _make_mock_run(pid_file: Path):
         # systemctl --user stop kportwatch
         elif "stop" in cmd:
             if pid_file.exists():
-                pid = _read_pid(pid_file)
+                _read_pid(pid_file)
                 pid_file.unlink(missing_ok=True)
             result.returncode = 0
 

@@ -142,6 +142,19 @@ def init(config_dict: dict | None = None) -> None:
         config_dict = {}
 
     _api_url = config_dict.get("geoip_api_url", _api_url)
+
+    # Validate API URL scheme — only HTTPS allowed to prevent SSRF
+    from urllib.parse import urlparse as _urlparse
+    parsed = _urlparse(_api_url)
+    if parsed.scheme != "https":
+        logger.warning(
+            "GeoIP API URL '%s' does not use HTTPS — forcing https://ipwho.is/",
+            _api_url,
+        )
+        _api_url = "https://ipwho.is/"
+    elif parsed.hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        logger.warning("GeoIP API URL points to localhost — forcing https://ipwho.is/")
+        _api_url = "https://ipwho.is/"
     _cache_file = os.path.expanduser(
         config_dict.get("geoip_cache_file", _cache_file or "")
     )
@@ -171,11 +184,12 @@ def _do_lookup(ip: str) -> None:
     global _last_request_time, _lookups_since_save
 
     # Rate-limit: ensure minimum interval between API requests
+    # Entire check + sleep under lock to prevent concurrent requests
     with _lock:
-        last = _last_request_time
-    elapsed = time.monotonic() - last
-    if elapsed < _min_request_interval:
-        time.sleep(_min_request_interval - elapsed)
+        elapsed = time.monotonic() - _last_request_time
+        if elapsed < _min_request_interval:
+            time.sleep(_min_request_interval - elapsed)
+        _last_request_time = time.monotonic()
 
     geo_info: dict | None = None
 

@@ -523,8 +523,8 @@ rate_window = 60.0
 [geoip]
 # Enable GeoIP lookup for outbound connections
 enabled = true
-# ip-api.com endpoint (free tier: 45 req/min)
-# api_url = "http://ip-api.com/json/"
+# ipwho.is endpoint (HTTPS, free, no key required)
+# api_url = "https://ipwho.is/"
 # Persistent cache file for offline lookups
 # cache_file = "~/.local/share/kportwatch/geoip-cache.json"
 # Maximum cached IP entries (LRU eviction)

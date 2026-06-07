@@ -11,6 +11,7 @@ Keyboard shortcuts:
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import os
@@ -496,27 +497,52 @@ class ProcessKillConfirm(ModalScreen[bool]):
             self.dismiss(False)
             return
 
-        try:
-            if btn_id == "btn-sigterm":
+        # Disable buttons to prevent double-click
+        for btn in self.query(Button):
+            btn.disabled = True
+
+        if btn_id == "btn-sigterm":
+            self.app.run_worker(self._do_kill_sigterm, exclusive=True)
+        elif btn_id == "btn-sigkill":
+            self.app.run_worker(self._do_kill_sigkill, exclusive=True)
+
+    # ── Async kill workers (non-blocking) ─────────────────────
+    async def _do_kill_sigterm(self) -> None:
+        """Run SIGTERM in a thread to avoid blocking the TUI."""
+        def _kill() -> tuple[bool, str]:
+            try:
                 os.kill(self._pid, signal.SIGTERM)
-                self.app.notify(
-                    f"Sent SIGTERM to {self._name} (PID {self._pid})",
-                    severity="information",
-                )
-                self.dismiss(True)
-            elif btn_id == "btn-sigkill":
+                return True, f"Sent SIGTERM to {self._name} (PID {self._pid})"
+            except ProcessLookupError:
+                return False, f"Process {self._name} (PID {self._pid}) not found"
+            except PermissionError:
+                return False, f"Permission denied for PID {self._pid}"
+            except OSError as e:
+                return False, f"Error: {e}"
+
+        success, msg = await asyncio.to_thread(_kill)
+        self.app.notify(msg, severity="information" if success else "error")
+        self._safe_dismiss(success)
+
+    async def _do_kill_sigkill(self) -> None:
+        """Run SIGKILL in a thread to avoid blocking the TUI."""
+        def _kill() -> tuple[bool, str]:
+            try:
                 os.kill(self._pid, signal.SIGKILL)
-                self.app.notify(
-                    f"Force-killed {self._name} (PID {self._pid})",
-                    severity="information",
-                )
-                self.dismiss(True)
-        except ProcessLookupError:
-            self.app.notify(f"Process {self._name} (PID {self._pid}) not found", severity="error")
-            self.dismiss(False)
-        except PermissionError:
-            self.app.notify(f"Permission denied for PID {self._pid}", severity="error")
-            self.dismiss(False)
-        except OSError as e:
-            self.app.notify(f"Error: {e}", severity="error")
-            self.dismiss(False)
+                return True, f"Force-killed {self._name} (PID {self._pid})"
+            except ProcessLookupError:
+                return False, f"Process {self._self._name} (PID {self._pid}) not found"
+            except PermissionError:
+                return False, f"Permission denied for PID {self._pid}"
+            except OSError as e:
+                return False, f"Error: {e}"
+
+        success, msg = await asyncio.to_thread(_kill)
+        self.app.notify(msg, severity="information" if success else "error")
+        self._safe_dismiss(success)
+
+    def _safe_dismiss(self, result: bool) -> None:
+        """Dismiss the modal, guarding against the screen already being popped."""
+        import contextlib
+        with contextlib.suppress(Exception):
+            self.dismiss(result)

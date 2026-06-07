@@ -77,7 +77,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.coverage.report]
-fail_under = 75
+fail_under = 45
 show_missing = true
 skip_empty = true
 

@@ -268,15 +268,24 @@ class MainScreen(Screen):
         except Exception as e:
             self.app.call_from_thread(self.app.notify, f"Export failed: {e}", severity="error")
 
+    @work(thread=True)
+    def _do_export_task(self) -> None:
+        """Fetch snapshot and export in a background thread to avoid blocking UI."""
+        snapshot = self.provider.fetch()
+        if snapshot:
+            self._do_export(snapshot)
+        else:
+            self.app.call_from_thread(
+                self.app.notify, "No data available to export", severity="warning"
+            )
+
     def action_export(self) -> None:
         """Export current snapshot to JSON.
 
         O3: Shows file path in notification after successful export.
         Uses background thread to avoid blocking the UI.
         """
-        snapshot = self.provider.fetch()
-        if snapshot:
-            self._do_export(snapshot)
+        self._do_export_task()
 
     def action_help(self) -> None:
         """Show the help screen."""

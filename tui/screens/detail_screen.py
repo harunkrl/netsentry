@@ -112,7 +112,7 @@ class DetailScreen(Screen):
                     geo_lon = geo.get("lon")
             except Exception:
                 pass
-        
+
         if any([geo_country, geo_city, geo_org]):
             self.app.call_from_thread(self._render_geo, geo_country, geo_city, geo_org, geo_code, geo_lat, geo_lon)
 

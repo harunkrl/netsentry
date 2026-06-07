@@ -227,7 +227,7 @@ class TestCommandHandling:
         resp_data = s.recv(4096).decode().strip()
         resp = json.loads(resp_data)
         assert resp["status"] == "error"
-        assert "boom" in resp["message"]
+        assert resp["message"] == "Internal server error"
         s.close()
 
 

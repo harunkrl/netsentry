@@ -30,9 +30,9 @@ class UnixSocketServer:
         self._command_handler = handler
 
     def start(self):
-        if os.path.exists(SOCKET_PATH):
-            with contextlib.suppress(OSError):
-                os.unlink(SOCKET_PATH)
+        # Remove stale socket — avoid TOCTOU by unlinking directly
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(SOCKET_PATH)
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             self.server.bind(SOCKET_PATH)
@@ -101,7 +101,7 @@ class UnixSocketServer:
                 response = self._command_handler(command)
             except Exception as e:
                 logger.error("Command handler error: %s", e)
-                response = {"status": "error", "message": str(e)}
+                response = {"status": "error", "message": "Internal server error"}
         else:
             response = {"status": "error", "message": "No command handler registered"}
 

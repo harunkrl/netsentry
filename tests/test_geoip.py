@@ -385,14 +385,14 @@ class TestInit:
     def test_init_with_config(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
         geoip_mod.init({
-            "geoip_api_url": "http://custom-api.example.com/",
+            "geoip_api_url": "https://custom-api.example.com/",
             "geoip_cache_file": cache_file,
             "geoip_cache_max_entries": 500,
             "geoip_cache_ttl_days": 14,
             "geoip_batch_size": 5,
             "geoip_timeout": 3.0,
         })
-        assert geoip_mod._api_url == "http://custom-api.example.com/"
+        assert geoip_mod._api_url == "https://custom-api.example.com/"
         assert geoip_mod._cache_max_entries == 500
         assert geoip_mod._cache_ttl_days == 14
         assert geoip_mod._initialized is True
@@ -400,6 +400,24 @@ class TestInit:
     def test_init_with_none_uses_defaults(self):
         geoip_mod.init(None)
         assert geoip_mod._initialized is True
+
+    def test_init_rejects_http_url(self, tmp_path):
+        """Non-HTTPS API URLs should be rejected and forced to default."""
+        cache_file = str(tmp_path / "geoip-cache.json")
+        geoip_mod.init({
+            "geoip_api_url": "http://malicious.example.com/",
+            "geoip_cache_file": cache_file,
+        })
+        assert geoip_mod._api_url == "https://ipwho.is/"
+
+    def test_init_rejects_localhost_url(self, tmp_path):
+        """Localhost API URLs should be rejected and forced to default."""
+        cache_file = str(tmp_path / "geoip-cache.json")
+        geoip_mod.init({
+            "geoip_api_url": "https://127.0.0.1/",
+            "geoip_cache_file": cache_file,
+        })
+        assert geoip_mod._api_url == "https://ipwho.is/"
 
     def test_init_loads_existing_cache(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")

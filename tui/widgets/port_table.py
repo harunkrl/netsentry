@@ -349,7 +349,6 @@ class PortTable(DataTable):
             return None
 
     @staticmethod
-    @staticmethod
     def _build_alert_map(alerts: list) -> dict[int, str]:
         """Build port→alert-level lookup from alert list."""
         alert_map: dict[int, str] = {}

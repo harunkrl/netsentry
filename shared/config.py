@@ -564,7 +564,8 @@ def save_config_setting(section: str, key: str, value: object) -> None:
         return
 
     try:
-        with open(path, "a+") as fh:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        with open(fd, "r+") as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
             try:
                 fh.seek(0)

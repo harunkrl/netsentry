@@ -66,6 +66,25 @@ KPortWatch is a **hybrid architecture** network security monitor designed for Ar
 
 ---
 
+## 📸 Screenshots
+
+### KDE Plasma 6 Widget
+<p align="center">
+  <img src="docs/assets/widget_listening.png" width="48%" alt="Widget Listening Tab">
+  <img src="docs/assets/widget_established.png" width="48%" alt="Widget Established Tab">
+</p>
+
+### Terminal UI (TUI) Analyzer
+<p align="center">
+  <img src="docs/assets/tui_main.png" width="80%" alt="TUI Main Interface">
+</p>
+<p align="center">
+  <img src="docs/assets/tui_map.png" width="48%" alt="TUI Connection Map">
+  <img src="docs/assets/tui_processes.png" width="48%" alt="TUI Process Tree">
+</p>
+
+---
+
 ## ✨ Features
 
 ### Widget (Panel)

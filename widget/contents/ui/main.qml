@@ -57,6 +57,7 @@ PlasmoidItem {
 
     // Alert tracking for desktop notifications
     property int _lastAlertHash: 0
+    property var _prevAlertMap: ({})
 
     ListModel { id: connectionsModel }
     ListModel { id: establishedModel }
@@ -263,6 +264,32 @@ PlasmoidItem {
     }
 
     // ── Utility functions ──────────────────────────────────────
+    function sanitizeItem(item) {
+        var clean = {}
+        // Define all possible keys to ensure stable ListModel roles
+        var numKeys = ["pid", "local_port", "remote_port", "inode", "first_seen", "remote_lat", "remote_lon"]
+        var strKeys = ["process_name", "cmdline", "proto", "state", "local_ip", "remote_ip", "remote_hostname", "remote_country", "remote_country_code", "remote_city", "remote_isp", "remote_org"]
+        
+        for (var i = 0; i < numKeys.length; i++) {
+            var k = numKeys[i]
+            clean[k] = (item[k] !== undefined && item[k] !== null) ? item[k] : 0
+        }
+        for (var i = 0; i < strKeys.length; i++) {
+            var k = strKeys[i]
+            clean[k] = (item[k] !== undefined && item[k] !== null) ? item[k] : ""
+        }
+        
+        // Also copy any other keys that might not be in the lists
+        var keys = Object.keys(item)
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i]
+            if (clean[k] === undefined) {
+                clean[k] = (item[k] !== null) ? item[k] : ""
+            }
+        }
+        return clean
+    }
+
     function formatBytes(bytesPerSec) {
         if (bytesPerSec < 1) return "0 B"
         if (bytesPerSec < 1024) return bytesPerSec.toFixed(0) + " B"
@@ -325,7 +352,7 @@ PlasmoidItem {
 
         // Step 1: Update existing items in-place or append new ones
         for (var i = 0; i < newItems.length; i++) {
-            var item = newItems[i]
+            var item = sanitizeItem(newItems[i])
             var key = itemKey(item)
             if (currentMap[key] !== undefined) {
                 model.set(currentMap[key], item)
@@ -364,7 +391,7 @@ PlasmoidItem {
 
     // ── External actions ───────────────────────────────────────
     function launchTUI() {
-        var defaultCmd = "konsole -e kportwatch-tui"
+        var defaultCmd = "konsole -e ~/.local/bin/kportwatch-tui"
         tuiExecSource.connectedSources = [root.tuiCommand ? root.tuiCommand : defaultCmd]
     }
 

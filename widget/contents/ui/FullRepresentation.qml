@@ -25,6 +25,24 @@ Item {
     readonly property string currentSortColumn: root.activeTab === 0 ? root.sortColumnListening : root.sortColumnEstablished
     readonly property bool currentSortDesc: root.activeTab === 0 ? root.sortDescListening : root.sortDescEstablished
 
+    // Column definitions — Listening tab
+    property var listeningCols: [
+        { col: "process_name", label: i18n("Process"), w: 0.32 },
+        { col: "local_port", label: i18n("Port"), w: 0.14 },
+        { col: "proto", label: i18n("Proto"), w: 0.12 },
+        { col: "state", label: i18n("State"), w: 0.16 },
+        { col: "local_ip", label: i18n("Address"), w: 0.26 }
+    ]
+    // Column definitions — Established tab
+    property var establishedCols: [
+        { col: "process_name", label: i18n("Process"), w: 0.24 },
+        { col: "local_port", label: i18n("Local:Port"), w: 0.16 },
+        { col: "remote_ip", label: i18n("Remote:Port"), w: 0.22 },
+        { col: "remote_country", label: i18n("Country"), w: 0.12 },
+        { col: "state", label: i18n("State"), w: 0.14 },
+        { col: "duration", label: i18n("Duration"), w: 0.12 }
+    ]
+
     Kirigami.PromptDialog {
         id: killDialog
         property int targetPid: 0
@@ -46,11 +64,21 @@ Item {
             Kirigami.Icon { source: fullRoot.hi; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: Kirigami.Units.iconSizes.small }
             Label { text: i18n("KPortWatch"); font.bold: true; font.pixelSize: fullRoot.df }
             Item { Layout.fillWidth: true }
-            Label {
+            RowLayout {
                 visible: fullRoot.hasData
-                text: root.alertCount > 0 ? i18n("%1 alert(s)", root.alertCount) : i18n("Secure")
-                color: root.threatLevel === "critical" ? "#e03030" : root.threatLevel === "warning" ? "#e0c030" : "#30c030"
-                font.pixelSize: fullRoot.sf
+                spacing: Kirigami.Units.smallSpacing / 2
+                Kirigami.Icon {
+                    source: root.alertCount > 0 ? "dialog-warning" : "security-high"
+                    implicitWidth: Kirigami.Units.iconSizes.small * 0.8
+                    implicitHeight: Kirigami.Units.iconSizes.small * 0.8
+                    color: root.threatLevel === "critical" ? "#da4453" : root.threatLevel === "warning" ? "#f67400" : "#27ae60"
+                }
+                Label {
+                    text: root.alertCount > 0 ? i18n("%1 alert(s)", root.alertCount) : i18n("Secure")
+                    color: root.threatLevel === "critical" ? "#da4453" : root.threatLevel === "warning" ? "#f67400" : "#27ae60"
+                    font.pixelSize: fullRoot.sf
+                    font.bold: root.alertCount > 0
+                }
             }
         }
 
@@ -136,54 +164,42 @@ Item {
             clip: true; model: fullRoot.activeModel; spacing: 1
             ScrollBar.vertical: ScrollBar {}
 
-            header: RowLayout {
-                width: portListView.width; spacing: 0
+            header: Column {
+                width: portListView.width - (portListView.ScrollBar.vertical.visible ? portListView.ScrollBar.vertical.width : 0)
                 visible: portListView.count > 0
-                height: visible ? Kirigami.Units.gridUnit * 1.5 : 0
-                Item { Layout.preferredWidth: 6 }  // space for alert border
-                Repeater {
-                    model: root.activeTab === 0 ? listeningCols : establishedCols
-                    delegate: Label {
-                        readonly property var m: modelData
-                        text: m.label + (fullRoot.currentSortColumn === m.col ? (fullRoot.currentSortDesc ? " ▼" : " ▲") : "")
-                        font.bold: true; font.pixelSize: fullRoot.sf
-                        Layout.preferredWidth: portListView.width * m.w - 6
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (root.activeTab === 0) {
-                                    if (root.sortColumnListening === m.col) root.sortDescListening = !root.sortDescListening
-                                    else { root.sortColumnListening = m.col; root.sortDescListening = false }
-                                } else {
-                                    if (root.sortColumnEstablished === m.col) root.sortDescEstablished = !root.sortDescEstablished
-                                    else { root.sortColumnEstablished = m.col; root.sortDescEstablished = false }
+
+                RowLayout {
+                    width: parent.width; spacing: 0
+                    height: Kirigami.Units.gridUnit * 1.5
+                    Item { Layout.preferredWidth: 6 }  // space for alert border
+                    Repeater {
+                        model: root.activeTab === 0 ? listeningCols : establishedCols
+                        delegate: Label {
+                            readonly property var m: modelData
+                            text: m.label + (fullRoot.currentSortColumn === m.col ? (fullRoot.currentSortDesc ? " ▼" : " ▲") : "")
+                            font.bold: true; font.pixelSize: fullRoot.sf
+                            Layout.preferredWidth: parent.width * m.w - 6
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (root.activeTab === 0) {
+                                        if (root.sortColumnListening === m.col) root.sortDescListening = !root.sortDescListening
+                                        else { root.sortColumnListening = m.col; root.sortDescListening = false }
+                                    } else {
+                                        if (root.sortColumnEstablished === m.col) root.sortDescEstablished = !root.sortDescEstablished
+                                        else { root.sortColumnEstablished = m.col; root.sortDescEstablished = false }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                Kirigami.Separator { width: parent.width }
             }
 
-            // Column definitions — Listening tab
-            property var listeningCols: [
-                { col: "process_name", label: i18n("Process"), w: 0.32 },
-                { col: "local_port", label: i18n("Port"), w: 0.14 },
-                { col: "proto", label: i18n("Proto"), w: 0.12 },
-                { col: "state", label: i18n("State"), w: 0.16 },
-                { col: "local_ip", label: i18n("Address"), w: 0.26 }
-            ]
-            // Column definitions — Established tab
-            property var establishedCols: [
-                { col: "process_name", label: i18n("Process"), w: 0.24 },
-                { col: "local_port", label: i18n("Local:Port"), w: 0.16 },
-                { col: "remote_ip", label: i18n("Remote:Port"), w: 0.22 },
-                { col: "remote_country", label: i18n("Country"), w: 0.12 },
-                { col: "state", label: i18n("State"), w: 0.14 },
-                { col: "duration", label: i18n("Duration"), w: 0.12 }
-            ]
-
             delegate: Item {
-                width: portListView.width; height: Kirigami.Units.gridUnit * 1.8
+                width: portListView.width - (portListView.ScrollBar.vertical.visible ? portListView.ScrollBar.vertical.width : 0)
+                height: Kirigami.Units.gridUnit * 1.8
                 readonly property var entry: model
                 readonly property var ma: root.portAlertMap[entry.local_port] || null
 
@@ -198,7 +214,7 @@ Item {
                 Rectangle {
                     width: 3; height: parent.height
                     color: ma ? (ma.level === "CRITICAL" ? "#da4453" : "#f67400") : (root.safePortsSet[entry.local_port] ? "#27ae60" : "transparent")
-                    visible: ma !== null || root.safePortsSet[entry.local_port]
+                    visible: ma !== null || (root.safePortsSet[entry.local_port] === true)
                     anchors.left: parent.left
                     ToolTip.visible: alertHover.hovered && ma !== null
                     ToolTip.text: ma ? ma.message : (root.safePortsSet[entry.local_port] ? i18n("Safe port") : "")
@@ -240,7 +256,7 @@ Item {
                     Label {
                         text: entry.local_port ? String(entry.local_port) : "-"
                         font.pixelSize: fullRoot.sf
-                        font.bold: ma !== null
+                        opacity: entry.local_port ? 1.0 : 0.5
                         color: ma ? (ma.level === "CRITICAL" ? "#da4453" : "#f67400") : Kirigami.Theme.textColor
                         Layout.preferredWidth: parent.width * 0.14
                     }
@@ -263,10 +279,12 @@ Item {
                             Layout.fillWidth: true; elide: Text.ElideRight
                         }
                         Button {
-                            icon.name: "application-exit"; visible: lh.hovered && entry.pid > 0
+                            icon.name: "process-stop"; opacity: lh.hovered ? 1.0 : 0.0
+                            visible: entry.pid > 0
                             implicitWidth: 28; implicitHeight: 28; Layout.alignment: Qt.AlignVCenter
                             ToolTip.text: i18n("Kill (%1)", entry.pid); ToolTip.visible: hovered; flat: true
                             onClicked: { killDialog.targetPid = entry.pid; killDialog.open() }
+                            enabled: opacity > 0
                         }
                     }
                 }
@@ -337,6 +355,7 @@ Item {
                 Item { Layout.fillHeight: true }
 
                 Kirigami.Icon {
+                    id: refreshIcon
                     anchors.horizontalCenter: parent.horizontalCenter
                     source: "view-refresh"
                     implicitWidth: Kirigami.Units.iconSizes.medium
@@ -344,7 +363,7 @@ Item {
                     opacity: 0.5
                     NumberAnimation on opacity {
                         from: 0.3; to: 0.7; duration: 1200
-                        running: parent.visible; loops: Animation.Infinite
+                        running: refreshIcon.visible; loops: Animation.Infinite
                         easing.type: Easing.InOutSine
                     }
                 }
@@ -371,10 +390,19 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
-                text: root.lastUpdated ? i18n("Updated: %1", root.lastUpdated) : ""
-                font.pixelSize: fullRoot.sf
-                color: root.dataStale ? "#da4453" : Kirigami.Theme.disabledTextColor
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing / 2
+                Kirigami.Icon {
+                    source: "view-refresh"
+                    implicitWidth: Kirigami.Units.iconSizes.small * 0.8
+                    implicitHeight: Kirigami.Units.iconSizes.small * 0.8
+                    opacity: 0.6
+                }
+                Label {
+                    text: root.lastUpdated ? i18n("Updated: %1", root.lastUpdated) : ""
+                    font.pixelSize: fullRoot.sf
+                    color: root.dataStale ? "#da4453" : Kirigami.Theme.disabledTextColor
+                }
             }
 
             Item { Layout.fillWidth: true }
@@ -401,7 +429,7 @@ Item {
             }
 
             Button {
-                icon.name: "utilities-terminal"; text: i18n("Analyzer")
+                icon.name: "utilities-system-monitor"; text: i18n("Analyzer")
                 implicitHeight: Kirigami.Units.gridUnit * 1.6
                 font.pixelSize: fullRoot.sf
                 onClicked: root.launchTUI()

@@ -1,17 +1,18 @@
 from unittest.mock import patch
 
-from backend.parsers.inode_map import _read_file_safe, build_inode_to_pid_map
+from backend.parsers.inode_map import build_inode_to_pid_map
+from shared.fs_utils import read_file_safe
 
 
-def test_read_file_safe(tmp_path):
+def testread_file_safe(tmp_path):
     f = tmp_path / "test.txt"
     f.write_text("hello\n")
-    assert _read_file_safe(str(f)) == "hello"
-    assert _read_file_safe(str(tmp_path / "nonexistent")) is None
+    assert read_file_safe(str(f)) == "hello"
+    assert read_file_safe(str(tmp_path / "nonexistent")) is None
 
 @patch("backend.parsers.inode_map.os.listdir")
 @patch("backend.parsers.inode_map.os.readlink")
-@patch("backend.parsers.inode_map._read_file_safe")
+@patch("backend.parsers.inode_map.read_file_safe")
 def test_build_inode_to_pid_map(mock_read_file, mock_readlink, mock_listdir):
     def listdir_side_effect(path):
         if path == "/proc":  # noqa: SIM116

@@ -1,6 +1,7 @@
+
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
-import asyncio
+
 
 class TestApp(App):
     def compose(self) -> ComposeResult:
@@ -16,7 +17,7 @@ class TestApp(App):
         n1 = tree.root.add("Node 1", data=1)
         n1_1 = n1.add("Node 1.1", data=11)
         n1_1.add_leaf("Leaf 1.1.1", data=111)
-        
+
         n2 = tree.root.add("Node 2", data=2)
         n2.add_leaf("Leaf 2.1", data=21)
 

@@ -10,14 +10,7 @@ from __future__ import annotations
 import contextlib
 import os
 
-
-def _read_file_safe(path: str) -> str | None:
-    """Read a small /proc file, returning None on any error."""
-    try:
-        with open(path) as fh:
-            return fh.read().strip()
-    except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
-        return None
+from shared.fs_utils import read_file_safe
 
 
 def build_inode_to_pid_map() -> dict[int, tuple[int, str, str]]:
@@ -40,10 +33,10 @@ def build_inode_to_pid_map() -> dict[int, tuple[int, str, str]]:
         pid = int(entry)
 
         # Read short process name from /proc/{pid}/comm
-        comm = _read_file_safe(f"/proc/{pid}/comm") or ""
+        comm = read_file_safe(f"/proc/{pid}/comm") or ""
 
         # Read full cmdline from /proc/{pid}/cmdline (null-byte separated)
-        cmdline_raw = _read_file_safe(f"/proc/{pid}/cmdline")
+        cmdline_raw = read_file_safe(f"/proc/{pid}/cmdline")
         cmdline = cmdline_raw.replace("\x00", " ").strip() if cmdline_raw else ""
 
         # Derive best process name: prefer basename from cmdline, fallback to comm
@@ -112,7 +105,7 @@ def build_uid_process_map() -> dict[int, tuple[str, str, str]]:
             continue
         pid = int(entry)
 
-        status_raw = _read_file_safe(f"/proc/{pid}/status")
+        status_raw = read_file_safe(f"/proc/{pid}/status")
         if not status_raw:
             continue
         uid = None
@@ -129,8 +122,8 @@ def build_uid_process_map() -> dict[int, tuple[str, str, str]]:
         if uid in uid_map:
             continue
 
-        comm = _read_file_safe(f"/proc/{pid}/comm") or ""
-        cmdline_raw = _read_file_safe(f"/proc/{pid}/cmdline")
+        comm = read_file_safe(f"/proc/{pid}/comm") or ""
+        cmdline_raw = read_file_safe(f"/proc/{pid}/cmdline")
         cmdline = cmdline_raw.replace("\x00", " ").strip() if cmdline_raw else ""
 
         if cmdline:

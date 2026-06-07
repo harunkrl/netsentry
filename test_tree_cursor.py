@@ -1,6 +1,7 @@
+
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
-import asyncio
+
 
 class TestApp(App):
     def compose(self) -> ComposeResult:
@@ -16,11 +17,11 @@ class TestApp(App):
     async def test_cursor(self) -> None:
         tree = self.query_one(Tree)
         target = tree.root.children[0]
-        
+
         print("Before select:", target.is_expanded)
         tree.select_node(target)
         print("After select:", target.is_expanded)
-        
+
         # Also test cursor_line
         target.collapse()
         print("Before cursor_line:", target.is_expanded)

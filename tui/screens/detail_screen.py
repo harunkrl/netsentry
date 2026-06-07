@@ -19,6 +19,8 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Rule, Static
 
+from tui.utils.clipboard import safe_copy_to_clipboard
+
 
 def _format_duration(seconds: float) -> str:
     """Ö1: Format elapsed seconds as human-readable duration."""
@@ -228,9 +230,4 @@ class DetailScreen(Screen):
             lines.append(f"Hostname: {e.remote_hostname}")
         if e.cmdline:
             lines.append(f"Cmdline: {e.cmdline}")
-        text = "\n".join(lines)
-        try:
-            self.app.copy_to_clipboard(text)
-            self.app.notify("Connection info copied to clipboard", severity="information")
-        except Exception:
-            self.app.notify("Clipboard unavailable — install xclip or xsel", severity="warning")
+        safe_copy_to_clipboard(self.app, "\n".join(lines))

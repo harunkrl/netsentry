@@ -22,16 +22,9 @@ from __future__ import annotations
 
 import os
 
+from shared.fs_utils import read_file_safe
+
 from backend.models import ProcessInfo
-
-
-def _read_file_safe(path: str) -> str | None:
-    """Read a small /proc file, returning None on any error."""
-    try:
-        with open(path) as fh:
-            return fh.read().strip()
-    except (PermissionError, FileNotFoundError, ProcessLookupError, OSError):
-        return None
 
 
 def _parse_stat(path: str) -> tuple[int, str, str, int] | None:
@@ -42,7 +35,7 @@ def _parse_stat(path: str) -> tuple[int, str, str, int] | None:
 
     Returns None on any parse error.
     """
-    raw = _read_file_safe(path)
+    raw = read_file_safe(path)
     if not raw:
         return None
 
@@ -75,7 +68,7 @@ def _parse_stat(path: str) -> tuple[int, str, str, int] | None:
 
 def _read_uid(pid: int) -> int:
     """Read UID from /proc/[pid]/status. Returns -1 on error."""
-    raw = _read_file_safe(f"/proc/{pid}/status")
+    raw = read_file_safe(f"/proc/{pid}/status")
     if not raw:
         return -1
     for line in raw.splitlines():
@@ -129,7 +122,7 @@ def build_process_tree(
         _, name, state, ppid = parsed
 
         # Read full cmdline
-        cmdline_raw = _read_file_safe(f"/proc/{pid}/cmdline")
+        cmdline_raw = read_file_safe(f"/proc/{pid}/cmdline")
         cmdline = cmdline_raw.replace("\x00", " ").strip() if cmdline_raw else ""
 
         # Read UID

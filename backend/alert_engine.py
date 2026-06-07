@@ -12,7 +12,6 @@ Built-in alert rules:
 from __future__ import annotations
 
 import json
-import os
 import time
 
 from shared import (
@@ -23,6 +22,7 @@ from shared import (
     AlertLevel,
 )
 from shared.config import CustomRule
+from shared.fs_utils import atomic_write
 
 from backend.models import Alert, SocketEntry
 
@@ -95,18 +95,18 @@ class AlertEngine:
         """Return True once the baseline learning period has finished."""
         return self._baseline_stable
 
+    def get_baseline_ports(self) -> frozenset[int]:
+        """Return the learned baseline port set (read-only)."""
+        return frozenset(self._baseline_ports)
+
     def save_baseline(self, path: str | None = None) -> None:
         """Persist the baseline port set to disk."""
         path = path or BASELINE_FILE
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        data = {
+        data = json.dumps({
             "ports": sorted(self._baseline_ports),
             "timestamp": time.time(),
-        }
-        tmp = path + ".tmp"
-        with open(tmp, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
+        }, indent=2)
+        atomic_write(path, data)
 
     def load_baseline(self, path: str | None = None) -> bool:
         """Load a previously saved baseline. Returns True on success."""

@@ -18,6 +18,7 @@ from textual.widgets import Footer, Header, Input
 
 from tui.data.provider import DataProvider
 from tui.screens.kill_confirm import KillConfirmScreen
+from tui.utils.clipboard import safe_copy_to_clipboard
 from tui.widgets.connection_log import ConnectionLog
 from tui.widgets.port_table import PortTable
 from tui.widgets.status_bar import StatusBar
@@ -400,8 +401,6 @@ class MainScreen(Screen):
 
         Context-aware: copies from PortTable or ConnectionLog depending
         on which widget currently has focus.
-
-        Y10: Wraps clipboard calls in try/except to handle Wayland/SSH/headless failures.
         """
         focused = self.focused
         try:
@@ -409,7 +408,7 @@ class MainScreen(Screen):
                 conn_log = self.query_one("#connection-log", ConnectionLog)
                 text = conn_log.get_plain_text()
                 if text.strip():
-                    self._safe_clipboard(text)
+                    safe_copy_to_clipboard(self.app, text)
                 else:
                     self.app.notify("Nothing to copy", severity="warning")
                 return
@@ -426,17 +425,6 @@ class MainScreen(Screen):
                     addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
                             else f"{entry.local_ip}:{entry.local_port} -> {entry.remote_ip}:{entry.remote_port}")
                     text = f"{entry.process_name or 'unknown'} (PID: {entry.pid or '-'}) | {entry.proto} {addr} | State: {entry.state}"
-                    self._safe_clipboard(text)
+                    safe_copy_to_clipboard(self.app, text)
         except Exception as e:
             self.app.notify(f"Copy failed: {e}", severity="error")
-
-    def _safe_clipboard(self, text: str) -> None:
-        """Copy to clipboard with error handling for Wayland/SSH/headless envs."""
-        try:
-            self.app.copy_to_clipboard(text)
-            self.app.notify("Copied to clipboard", severity="information")
-        except Exception:
-            self.app.notify(
-                "Clipboard unavailable — install xclip, xsel, or wl-copy",
-                severity="warning",
-            )

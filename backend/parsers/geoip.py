@@ -12,7 +12,6 @@ ip-api.com free tier: 45 requests/minute (HTTP, no key required).
 from __future__ import annotations
 
 import contextlib
-import ipaddress
 import json
 import logging
 import os
@@ -23,6 +22,8 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from shared.network import is_private_ip
 
 logger = logging.getLogger("kportwatch.geoip")
 
@@ -51,24 +52,6 @@ _last_request_time: float = 0.0
 _min_request_interval: float = 1.5  # 45 req/min ≈ 1.33s, use 1.5s for safety
 _lookups_since_save: int = 0
 _SAVE_EVERY: int = 10  # persist cache to disk every N successful lookups
-
-
-# ── Private IP detection ───────────────────────────────────────
-
-def _is_private_ip(ip: str) -> bool:
-    """Return True for loopback, private, link-local, and reserved IPs."""
-    try:
-        addr = ipaddress.ip_address(ip)
-        return (
-            addr.is_loopback
-            or addr.is_private
-            or addr.is_link_local
-            or addr.is_reserved
-            or addr.is_unspecified
-            or addr.is_multicast
-        )
-    except ValueError:
-        return True  # unparseable → skip
 
 
 # ── Persistent cache I/O ───────────────────────────────────────
@@ -245,7 +228,7 @@ def get_geoip(ip: str) -> dict | None:
     Returns cached result immediately, or None if not yet available.
     Triggers a background lookup on cache miss.
     """
-    if _is_private_ip(ip):
+    if is_private_ip(ip):
         return None
 
     with _lock:
@@ -278,7 +261,7 @@ def lookup_batch(ips: list[str]) -> dict[str, dict | None]:
     results: dict[str, dict | None] = {}
 
     for ip in ips:
-        if _is_private_ip(ip):
+        if is_private_ip(ip):
             continue
         results[ip] = get_geoip(ip)
 

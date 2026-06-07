@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from backend.parsers import geoip as geoip_mod
+from shared.network import is_private_ip
 
 # ── Fixtures ────────────────────────────────────────────────────
 
@@ -53,58 +54,58 @@ def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",
 
 class TestPrivateIPDetection:
     def test_loopback_v4(self):
-        assert geoip_mod._is_private_ip("127.0.0.1") is True
+        assert is_private_ip("127.0.0.1") is True
 
     def test_loopback_v6(self):
-        assert geoip_mod._is_private_ip("::1") is True
+        assert is_private_ip("::1") is True
 
     def test_private_10(self):
-        assert geoip_mod._is_private_ip("10.0.0.1") is True
+        assert is_private_ip("10.0.0.1") is True
 
     def test_private_172_16(self):
-        assert geoip_mod._is_private_ip("172.16.0.1") is True
+        assert is_private_ip("172.16.0.1") is True
 
     def test_private_172_31(self):
-        assert geoip_mod._is_private_ip("172.31.255.255") is True
+        assert is_private_ip("172.31.255.255") is True
 
     def test_not_private_172_32(self):
-        assert geoip_mod._is_private_ip("172.32.0.1") is False
+        assert is_private_ip("172.32.0.1") is False
 
     def test_private_192_168(self):
-        assert geoip_mod._is_private_ip("192.168.1.1") is True
+        assert is_private_ip("192.168.1.1") is True
 
     def test_link_local_169(self):
-        assert geoip_mod._is_private_ip("169.254.1.1") is True
+        assert is_private_ip("169.254.1.1") is True
 
     def test_link_local_v6(self):
-        assert geoip_mod._is_private_ip("fe80::1") is True
+        assert is_private_ip("fe80::1") is True
 
     def test_unspecified_v4(self):
-        assert geoip_mod._is_private_ip("0.0.0.0") is True
+        assert is_private_ip("0.0.0.0") is True
 
     def test_unspecified_v6(self):
-        assert geoip_mod._is_private_ip("::") is True
+        assert is_private_ip("::") is True
 
     def test_multicast(self):
-        assert geoip_mod._is_private_ip("224.0.0.1") is True
+        assert is_private_ip("224.0.0.1") is True
 
     def test_public_google_dns(self):
-        assert geoip_mod._is_private_ip("8.8.8.8") is False
+        assert is_private_ip("8.8.8.8") is False
 
     def test_public_cloudflare(self):
-        assert geoip_mod._is_private_ip("1.1.1.1") is False
+        assert is_private_ip("1.1.1.1") is False
 
     def test_public_random(self):
-        assert geoip_mod._is_private_ip("142.250.80.14") is False
+        assert is_private_ip("142.250.80.14") is False
 
     def test_public_v6(self):
-        assert geoip_mod._is_private_ip("2001:4860:4860::8888") is False
+        assert is_private_ip("2001:4860:4860::8888") is False
 
     def test_invalid_ip(self):
-        assert geoip_mod._is_private_ip("not-an-ip") is True
+        assert is_private_ip("not-an-ip") is True
 
     def test_empty_string(self):
-        assert geoip_mod._is_private_ip("") is True
+        assert is_private_ip("") is True
 
 
 # ── Cache hit / miss / TTL ─────────────────────────────────────

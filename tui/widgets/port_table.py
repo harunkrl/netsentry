@@ -224,10 +224,7 @@ class PortTable(DataTable):
             alerts = self._all_alerts or []
 
             # Build alert lookup
-            alert_map: dict[int, str] = {}
-            for a in alerts:
-                if hasattr(a, 'port') and hasattr(a, 'level'):
-                    alert_map.setdefault(a.port, a.level)
+            alert_map = self._build_alert_map(alerts)
 
             # Ensure columns exist
             if not self.columns:
@@ -274,23 +271,7 @@ class PortTable(DataTable):
 
             # Add/update rows
             for row_key, entry in rows:
-                addr = _smart_truncate_addr(entry)
-                pid_str = str(entry.pid) if entry.pid is not None else "—"
-                proc_str = entry.process_name or "unknown"
-                alert_level = alert_map.get(entry.local_port, "")
-                alert_str = alert_level if alert_level else ""
-                cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
-                colour = self._full_style(entry, alert_level)
-
-                cell_values = (
-                    f"[{colour}]{proc_str}[/]",
-                    f"[{colour}]{pid_str}[/]",
-                    f"[{colour}]{entry.proto}[/]",
-                    f"[{colour}]{addr}[/]",
-                    f"[{colour}]{entry.state}[/]",
-                    f"[{colour}]{alert_str}[/]",
-                    f"[dim]{cmdline_str}[/]",
-                )
+                cell_values = self._format_row(entry, alert_map)
 
                 if row_key in self._prev_keys:
                     # Update existing row cells
@@ -367,6 +348,37 @@ class PortTable(DataTable):
         except Exception:
             return None
 
+    @staticmethod
+    @staticmethod
+    def _build_alert_map(alerts: list) -> dict[int, str]:
+        """Build port→alert-level lookup from alert list."""
+        alert_map: dict[int, str] = {}
+        for a in alerts:
+            if hasattr(a, 'port') and hasattr(a, 'level'):
+                alert_map.setdefault(a.port, a.level)
+        return alert_map
+
+    def _format_row(self, entry: SocketEntry, alert_map: dict[int, str]) -> tuple[str, ...]:
+        """Format a socket entry into styled cell values for a table row."""
+        addr = _smart_truncate_addr(entry)
+        pid_str = str(entry.pid) if entry.pid is not None else "—"
+        proc_str = entry.process_name or "unknown"
+        alert_level = alert_map.get(entry.local_port, "")
+        cmdline_str = (
+            (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50
+            else (entry.cmdline or "—")
+        )
+        colour = self._full_style(entry, alert_level)
+        return (
+            f"[{colour}]{proc_str}[/]",
+            f"[{colour}]{pid_str}[/]",
+            f"[{colour}]{entry.proto}[/]",
+            f"[{colour}]{addr}[/]",
+            f"[{colour}]{entry.state}[/]",
+            f"[{colour}]{alert_level}[/]",
+            f"[dim]{cmdline_str}[/]",
+        )
+
     def _matches_filter(self, entry: SocketEntry, alert_map: dict[int, str]) -> bool:
         """Check if an entry matches ALL active filters (text + proto + port range)."""
         # 1) Protocol filter
@@ -403,10 +415,7 @@ class PortTable(DataTable):
             alerts = self._all_alerts or []
 
             # Build a quick lookup of port→alert-level
-            alert_map: dict[int, str] = {}
-            for a in alerts:
-                if hasattr(a, 'port') and hasattr(a, 'level'):
-                    alert_map.setdefault(a.port, a.level)
+            alert_map = self._build_alert_map(alerts)
 
             self.clear()
             self._row_pids.clear()
@@ -440,24 +449,8 @@ class PortTable(DataTable):
 
             # Add to table
             for row_key, entry in rows:
-                addr = _smart_truncate_addr(entry)
-                pid_str = str(entry.pid) if entry.pid is not None else "—"
-                proc_str = entry.process_name or "unknown"
-                alert_level = alert_map.get(entry.local_port, "")
-                alert_str = alert_level if alert_level else ""
-                cmdline_str = (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50 else (entry.cmdline or "—")
-                colour = self._full_style(entry, alert_level)
-
-                self.add_row(
-                    f"[{colour}]{proc_str}[/]",
-                    f"[{colour}]{pid_str}[/]",
-                    f"[{colour}]{entry.proto}[/]",
-                    f"[{colour}]{addr}[/]",
-                    f"[{colour}]{entry.state}[/]",
-                    f"[{colour}]{alert_str}[/]",
-                    f"[dim]{cmdline_str}[/]",
-                    key=row_key,
-                )
+                cell_values = self._format_row(entry, alert_map)
+                self.add_row(*cell_values, key=row_key)
                 self._row_pids[row_key] = entry.pid
                 self._row_entries[row_key] = entry
 

@@ -25,6 +25,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from tui.data.provider import DataProvider
+from tui.utils.clipboard import safe_copy_to_clipboard
 
 log = logging.getLogger(__name__)
 
@@ -475,14 +476,8 @@ class ConnectionMapScreen(Screen):
         try:
             if table.row_count > 0 and table.cursor_row is not None:
                 row = table.get_row_at(table.cursor_row)
-                # row: [#, Country, City, IP, Port, Process, Count]
                 parts = [str(c) for c in row]
-                text = " | ".join(parts)
-                try:
-                    self.app.copy_to_clipboard(text)
-                    self.app.notify("Copied to clipboard", severity="information")
-                except Exception:
-                    self.app.notify("Clipboard unavailable", severity="warning")
+                safe_copy_to_clipboard(self.app, " | ".join(parts))
             else:
                 self.app.notify("No row selected", severity="warning")
         except Exception as e:

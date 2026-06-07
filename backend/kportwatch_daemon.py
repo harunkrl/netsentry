@@ -27,6 +27,7 @@ from shared import (
     AlertLevel,
 )
 from shared.config import apply_cli_overrides, load_config
+from shared.network import is_private_ip
 
 from backend.alert_engine import AlertEngine
 from backend.models import InterfaceStats, Snapshot, SocketEntry
@@ -190,8 +191,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
     # Propagate DNS cache limits to rdns module
     from backend.parsers import rdns
-    rdns._MAX_CACHE_SIZE = cfg.dns_cache_size
-    rdns._MAX_PENDING = cfg.dns_max_pending
+    rdns.configure(max_cache_size=cfg.dns_cache_size, max_pending=cfg.dns_max_pending)
 
     # Initialise GeoIP module
     if cfg.geoip_enabled:
@@ -369,7 +369,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
             # 3.5 GeoIP / rDNS lookup for remote IPs
             for e in established:
                 # ignore local IPs
-                if e.remote_ip and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::")):
+                if e.remote_ip and not is_private_ip(e.remote_ip):
                     e.remote_hostname = get_hostname(e.remote_ip)
 
             # 3.5b GeoIP lookup for remote IPs
@@ -377,7 +377,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                 unique_ips = set()
                 for e in established:
                     if (e.remote_ip
-                            and not e.remote_ip.startswith(("127.", "::1", "0.0.0.0", "::"))):
+                            and not is_private_ip(e.remote_ip)):
                         unique_ips.add(e.remote_ip)
                 if unique_ips:
                     geo_results = geoip_mod.lookup_batch(list(unique_ips))
@@ -417,7 +417,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
 
             # 5. Save baseline if it just completed or changed
             if alert_engine.is_baseline_complete():
-                current_baseline = frozenset(alert_engine._baseline_ports)
+                current_baseline = alert_engine.get_baseline_ports()
                 if current_baseline != prev_baseline:
                     alert_engine.save_baseline()
                     prev_baseline = current_baseline
@@ -432,7 +432,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
                         e,
                         malicious_ports=alert_engine.malicious_ports,
                         known_safe_ports=alert_engine.known_safe,
-                        baseline_ports=alert_engine._baseline_ports if alert_engine.is_baseline_complete() else None,
+                        baseline_ports=alert_engine.get_baseline_ports() if alert_engine.is_baseline_complete() else None,
                         port_blacklist=alert_engine.port_blacklist,
                     )
                     for e in listening

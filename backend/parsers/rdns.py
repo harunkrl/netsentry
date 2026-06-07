@@ -9,6 +9,15 @@ logger = logging.getLogger("kportwatch.rdns")
 _MAX_CACHE_SIZE = 1024
 _MAX_PENDING = 256
 
+
+def configure(*, max_cache_size: int | None = None, max_pending: int | None = None) -> None:
+    """Update module-level configuration for cache and concurrency limits."""
+    global _MAX_CACHE_SIZE, _MAX_PENDING
+    if max_cache_size is not None:
+        _MAX_CACHE_SIZE = max_cache_size
+    if max_pending is not None:
+        _MAX_PENDING = max_pending
+
 _rdns_cache: OrderedDict[str, str] = OrderedDict()
 _pending_lookups: set[str] = set()
 _lock = threading.Lock()

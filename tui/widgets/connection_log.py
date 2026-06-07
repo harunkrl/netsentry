@@ -104,6 +104,14 @@ class ConnectionLog(RichLog):
         """Human-readable label for current severity filter."""
         return self._severity_filter
 
+    def _reset_and_rebuild(self) -> None:
+        """Clear log state and rebuild from last known entries."""
+        self.clear()
+        self._seen_keys.clear()
+        self._plain_lines.clear()
+        if self._last_entries:
+            self.update_data(self._last_entries, is_first_call=True)
+
     def set_severity_filter(self, level: str) -> None:
         """Set severity filter level (ALL/INFO/WARNING/ERROR).
 
@@ -119,12 +127,7 @@ class ConnectionLog(RichLog):
             level = "ALL"
         if self._severity_filter != level:
             self._severity_filter = level
-            self.clear()
-            self._seen_keys.clear()
-            self._plain_lines.clear()
-            if self._last_entries:
-                self._seen_keys.clear()
-                self.update_data(self._last_entries, is_first_call=True)
+            self._reset_and_rebuild()
 
     def _severity_for_state(self, state: str) -> str:
         """Map a TCP state to a severity level."""
@@ -151,14 +154,7 @@ class ConnectionLog(RichLog):
         """Cycle to the next quick-filter mode. Returns the new mode name."""
         idx = FILTER_MODES.index(self._quick_filter)
         self._quick_filter = FILTER_MODES[(idx + 1) % len(FILTER_MODES)]
-        # Rebuild log from scratch with new filter
-        self.clear()
-        self._seen_keys.clear()
-        self._plain_lines.clear()
-        if self._last_entries:
-            # O18 fix: Apply filters even on first call of rebuild
-            self._seen_keys.clear()
-            self.update_data(self._last_entries, is_first_call=True)
+        self._reset_and_rebuild()
         return self._quick_filter
 
     def set_filter(self, text: str) -> None:
@@ -166,12 +162,7 @@ class ConnectionLog(RichLog):
         new_filter = text.lower()
         if self._filter_text != new_filter:
             self._filter_text = new_filter
-            self.clear()
-            self._seen_keys.clear()
-            self._plain_lines.clear()
-            # Re-render with last known data so the filter applies immediately
-            if hasattr(self, "_last_entries") and self._last_entries is not None:
-                self.update_data(self._last_entries, is_first_call=True)
+            self._reset_and_rebuild()
 
     def get_plain_text(self) -> str:
         """Return all log content as plain text (no Rich markup)."""

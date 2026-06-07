@@ -260,8 +260,8 @@ PlasmoidItem {
     function formatBytes(bytesPerSec) {
         if (bytesPerSec < 1) return "0 B"
         if (bytesPerSec < 1024) return bytesPerSec.toFixed(0) + " B"
-        if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(1) + " KB"
-        return (bytesPerSec / 1048576).toFixed(1) + " MB"
+        if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(1) + " KiB"
+        return (bytesPerSec / 1048576).toFixed(1) + " MiB"
     }
 
     function applyFilter(items, filter) {

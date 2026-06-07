@@ -136,6 +136,12 @@ Underline {
     background: $secondary;
 }
 
+/* ── Utility ────────────────────────────────────────────────── */
+
+.hidden {
+    display: none;
+}
+
 /* ── Static / Labels ────────────────────────────────────────── */
 
 Static {

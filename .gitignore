@@ -43,3 +43,6 @@ CLAUDE.md
 # Unnecessary docs for personal project
 CHANGELOG.md
 CONTRIBUTING.md
+
+# Design specs and implementation plans (local only)
+docs/superpowers/

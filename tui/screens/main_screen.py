@@ -155,10 +155,14 @@ class MainScreen(Screen):
             self._hide_search(preserve_filter=True)
 
     def on_key(self, event) -> None:
-        """Intercept Escape when search Input has focus."""
-        if event.key == "escape" and self._search_visible:
+        """Intercept Escape/Tab when search Input has focus."""
+        if not self._search_visible:
+            return
+        if event.key == "escape":
             self._hide_search(preserve_filter=False)
             event.stop()
+        elif event.key == "tab":
+            self._hide_search(preserve_filter=True)
 
     # ── Data refresh ──────────────────────────────────────────
     @work(exclusive=True)

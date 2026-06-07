@@ -214,14 +214,18 @@ class ConnectionMapScreen(Screen):
         yield Footer()
 
     def on_key(self, event) -> None:
-        """Intercept Escape when geo-search Input has focus."""
+        """Intercept Escape/Tab when geo-search Input has focus."""
         try:
             search_input = self.query_one("#geo-search-input", Input)
-            if event.key == "escape" and not search_input.disabled:
-                self._hide_search()
-                event.stop()
+            if search_input.disabled:
+                return
         except Exception:
-            pass
+            return
+        if event.key == "escape":
+            self._hide_search()
+            event.stop()
+        elif event.key == "tab":
+            self._hide_search()
 
     def on_mount(self) -> None:
         table = self.query_one("#geo-table", DataTable)

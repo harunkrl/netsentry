@@ -150,7 +150,6 @@ class ConnectionMapScreen(Screen):
         Binding("slash", "search", "Search", show=True),
         Binding("o", "cycle_sort", "Sort", show=True),
         Binding("c", "copy_row", "Copy", show=True),
-        Binding("f", "search", "Filter", show=False),
     ]
 
     CSS = """
@@ -213,6 +212,16 @@ class ConnectionMapScreen(Screen):
         )
         yield DataTable(id="geo-table")
         yield Footer()
+
+    def on_key(self, event) -> None:
+        """Intercept Escape when geo-search Input has focus."""
+        try:
+            search_input = self.query_one("#geo-search-input", Input)
+            if event.key == "escape" and not search_input.disabled:
+                self._hide_search()
+                event.stop()
+        except Exception:
+            pass
 
     def on_mount(self) -> None:
         table = self.query_one("#geo-table", DataTable)
@@ -282,7 +291,7 @@ class ConnectionMapScreen(Screen):
             f"{total} connections  |  "
             f"{unique_ips} unique IPs  |  "
             f"{countries} countries  |  "
-            f"[dim]<f> filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
+            f"[dim]</>/ filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
         )
 
         if self._map_visible:
@@ -436,7 +445,7 @@ class ConnectionMapScreen(Screen):
                 f"{unique_ips} unique IPs  |  "
                 f"{countries} countries  |  "
                 f"Sort: [bold]{label}[/] {direction}  |  "
-                f"[dim]<f> filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
+                f"[dim]</>/ filter  <o> sort  <m> map toggle  <Esc> back[/dim]"
             )
         except Exception:
             pass

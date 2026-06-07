@@ -39,7 +39,6 @@ class MainScreen(Screen):
         Binding("m", "geo_map", "Map", show=True),
         Binding("s", "settings", "Settings", show=True),
         Binding("slash", "search", "Search", show=True),
-        Binding("f", "filter_toggle", "Filter", show=True),
         Binding("ctrl+f", "log_filter_cycle", "LogFilter", show=False),
         Binding("ctrl+p", "proto_filter_cycle", "Proto", show=False),
         Binding("e", "export", "Export", show=True),
@@ -73,6 +72,8 @@ class MainScreen(Screen):
         self._refresh_handle = None
         self._consecutive_failures: int = 0
         self._search_visible: bool = False
+        self._filter_target: str = ""  # "port-table" or "connection-log"
+        self._focus_before_search = None
 
     # ── Layout ────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
@@ -124,29 +125,40 @@ class MainScreen(Screen):
 
     # ── Search bar events ─────────────────────────────────────
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Live-filter the port table as the user types."""
+        """Live-filter the focused panel as the user types."""
         if event.input.id == "search-input":
             try:
-                port_table = self.query_one("#port-table", PortTable)
-                port_table.set_filter(event.value)
-
-                conn_log = self.query_one("#connection-log", ConnectionLog)
-                conn_log.set_filter(event.value)
-
-                # Y5: Show filter active indicator in status bar
+                query = event.value
                 status_bar = self.query_one("#status-bar", StatusBar)
-                if event.value.strip():
-                    visible = len(port_table._row_entries)
-                    status_bar.set_filter_info(f"Filter: '{event.value}' ({visible} shown)")
+
+                if self._filter_target == "connection-log":
+                    conn_log = self.query_one("#connection-log", ConnectionLog)
+                    conn_log.set_filter(query)
+                    if query.strip():
+                        status_bar.set_filter_info(f"Filter: '{query}' → ConnectionLog")
+                    else:
+                        status_bar.set_filter_info("")
                 else:
-                    status_bar.set_filter_info("")
+                    port_table = self.query_one("#port-table", PortTable)
+                    port_table.set_filter(query)
+                    if query.strip():
+                        visible = len(port_table._row_entries)
+                        status_bar.set_filter_info(f"Filter: '{query}' → PortTable ({visible} shown)")
+                    else:
+                        status_bar.set_filter_info("")
             except Exception:
                 pass
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Close search bar on Enter."""
+        """Close search bar on Enter — preserve filter."""
         if event.input.id == "search-input":
-            self._hide_search()
+            self._hide_search(preserve_filter=True)
+
+    def on_key(self, event) -> None:
+        """Intercept Escape when search Input has focus."""
+        if event.key == "escape" and self._search_visible:
+            self._hide_search(preserve_filter=False)
+            event.stop()
 
     # ── Data refresh ──────────────────────────────────────────
     @work(exclusive=True)
@@ -288,31 +300,11 @@ class MainScreen(Screen):
         """Show the search bar and focus it."""
         self._show_search()
 
-    def action_filter_toggle(self) -> None:
-        """Toggle the search/filter bar."""
-        if self._search_visible:
-            self._hide_search()
-        else:
-            self._show_search()
+
 
     def action_clear_filter(self) -> None:
         """Clear the search filter and hide the bar."""
-        try:
-            search_input = self.query_one("#search-input", Input)
-            search_input.value = ""
-        except Exception:
-            pass
-        try:
-            port_table = self.query_one("#port-table", PortTable)
-            port_table.clear_filter()
-        except Exception:
-            pass
-        try:
-            status_bar = self.query_one("#status-bar", StatusBar)
-            status_bar.set_filter_info("")
-        except Exception:
-            pass
-        self._hide_search()
+        self._hide_search(preserve_filter=False)
 
     def action_log_filter_cycle(self) -> None:
         """Cycle the connection log quick-filter mode."""
@@ -339,21 +331,60 @@ class MainScreen(Screen):
 
     # ── Search bar helpers ────────────────────────────────────
     def _show_search(self) -> None:
+        # Determine filter target from current focus
+        focused = self.focused
+        if focused is not None and getattr(focused, "id", None) == "connection-log":
+            target = "connection-log"
+            placeholder = "Filter ConnectionLog..."
+        else:
+            target = "port-table"
+            placeholder = "Filter PortTable..."
+
+        self._filter_target = target
+        self._focus_before_search = focused
         self._search_visible = True
+
         try:
             search_input = self.query_one("#search-input", Input)
+            search_input.placeholder = placeholder
             search_input.remove_class("hidden")
             search_input.focus()
         except Exception:
             pass
 
-    def _hide_search(self) -> None:
+    def _hide_search(self, preserve_filter: bool = False) -> None:
         self._search_visible = False
         try:
             search_input = self.query_one("#search-input", Input)
             search_input.add_class("hidden")
+
+            if not preserve_filter:
+                search_input.value = ""
+                # Clear filter on the target widget only
+                if self._filter_target == "connection-log":
+                    conn_log = self.query_one("#connection-log", ConnectionLog)
+                    conn_log.set_filter("")
+                elif self._filter_target == "port-table":
+                    port_table = self.query_one("#port-table", PortTable)
+                    port_table.clear_filter()
+
+                try:
+                    status_bar = self.query_one("#status-bar", StatusBar)
+                    status_bar.set_filter_info("")
+                except Exception:
+                    pass
         except Exception:
             pass
+
+        # Restore focus to the widget that was focused before search
+        if self._focus_before_search is not None:
+            try:
+                self._focus_before_search.focus()
+            except Exception:
+                pass
+
+        self._filter_target = ""
+        self._focus_before_search = None
 
     def action_copy_row(self) -> None:
         """Copy the selected row's info to the system clipboard.

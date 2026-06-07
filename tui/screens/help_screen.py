@@ -39,8 +39,7 @@ HELP_MD = """
 ## Search & Filter
 | Key | Action |
 |-----|--------|
-| `/` | Open search bar |
-| `f` | Toggle search/filter bar |
+| `/` | Open search bar (filters focused panel) |
 | `Ctrl+F` | Cycle connection log filter (all → new → warning → critical) |
 | `Ctrl+P` | Cycle protocol filter (ALL → TCP → UDP → ICMP) |
 | `Esc` | Clear filter / Close dialog |

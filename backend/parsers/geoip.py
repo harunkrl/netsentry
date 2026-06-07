@@ -39,6 +39,9 @@ def shutdown() -> None:
     _executor.shutdown(wait=False)
 
 # ── Configurable parameters (set via init()) ────────────────────
+# NOTE: ip-api.com free tier only supports HTTP.
+# For HTTPS, use the pro tier or switch to an alternative API (e.g. ipinfo.io).
+# Response data is validated (lat/lon range, country code format) as a mitigation.
 _api_url: str = "http://ip-api.com/json/"
 _cache_file: str = ""
 _cache_max_entries: int = 4096

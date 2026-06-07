@@ -1,3 +1,9 @@
+// ── KPortWatch Plasma Widget ────────────────────────────────
+// Main QML file for the KDE Plasma 6 plasmoid.
+// Handles: data fetching from daemon JSON, model management,
+// sorting, filtering, reconciliation, process kill,
+// TUI launch, notifications, and traffic formatting.
+// ──────────────────────────────────────────────────────────────
 import QtQuick
 import org.kde.plasma.plasmoid
 import org.kde.plasma.plasma5support as Plasma5Support

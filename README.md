@@ -10,7 +10,7 @@
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python)
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
-![Tests](https://img.shields.io/badge/Tests-413%20passed-success)
+![CI](https://github.com/harunkrl/kportwatch/actions/workflows/ci.yml/badge.svg)
 
 </div>
 
@@ -203,9 +203,12 @@ kportwatch-update --apply
 KPortWatch/
 ├── shared/
 │   ├── constants.py              # Paths, alert levels, malicious ports, version
-│   └── config.py                 # TOML config loader (AppConfig dataclass)
+│   ├── config.py                 # TOML config loader (AppConfig dataclass)
+│   ├── fs_utils.py               # Shared filesystem utilities (read_file_safe, atomic_write)
+│   └── network.py                # Network utilities (is_private_ip)
 ├── backend/
 │   ├── models.py                 # SocketEntry, Alert, Snapshot, ProcessInfo, InterfaceStats
+│   ├── daemon_controller.py      # DaemonController class (lifecycle management)
 │   ├── parsers/
 │   │   ├── proc_net.py           # /proc/net/tcp,udp parser (IPv4+IPv6)
 │   │   ├── inode_map.py          # Socket inode → PID mapping
@@ -213,6 +216,8 @@ KPortWatch/
 │   │   ├── geoip.py              # GeoIP lookup (ip-api.com + persistent cache)
 │   │   ├── net_dev.py            # /proc/net/dev traffic statistics
 │   │   └── process_tree.py       # /proc/[pid]/stat process tree builder
+│   ├── collectors/
+│   │   └── psutil_collector.py    # psutil-based data collection
 │   ├── alert_engine.py           # Baseline learning + alert rules + custom rules
 │   ├── risk_score.py             # Port risk scoring (0-100)
 │   ├── history.py                # Daily history recording + export
@@ -221,15 +226,18 @@ KPortWatch/
 │   ├── writers/
 │   │   ├── json_file.py          # Atomic JSON snapshot writer
 │   │   └── unix_socket.py        # Unix domain socket streaming server
-│   ├── kportwatch_daemon.py       # Main daemon loop
+│   ├── kportwatch_daemon.py       # Main daemon entry point
+│   ├── kportwatchctl.py           # CLI control utility
 │   └── kportwatch_client.py       # Unix socket streaming client
 ├── tui/
 │   ├── kportwatch_tui.py          # Textual App entry point
+│   ├── themes.py                 # Theme definitions (Cyberpunk, Midnight, Hacker, Daylight)
 │   ├── screens/
 │   │   ├── main_screen.py        # Split-pane main layout
 │   │   ├── connection_map_screen.py  # GeoIP world map + country table
-│   │   ├── process_tree_screen.py    # Hierarchical process tree
+│   │   ├── process_tree_screen.py    # Hierarchical process tree + kill confirmation
 │   │   ├── detail_screen.py      # Connection detail modal
+│   │   ├── settings_screen.py    # Settings dialog with theme/threshold controls
 │   │   ├── kill_confirm.py       # SIGTERM/SIGKILL modal
 │   │   └── help_screen.py        # Keyboard shortcuts help
 │   ├── widgets/
@@ -239,6 +247,9 @@ KPortWatch/
 │   │   └── status_bar.py         # Bottom status bar
 │   ├── data/
 │   │   └── provider.py           # JSON reader + process killer
+│   ├── utils/
+│   │   ├── clipboard.py          # Safe clipboard utility
+│   │   └── provider.py           # DataProvider singleton helper
 │   └── styles.tcss               # Premium dark security theme
 ├── widget/
 │   ├── metadata.json             # Plasma 6 plugin metadata
@@ -417,7 +428,7 @@ sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 |-----------|-----------|
 | Widget | QML, Kirigami, Plasma 6 Plasma5Support |
 | TUI | Python Textual, Rich |
-| Backend | Python 3.10+ (stdlib only — no external deps) |
+| Backend | Python 3.11+ (requires psutil >=5.9) |
 | Config | TOML (Python 3.11+ tomllib) |
 | IPC | JSON file via atomic rename + Unix domain socket |
 | GeoIP | ip-api.com (free tier) + persistent JSON cache |

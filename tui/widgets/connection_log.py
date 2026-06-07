@@ -55,7 +55,7 @@ class ConnectionLog(RichLog):
     """
 
     def __init__(self, **kwargs) -> None:
-        # K5: Limit RichLog buffer to prevent unbounded memory growth
+        # Limit RichLog buffer to prevent unbounded memory growth
         super().__init__(max_lines=5000, **kwargs)
         self._seen_keys_deque: deque[str] = deque(maxlen=_MAX_SEEN)
         self._filter_text: str = ""

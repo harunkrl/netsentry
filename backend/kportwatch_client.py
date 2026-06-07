@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """KPortWatch Client — Streams JSON data from the Unix socket to stdout."""
 import contextlib
+import json
 import socket
 import sys
 
@@ -32,7 +33,7 @@ def main():
         print('{"error": "Daemon refused connection — may be starting up"}')
         sys.exit(1)
     except Exception as e:
-        print(f'{{"error": "Failed to connect to daemon socket: {e}"}}')
+        print(json.dumps({"error": f"Failed to connect to daemon socket: {e}"}))
         sys.exit(1)
     finally:
         if s:

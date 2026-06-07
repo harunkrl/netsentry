@@ -8,14 +8,14 @@
   <icon_name>security-high</icon_name>
 
   <action id="com.kportwatch.helper.getports">
-    <description>Get network socket information with process details</description>
-    <message>Authentication is required to view process details for all network sockets</message>
+    <description>Manage network socket information and process termination</description>
+    <message>Authentication is required to manage network sockets and terminate processes</message>
     <defaults>
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/kportwatch-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">%h/.local/bin/kportwatchctl</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
 </policyconfig>

@@ -37,6 +37,13 @@ ProtectHome=read-only
 ReadWritePaths=%h/.config/kportwatch %h/.local/share/kportwatch %t
 PrivateTmp=true
 NoNewPrivileges=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictNamespaces=true
+RestrictRealtime=true
+SystemCallFilter=@system-service
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_PTRACE
 
 [Install]
 WantedBy=default.target

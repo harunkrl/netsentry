@@ -41,8 +41,10 @@ CLAUDE.md
 .claude/
 
 # Unnecessary docs for personal project
-CHANGELOG.md
 CONTRIBUTING.md
+
+# Ruff cache
+.ruff_cache/
 
 # Design specs and implementation plans (local only)
 docs/superpowers/

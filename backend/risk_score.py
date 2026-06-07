@@ -1,6 +1,7 @@
 """KPortWatch — Port risk scoring.
 
 Calculates a 0-100 risk score for each listening port based on
+multiple threat indicators.
 multiple factors.  Higher score = more dangerous.
 
 Factors (additive):

@@ -165,11 +165,14 @@ def send_command(command: dict, timeout: float = 5.0) -> dict:
         sock.connect(SOCKET_PATH)
         sock.sendall(json.dumps(command).encode('utf-8') + b'\n')
         response_data = b""
+        max_size = 10 * 1024 * 1024  # 10MB safety limit
         while True:
             chunk = sock.recv(4096)
             if not chunk:
                 break
             response_data += chunk
+            if len(response_data) > max_size:
+                raise ValueError("Response exceeds maximum allowed size (10MB)")
             if b'\n' in response_data:
                 break
         if not response_data:

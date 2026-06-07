@@ -5,7 +5,7 @@
 set -e
 
 echo "╔══════════════════════════════════════════╗"
-echo "║      KPortWatch Uninstaller v1.0.0       ║"
+echo "║      KPortWatch Uninstaller v2.1.0       ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -41,7 +41,14 @@ echo "   ✅ Symlinks removed"
 
 # ── 4. Remove Config and Runtime Data ────────────────────────
 echo "🧹 Cleaning up configuration and runtime data..."
-rm -rf "${HOME}/.config/kportwatch"
+read -p "   Delete configuration files? (y/N) " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    rm -rf "${HOME}/.config/kportwatch"
+    echo "   Config deleted"
+else
+    echo "   Config preserved at ~/.config/kportwatch"
+fi
 
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
 rm -f "${RUNTIME_DIR}/kportwatch-data.json"
@@ -52,10 +59,16 @@ rm -rf "${HOME}/.local/share/kportwatch"
 echo "   ✅ Config, cache and runtime files deleted"
 
 # ── 5. Restart Plasma ────────────────────────────────────────
-echo "🔄 Restarting KDE Plasma panel to apply changes..."
+read -p "   Restart KDE Plasma panel now? (y/N) " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Restarting KDE Plasma panel..."
 if systemctl --user is-active --quiet plasma-plasmashell.service; then
     systemctl restart --user plasma-plasmashell.service
     echo "   ✅ Plasma restarted"
+else
+    echo "   Plasma restart skipped — changes will apply on next login"
+fi
 fi
 
 echo ""

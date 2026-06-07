@@ -121,7 +121,7 @@ class DetailScreen(Screen):
                 ("Inode", str(entry.inode)),
             ])
 
-            # Ö1: Connection duration
+            # Connection duration (first-seen timestamp)
             first_seen = getattr(entry, "first_seen", None)
             if first_seen and first_seen > 0:
                 elapsed = time.time() - first_seen
@@ -192,7 +192,7 @@ class DetailScreen(Screen):
                         color = "bold yellow"
                     else:
                         color = "bold green"
-                    # Ö3: Mini risk bar visualization
+                    # Mini risk bar visualization
                     bar_filled = int(rs * 20)
                     bar_empty = 20 - bar_filled
                     bar_visual = f"[{color}]{'█' * bar_filled}{'░' * bar_empty}[/]"

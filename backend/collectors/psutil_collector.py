@@ -40,6 +40,12 @@ _PROTO_MAP = {
 }
 
 
+# WARNING: psutil._common.sconn is a private type.
+# This may break between psutil versions.
+# TODO: Consider using psutil.net_connections() return values directly
+# if the private API is removed in a future psutil release.
+
+
 def _proto_label(conn: psutil._common.sconn) -> str:
     """Derive proto string like 'tcp' or 'tcp6' from a psutil connection."""
     base = _PROTO_MAP.get(conn.type, "tcp")  # default tcp for unknown

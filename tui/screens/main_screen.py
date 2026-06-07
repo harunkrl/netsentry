@@ -71,7 +71,7 @@ class MainScreen(Screen):
 
     def __init__(self, provider: DataProvider | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        # Y15: Use singleton provider from app, or create new one
+        # Use singleton provider from app, or create new one
         self.provider = provider or DataProvider()
         self._refresh_handle = None
         self._consecutive_failures: int = 0

@@ -74,7 +74,7 @@ class SocketEntry:
     remote_lon: float | None = None
     remote_isp: str | None = None
     remote_org: str | None = None
-    # Ö1: First-seen timestamp (epoch seconds) for connection duration
+    # O1: First-seen timestamp (epoch seconds) for connection duration
     first_seen: float | None = None
 
     @classmethod

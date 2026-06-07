@@ -435,7 +435,7 @@ class ConnectionMapScreen(Screen):
             search_input = self.query_one("#geo-search-input", Input)
             search_input.add_class("hidden")
             search_input.disabled = True
-            # Y13: Clear filter when search is dismissed
+            # Clear filter when search is dismissed
             search_input.value = ""
         except Exception:
             pass
@@ -451,7 +451,7 @@ class ConnectionMapScreen(Screen):
         label = _SORT_LABELS[self._sort_index]
         direction = "▼" if self._sort_reverse else "▲"
 
-        # Y6: Update header to show sort indicator
+        # Update header to show sort indicator
         try:
             header = self.query_one("#map-header", Static)
             countries = self._geo_stats.get("countries_count", 0)

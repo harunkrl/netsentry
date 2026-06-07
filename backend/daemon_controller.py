@@ -196,9 +196,14 @@ class DaemonController:
             return self._kill_process(pid)
         return {"status": "error", "message": f"Unknown command: {command}"}
 
+    # System PIDs that should never be killed
+    PROTECTED_PIDS = {0, 1, 2}
+
     @staticmethod
     def _kill_process(pid: int) -> dict:
         """Kill a process by PID with SIGTERM → wait → SIGKILL fallback."""
+        if pid in DaemonController.PROTECTED_PIDS or pid <= 0:
+            return {"status": "error", "message": f"PID {pid} is protected and cannot be killed"}
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:

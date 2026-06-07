@@ -10,7 +10,7 @@ PLASMOID_ID="com.kportwatch.plasmoid"
 PLASMOID_DIR="${HOME}/.local/share/plasma/plasmoids/${PLASMOID_ID}"
 
 echo "╔══════════════════════════════════════════╗"
-echo "║       KPortWatch Installer v1.0.0        ║"
+echo "║       KPortWatch Installer v2.1.0        ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -38,7 +38,7 @@ source "${SCRIPT_DIR}/.venv/bin/activate"
 # (known getpath null-char issue with editable installs on 3.14+)
 if ! pip install --quiet -e "${SCRIPT_DIR}" 2>/dev/null; then
     echo "   ⚠️  Editable install skipped (Python $(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')), using direct install..."
-    pip install --quiet textual rich
+    pip install --quiet textual rich psutil
     # Re-install entry points without build isolation
     pip install --quiet --no-build-isolation -e "${SCRIPT_DIR}" 2>/dev/null || true
 fi

@@ -57,7 +57,7 @@ kportwatch-update  = "backend.update:main"
 kportwatchctl      = "backend.kportwatchctl:main"
 
 [project.urls]
-Repository = "https://github.com/user/kportwatch"
+Repository = "https://github.com/harunkrl/kportwatch"
 
 # ── Build system ──────────────────────────────────────────────
 [build-system]

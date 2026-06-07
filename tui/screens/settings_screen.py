@@ -17,6 +17,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static, Switch, TabbedContent, TabPane
 
@@ -199,9 +200,10 @@ class SelectableRow(Container):
             # Notify parent
             self.post_message(self.ValueChanged(self.key, self.section, self._value))
 
-    class ValueChanged:
+    class ValueChanged(Message):
         """Message sent when a selectable row's value changes."""
         def __init__(self, key: str, section: str, value: str):
+            super().__init__()
             self.key = key
             self.section = section
             self.value = value

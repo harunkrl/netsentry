@@ -190,9 +190,7 @@ class ConnectionMapScreen(Screen):
 
     def __init__(self) -> None:
         super().__init__()
-        # Y15: Use singleton provider from app if available
-        app = self.app
-        self.provider = getattr(app, 'data_provider', None) or DataProvider()
+        self.provider: DataProvider | None = None  # resolved in on_mount
         self._filter_text: str = ""
         self._sort_index: int = 0
         self._sort_reverse: bool = False
@@ -228,6 +226,9 @@ class ConnectionMapScreen(Screen):
             self._hide_search()
 
     def on_mount(self) -> None:
+        # Resolve data provider after widget is mounted (self.app is available)
+        self.provider = getattr(self.app, 'data_provider', None) or DataProvider()
+
         table = self.query_one("#geo-table", DataTable)
         table.add_columns("#", "Country", "City", "IP", "Port", "Process", "Count")
 

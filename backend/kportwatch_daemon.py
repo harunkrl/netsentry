@@ -11,10 +11,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fcntl
 import logging
 import os
 import signal
+import subprocess
 import sys
 import time
 from dataclasses import asdict
@@ -26,6 +28,7 @@ from shared import (
 )
 from shared.config import apply_cli_overrides, load_config
 
+from backend.alert_engine import AlertEngine
 from backend.models import InterfaceStats, Snapshot, SocketEntry
 from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
 from backend.parsers.net_dev import parse_proc_net_dev
@@ -35,26 +38,26 @@ from backend.parsers.process_tree import build_process_tree
 # psutil-based collectors (preferred, with /proc fallback)
 try:
     import psutil as _psutil  # noqa: F401 — checked at runtime
+
     _HAS_PSUTIL = True
+    from backend.collectors.psutil_collector import (
+        collect_connections as _psutil_connections,
+    )
+    from backend.collectors.psutil_collector import (
+        collect_network_pids as _psutil_network_pids,
+    )
+    from backend.collectors.psutil_collector import (
+        collect_process_tree as _psutil_process_tree,
+    )
+    from backend.collectors.psutil_collector import (
+        collect_traffic as _psutil_traffic,
+    )
 except ImportError:
     _HAS_PSUTIL = False
-
-import contextlib
-import subprocess
-
-from backend.alert_engine import AlertEngine
-from backend.collectors.psutil_collector import (
-    collect_connections as _psutil_connections,
-)
-from backend.collectors.psutil_collector import (
-    collect_network_pids as _psutil_network_pids,
-)
-from backend.collectors.psutil_collector import (
-    collect_process_tree as _psutil_process_tree,
-)
-from backend.collectors.psutil_collector import (
-    collect_traffic as _psutil_traffic,
-)
+    _psutil_connections = None
+    _psutil_network_pids = None
+    _psutil_process_tree = None
+    _psutil_traffic = None
 from backend.history import HistoryRecorder
 from backend.parsers import geoip as geoip_mod
 from backend.parsers.rdns import get_hostname
@@ -316,7 +319,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
-    interval = args.interval
+    interval = cfg.poll_interval
 
     while running:
         cycle_start = time.time()
@@ -537,11 +540,11 @@ def daemon_loop(args: argparse.Namespace) -> None:
             elif (time.time() - last_change_time) > cfg.idle_threshold_secs:
                 interval = cfg.idle_poll_interval
             else:
-                interval = args.interval
+                interval = cfg.poll_interval
 
         except Exception:
             logger.exception("Error in daemon cycle")
-            interval = args.interval
+            interval = cfg.poll_interval
 
         # Periodic update check (once per update_check_interval)
         if cfg.update_enabled:

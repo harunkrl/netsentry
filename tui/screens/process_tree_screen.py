@@ -64,9 +64,7 @@ class ProcessTreeScreen(Screen):
 
     def __init__(self) -> None:
         super().__init__()
-        # Y15: Use singleton provider from app if available
-        app = self.app
-        self.provider = getattr(app, 'data_provider', None) or DataProvider()
+        self.provider: DataProvider | None = None  # resolved in on_mount
         self._processes: dict[int, ProcessInfo] = {}
         self._filter_text: str = ""
         # O7: Preserve expand/collapse state across refreshes
@@ -95,6 +93,9 @@ class ProcessTreeScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
+        # Resolve data provider after widget is mounted (self.app is available)
+        self.provider = getattr(self.app, 'data_provider', None) or DataProvider()
+
         self.refresh_data()
         # O17: Auto-refresh every 2s like other screens
         self._refresh_handle = self.set_interval(2.0, self.refresh_data)

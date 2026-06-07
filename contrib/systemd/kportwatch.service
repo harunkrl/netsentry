@@ -17,7 +17,7 @@
 
 [Unit]
 Description=KPortWatch Network Security Monitor
-Documentation=https://github.com/user/kportwatch
+Documentation=https://github.com/harunkrl/kportwatch
 After=network.target
 
 [Service]

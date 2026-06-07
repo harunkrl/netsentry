@@ -21,10 +21,10 @@ if ! command -v python3 &>/dev/null; then
     exit 1
 fi
 PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"; then
+if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"; then
     echo "   ✅ Python ${PY_VERSION}"
 else
-    echo "❌ Python 3.10+ required, found ${PY_VERSION}"
+    echo "❌ Python 3.11+ required, found ${PY_VERSION}"
     exit 1
 fi
 

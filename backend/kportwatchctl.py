@@ -205,8 +205,16 @@ def cmd_restart(args: argparse.Namespace) -> int:
         print(f"❌ Failed to start daemon: {e}")
         return 1
 
-    # Wait for PID file
-    if _wait_for(None, timeout=5.0):
+    # Wait for PID file to appear
+    deadline = time.monotonic() + 5.0
+    pid_appeared = False
+    while time.monotonic() < deadline:
+        if _read_pid() is not None:
+            pid_appeared = True
+            break
+        time.sleep(0.2)
+
+    if pid_appeared:
         new_pid = _read_pid()
         print(f"✅ Daemon restarted (PID {new_pid})")
         return 0

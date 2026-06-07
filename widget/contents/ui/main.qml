@@ -375,6 +375,9 @@ PlasmoidItem {
     }
 
     function killProcess(pid) {
-        killExecSource.connectedSources = ["sh -c 'kportwatchctl kill " + pid + "'"]
+        // Validate pid is a positive integer before passing to shell
+        var safePid = String(pid).replace(/[^0-9]/g, "")
+        if (safePid === "" || parseInt(safePid) <= 0) return
+        killExecSource.connectedSources = ["sh -c 'kportwatchctl kill " + safePid + "'"]
     }
 }

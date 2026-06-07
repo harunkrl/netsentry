@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from typing import TYPE_CHECKING
 
 from textual import work
 from textual.app import ComposeResult
@@ -16,7 +17,8 @@ from textual.containers import Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Input
 
-from tui.data.provider import DataProvider
+if TYPE_CHECKING:
+    from tui.data.provider import DataProvider
 from tui.screens.kill_confirm import KillConfirmScreen
 from tui.utils.clipboard import safe_copy_to_clipboard
 from tui.widgets.connection_log import ConnectionLog

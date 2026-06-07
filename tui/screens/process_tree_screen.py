@@ -91,7 +91,8 @@ class ProcessTreeScreen(Screen):
 
     def on_mount(self) -> None:
         # Resolve data provider after widget is mounted (self.app is available)
-        self.provider = getattr(self.app, 'data_provider', None) or DataProvider()
+        from tui.utils.provider import get_app_provider
+        self.provider = get_app_provider(self.app)
 
         self.refresh_data()
         # O17: Auto-refresh every 2s like other screens

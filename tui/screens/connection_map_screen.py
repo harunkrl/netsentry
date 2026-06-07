@@ -239,7 +239,8 @@ class ConnectionMapScreen(Screen):
 
     def on_mount(self) -> None:
         # Resolve data provider after widget is mounted (self.app is available)
-        self.provider = getattr(self.app, 'data_provider', None) or DataProvider()
+        from tui.utils.provider import get_app_provider
+        self.provider = get_app_provider(self.app)
 
         table = self.query_one("#geo-table", DataTable)
         table.add_columns("#", "Country", "City", "IP", "Port", "Process", "Count")

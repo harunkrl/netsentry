@@ -7,7 +7,7 @@
 *A hybrid system tray + terminal analyzer for KDE Plasma 6*
 
 ![KDE Plasma 6.6](https://img.shields.io/badge/Plasma-6.6-1d99f3?logo=kde)
-![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776ab?logo=python)
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![CI](https://github.com/harunkrl/kportwatch/actions/workflows/ci.yml/badge.svg)
@@ -161,7 +161,7 @@ kportwatch/
 
 ### Prerequisites
 - KDE Plasma 6.6+ (Wayland or X11)
-- Python 3.10+ (3.11+ recommended for `tomllib`)
+- Python 3.11+ (built-in `tomllib` is used)
 - `textual` and `rich` Python packages (auto-installed by install script)
 
 ### Installation

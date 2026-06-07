@@ -18,19 +18,17 @@ from shared.config import apply_cli_overrides, load_config
 from shared.network import is_private_ip
 
 from backend.alert_engine import AlertEngine
-from backend.collectors.proc_collector import (
-    build_inode_to_pid_map,
-    build_process_tree,
-    build_uid_process_map,
-    classify_entries,
-)
-from backend.collectors.proc_net import parse_all_proc, parse_proc_net_dev
+from backend.parsers.inode_map import build_inode_to_pid_map, build_uid_process_map
+from backend.parsers.process_tree import build_process_tree
+from backend.kportwatch_daemon import classify_entries
+from backend.parsers.proc_net import parse_all_proc
+from backend.parsers.net_dev import parse_proc_net_dev
 from backend.history import HistoryRecorder
 from backend.models import InterfaceStats, Snapshot
 from backend.parsers import geoip as geoip_mod
 from backend.parsers.rdns import get_hostname
-from backend.risk import calculate_risk_score
-from backend.socket_server import UnixSocketServer
+from backend.risk_score import calculate_risk_score
+from backend.writers.unix_socket import UnixSocketServer
 from backend.update import check_for_update, get_local_version, write_update_state
 from backend.writers.json_file import write_snapshot, write_widget_snapshot
 

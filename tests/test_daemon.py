@@ -148,7 +148,7 @@ class TestParseArgs:
             args = parse_args()
         assert args.foreground is False
         assert args.verbose is False
-        assert args.interval == 2.0  # DEFAULT_POLL_INTERVAL
+        assert args.interval is None  # None = use config file value
 
     def test_foreground_flag(self):
         with patch("sys.argv", ["kportwatch-daemon", "--foreground"]):

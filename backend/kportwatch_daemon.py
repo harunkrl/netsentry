@@ -45,10 +45,11 @@ def parse_args() -> argparse.Namespace:
         description="KPortWatch backend daemon — network security monitor",
     )
     parser.add_argument(
-        "--interval", "-i",
+        "--interval",
+        "-i",
         type=float,
-        default=DEFAULT_POLL_INTERVAL,
-        help=f"Poll interval in seconds (default: {DEFAULT_POLL_INTERVAL})",
+        default=None,
+        help=f"Polling interval in seconds (default: {DEFAULT_POLL_INTERVAL})",
     )
     parser.add_argument(
         "--verbose", "-v",

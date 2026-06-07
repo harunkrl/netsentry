@@ -13,6 +13,7 @@ import time
 from datetime import datetime
 
 from backend.models import SocketEntry
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
@@ -85,6 +86,54 @@ class DetailScreen(Screen):
         super().__init__(**kwargs)
         self.entry = entry
 
+    def on_mount(self) -> None:
+        self.fetch_geo()
+
+    @work(thread=True)
+    def fetch_geo(self) -> None:
+        entry = self.entry
+        geo_country = entry.remote_country or ""
+        geo_city = entry.remote_city or ""
+        geo_org = entry.remote_org or entry.remote_isp or ""
+        geo_code = entry.remote_country_code or ""
+        geo_lat = entry.remote_lat
+        geo_lon = entry.remote_lon
+
+        if not geo_country and entry.remote_ip:
+            try:
+                from backend.parsers.geoip import get_geoip
+                geo = get_geoip(entry.remote_ip)
+                if geo:
+                    geo_country = geo.get("country", "")
+                    geo_city = geo.get("city", "")
+                    geo_org = geo.get("org", "") or geo.get("isp", "")
+                    geo_code = geo.get("countryCode", "")
+                    geo_lat = geo.get("lat")
+                    geo_lon = geo.get("lon")
+            except Exception:
+                pass
+        
+        if any([geo_country, geo_city, geo_org]):
+            self.app.call_from_thread(self._render_geo, geo_country, geo_city, geo_org, geo_code, geo_lat, geo_lon)
+
+    def _render_geo(self, country, city, org, code, lat, lon):
+        container = self.query_one("#geo-container")
+        container.mount(Static(""))
+        container.mount(Static("[bold cyan]GEOLOCATION[/]"))
+        container.mount(Rule())
+        geo_rows = []
+        if country:
+            flag = f"  ({code})" if code else ""
+            geo_rows.append(("Country", f"{country}{flag}"))
+        if city:
+            geo_rows.append(("City", city))
+        if org:
+            geo_rows.append(("Organization", org))
+        if lat is not None and lon is not None:
+            geo_rows.append(("Coordinates", f"{lat:.4f}, {lon:.4f}"))
+        for widget in self._make_kv_rows(geo_rows):
+            container.mount(widget)
+
     def compose(self) -> ComposeResult:
         """Structured detail layout with sections for Connection, Network, Geo, Security."""
         entry = self.entry
@@ -134,44 +183,8 @@ class DetailScreen(Screen):
                     ("Duration", f"[bold]{dur}[/]"),
                 ])
 
-            # Geo information — use SocketEntry's direct geo fields + live lookup
-            geo_country = entry.remote_country or ""
-            geo_city = entry.remote_city or ""
-            geo_org = entry.remote_org or entry.remote_isp or ""
-            geo_code = entry.remote_country_code or ""
-            geo_lat = entry.remote_lat
-            geo_lon = entry.remote_lon
-
-            # If no geo data on the entry, try a live lookup
-            if not geo_country and entry.remote_ip:
-                try:
-                    from backend.parsers.geoip import get_geoip
-                    geo = get_geoip(entry.remote_ip)
-                    if geo:
-                        geo_country = geo.get("country", "")
-                        geo_city = geo.get("city", "")
-                        geo_org = geo.get("org", "") or geo.get("isp", "")
-                        geo_code = geo.get("countryCode", "")
-                        geo_lat = geo.get("lat")
-                        geo_lon = geo.get("lon")
-                except Exception:
-                    pass
-
-            if any([geo_country, geo_city, geo_org]):
-                yield Static("")
-                yield Static("[bold cyan]GEOLOCATION[/]")
-                yield Rule()
-                geo_rows = []
-                if geo_country:
-                    flag = f"  ({geo_code})" if geo_code else ""
-                    geo_rows.append(("Country", f"{geo_country}{flag}"))
-                if geo_city:
-                    geo_rows.append(("City", geo_city))
-                if geo_org:
-                    geo_rows.append(("Organization", geo_org))
-                if geo_lat is not None and geo_lon is not None:
-                    geo_rows.append(("Coordinates", f"{geo_lat:.4f}, {geo_lon:.4f}"))
-                yield from self._make_kv_rows(geo_rows)
+            # Placeholder for asynchronously loaded geo information
+            yield Vertical(id="geo-container")
 
             # Risk / Alert info
             risk_score = getattr(entry, "risk_score", None)

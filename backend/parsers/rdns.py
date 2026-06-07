@@ -15,6 +15,11 @@ _lock = threading.Lock()
 _executor = ThreadPoolExecutor(max_workers=4)
 
 
+def shutdown() -> None:
+    """Gracefully shut down the thread pool executor."""
+    _executor.shutdown(wait=False)
+
+
 def get_hostname(ip: str) -> str | None:
     """Get hostname for IP from cache, or trigger a background lookup."""
     with _lock:

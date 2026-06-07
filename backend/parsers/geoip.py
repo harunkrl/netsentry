@@ -32,6 +32,11 @@ _pending_lookups: set[str] = set()
 _lock = threading.Lock()
 _executor = ThreadPoolExecutor(max_workers=2)
 
+
+def shutdown() -> None:
+    """Gracefully shut down the thread pool executor."""
+    _executor.shutdown(wait=False)
+
 # ── Configurable parameters (set via init()) ────────────────────
 _api_url: str = "http://ip-api.com/json/"
 _cache_file: str = ""

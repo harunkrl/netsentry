@@ -6,6 +6,7 @@ search/filter bar, and keyboard-driven interaction.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
 from textual import work
@@ -250,23 +251,29 @@ class MainScreen(Screen):
             on_result,
         )
 
+    @work(thread=True)
+    def _do_export(self, snapshot) -> None:
+        """Perform file I/O in a background thread."""
+        try:
+            import os
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = os.path.expanduser(f"~/kportwatch_export_{ts}.json")
+            with open(path, "w") as f:
+                f.write(snapshot.to_json())
+            self.app.call_from_thread(self.app.notify, f"Exported to {path}", severity="information")
+        except Exception as e:
+            self.app.call_from_thread(self.app.notify, f"Export failed: {e}", severity="error")
+
     def action_export(self) -> None:
         """Export current snapshot to JSON.
 
         O3: Shows file path in notification after successful export.
+        Uses background thread to avoid blocking the UI.
         """
         snapshot = self.provider.fetch()
         if snapshot:
-            try:
-                import os
-                from datetime import datetime
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                path = os.path.expanduser(f"~/kportwatch_export_{ts}.json")
-                with open(path, "w") as f:
-                    f.write(snapshot.to_json())
-                self.app.notify(f"Exported to {path}", severity="information")
-            except Exception as e:
-                self.app.notify(f"Export failed: {e}", severity="error")
+            self._do_export(snapshot)
 
     def action_help(self) -> None:
         """Show the help screen."""
@@ -382,10 +389,8 @@ class MainScreen(Screen):
 
         # Restore focus to the widget that was focused before search
         if self._focus_before_search is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._focus_before_search.focus()
-            except Exception:
-                pass
 
         self._filter_target = ""
         self._focus_before_search = None

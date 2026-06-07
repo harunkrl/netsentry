@@ -135,6 +135,10 @@ class PortTable(DataTable):
         self._all_alerts: list[Alert] = []
         # Previous row-key set for diff detection
         self._prev_keys: set[str] = set()
+        # Row key → index cache for O(1) lookups
+        self._key_to_index: dict[str, int] = {}
+        # Scan suspects cache
+        self._scan_suspects_cache: list[dict] | None = None
 
     def on_mount(self) -> None:
         self.cursor_type = "row"
@@ -189,12 +193,10 @@ class PortTable(DataTable):
 
     # ── Populate data (diff-based) ────────────────────────────
     def update_data(self, entries: list[SocketEntry], alerts: list[Alert]) -> None:
-        """Store data and update the table using diff logic.
+        """Store data and update the table using diff logic."""
+        # Invalidate scan suspects cache when data changes
+        self._scan_suspects_cache = None
 
-        Compares new keys against previous keys.  Rows that already
-        exist are updated in-place; new rows are added; removed rows
-        are deleted.  Scroll position and cursor are preserved.
-        """
         # Save cursor position before update
         try:
             cell_key = self.coordinate_to_cell_key(self.cursor_coordinate)
@@ -250,6 +252,7 @@ class PortTable(DataTable):
                     self.remove_row(old_key)
                 self._row_pids.pop(old_key, None)
                 self._row_entries.pop(old_key, None)
+                self._key_to_index.pop(old_key, None)
 
             # Empty state
             if not rows and not self._row_entries:
@@ -316,6 +319,9 @@ class PortTable(DataTable):
 
             self._prev_keys = new_keys
 
+            # Rebuild row index cache for O(1) lookups
+            self._rebuild_row_index()
+
             # Restore cursor position
             if self._last_row_key and self._last_row_key in self._row_entries:
                 try:
@@ -335,27 +341,31 @@ class PortTable(DataTable):
             # Fall back to full rebuild on error
             self._rebuild_table()
 
-    def _find_row_index(self, row_key: str) -> int | None:
-        """Find the row index for a given row key string."""
+    def _rebuild_row_index(self) -> None:
+        """Rebuild the row-key → index cache for O(1) lookups."""
+        self._key_to_index.clear()
         try:
             for row_idx in range(self.row_count):
                 ck = self.coordinate_to_cell_key((row_idx, 0))
-                if ck.row_key.value == row_key:
-                    return row_idx
+                self._key_to_index[ck.row_key.value] = row_idx
         except Exception:
             pass
-        return None
+
+    def _find_row_index(self, row_key: str) -> int | None:
+        """Find the row index for a given row key string (O(1) via cache)."""
+        idx = self._key_to_index.get(row_key)
+        return idx if idx is not None else None
 
     def _row_key_for(self, row_key: str) -> object | None:
-        """Get the DataTable RowKey for a row key string."""
+        """Get the DataTable RowKey for a row key string (O(1) via cache)."""
+        idx = self._key_to_index.get(row_key)
+        if idx is None:
+            return None
         try:
-            for row_idx in range(self.row_count):
-                ck = self.coordinate_to_cell_key((row_idx, 0))
-                if ck.row_key.value == row_key:
-                    return ck.row_key
+            ck = self.coordinate_to_cell_key((idx, 0))
+            return ck.row_key
         except Exception:
-            pass
-        return None
+            return None
 
     def _matches_filter(self, entry: SocketEntry, alert_map: dict[int, str]) -> bool:
         """Check if an entry matches ALL active filters (text + proto + port range)."""
@@ -452,6 +462,9 @@ class PortTable(DataTable):
                 self._row_entries[row_key] = entry
 
             self._prev_keys = {rk for rk, _ in rows}
+
+            # Rebuild row index cache for O(1) lookups
+            self._rebuild_row_index()
 
             # Restore cursor position after repopulating
             if self._last_row_key and self._last_row_key in self._row_entries:
@@ -591,5 +604,7 @@ class PortTable(DataTable):
 
     @property
     def scan_suspects(self) -> list[dict]:
-        """Convenience accessor for detected port scan suspects."""
-        return self.detect_port_scan()
+        """Convenience accessor for detected port scan suspects (cached)."""
+        if self._scan_suspects_cache is None:
+            self._scan_suspects_cache = self.detect_port_scan()
+        return self._scan_suspects_cache

@@ -239,9 +239,11 @@ def daemon_loop(args: argparse.Namespace) -> None:
         signal.signal(signal.SIGHUP, reload_config)
 
     running = True
-    last_snapshot_hash: str = ""
+    last_snapshot_hash: int | None = None
     last_change_time = time.time()
     prev_baseline: frozenset = frozenset()
+    prev_listening_set: frozenset = frozenset()
+    risk_scores: dict = {}
     notified_alerts: dict[str, float] = {}  # alert_hash → timestamp
     notification_timestamps: list[float] = []  # for rate limiting
     _prev_traffic: dict[str, tuple[float, InterfaceStats]] = {}  # iface → (ts, stats)
@@ -325,6 +327,8 @@ def daemon_loop(args: argparse.Namespace) -> None:
         cycle_start = time.time()
 
         try:
+            inode_map = None  # built lazily in step 1b, reused in step 2
+
             # 1. Collect network connections (psutil preferred, /proc fallback)
             if _HAS_PSUTIL:
                 entries = _psutil_connections()
@@ -350,13 +354,14 @@ def daemon_loop(args: argparse.Namespace) -> None:
                             entry.process_name = f"{proc_name} ({username})"
                             entry.cmdline = cmdline
 
-            # 2. Build process tree
+            # 2. Build process tree (reuse inode_map from step 1b if available)
             if _HAS_PSUTIL:
                 network_pids = _psutil_network_pids()
                 process_tree = _psutil_process_tree(network_pids)
             else:
-                inode_map_local = build_inode_to_pid_map()
-                process_tree = build_process_tree(inode_map_local)
+                if inode_map is None:
+                    inode_map = build_inode_to_pid_map()
+                process_tree = build_process_tree(inode_map)
 
             # 3. Classify listening vs established
             listening, established = classify_entries(entries)
@@ -417,17 +422,22 @@ def daemon_loop(args: argparse.Namespace) -> None:
                     alert_engine.save_baseline()
                     prev_baseline = current_baseline
 
-            # 6. Build snapshot
-            risk_scores = {
-                e.local_port: calculate_risk_score(
-                    e,
-                    malicious_ports=alert_engine.malicious_ports,
-                    known_safe_ports=alert_engine.known_safe,
-                    baseline_ports=alert_engine._baseline_ports if alert_engine.is_baseline_complete() else None,
-                    port_blacklist=alert_engine.port_blacklist,
-                )
-                for e in listening
-            }
+            # 6. Build snapshot (only recalculate risk scores when listening set changes)
+            current_listening_set = frozenset(
+                (e.local_port, e.proto) for e in listening
+            )
+            if current_listening_set != prev_listening_set:
+                risk_scores = {
+                    e.local_port: calculate_risk_score(
+                        e,
+                        malicious_ports=alert_engine.malicious_ports,
+                        known_safe_ports=alert_engine.known_safe,
+                        baseline_ports=alert_engine._baseline_ports if alert_engine.is_baseline_complete() else None,
+                        port_blacklist=alert_engine.port_blacklist,
+                    )
+                    for e in listening
+                }
+                prev_listening_set = current_listening_set
 
             # 6b. Compute geo_stats from established connections
             country_ips: dict[str, set] = {}
@@ -481,7 +491,7 @@ def daemon_loop(args: argparse.Namespace) -> None:
             )
 
             # 8. Adaptive sleep interval
-            current_hash = str(sorted(
+            current_hash = hash(frozenset(
                 (e.local_port, e.proto, e.state) for e in listening
             ))
             if current_hash != last_snapshot_hash:
@@ -571,6 +581,19 @@ def daemon_loop(args: argparse.Namespace) -> None:
             end_time = time.time() + sleep_time
             while running and time.time() < end_time:
                 time.sleep(min(0.5, end_time - time.time()))
+
+    # ── Cleanup on shutdown ────────────────────────────────────
+    logger.info("Shutting down — cleaning up resources")
+    if history:
+        history.close()
+    if _HAS_PSUTIL:
+        try:
+            from backend.parsers import geoip as _geoip_mod
+            from backend.parsers import rdns as _rdns_mod
+            _rdns_mod.shutdown()
+            _geoip_mod.shutdown()
+        except Exception:
+            pass
 
     # Save baseline on clean exit
     alert_engine.save_baseline(cfg.baseline_file)

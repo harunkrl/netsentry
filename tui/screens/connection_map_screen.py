@@ -81,14 +81,25 @@ def _lat_lon_to_grid(lat: float, lon: float) -> tuple[int, int]:
     )
 
 
+_BASE_GRID: list[list[str]] | None = None
+
+
+def _get_base_grid() -> list[list[str]]:
+    """Return a cached mutable copy of the base world map grid."""
+    global _BASE_GRID
+    if _BASE_GRID is None:
+        _BASE_GRID = [list(row) for row in _WORLD_MAP]
+    return [row[:] for row in _BASE_GRID]
+
+
 def _render_map(
     connections: list[dict],
     home_lat: float | None = None,
     home_lon: float | None = None,
 ) -> str:
     """Render the ASCII world map with connection markers."""
-    # Build mutable grid
-    grid = [list(row) for row in _WORLD_MAP]
+    # Build mutable grid from cached base
+    grid = _get_base_grid()
 
     # Aggregate connections per grid cell
     # O6: Skip (0, 0) coordinates — Null Island fix

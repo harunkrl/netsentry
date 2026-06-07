@@ -336,17 +336,21 @@ PlasmoidItem {
             }
         }
 
-        // Step 3: Reorder to match incoming sort order
+        // Step 3: Reorder to match incoming sort order (O(n) with key→index map)
+        var keyToIdx = {}
+        for (var k = 0; k < model.count; k++)
+            keyToIdx[itemKey(model.get(k))] = k
+
         for (var i = 0; i < newItems.length && i < model.count; i++) {
             var expectedKey = itemKey(newItems[i])
             var actualItem = model.get(i)
             if (actualItem && itemKey(actualItem) !== expectedKey) {
-                for (var j = i + 1; j < model.count; j++) {
-                    var itemJ = model.get(j)
-                    if (itemKey(itemJ) === expectedKey) {
-                        model.move(j, i, 1)
-                        break
-                    }
+                var currentIdx = keyToIdx[expectedKey]
+                if (currentIdx !== undefined) {
+                    model.move(currentIdx, i, 1)
+                    // Update index map after move
+                    for (var m = 0; m < model.count; m++)
+                        keyToIdx[itemKey(model.get(m))] = m
                 }
             }
         }

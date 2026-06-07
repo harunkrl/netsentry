@@ -93,7 +93,22 @@ GEOIP_CACHE_FILE: str = os.path.join(GEOIP_CACHE_DIR, "geoip-cache.json")
 
 # ── App metadata ───────────────────────────────────────────────
 APP_NAME: str = "KPortWatch"
-APP_VERSION: str = "2.1.0"
+
+
+def _get_version() -> str:
+    """Read version from pyproject.toml (single source of truth)."""
+    import tomllib
+    from pathlib import Path
+    try:
+        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+        return data["project"]["version"]
+    except Exception:
+        return "0.0.0-dev"
+
+
+APP_VERSION: str = _get_version()
 
 # ── Update paths ──────────────────────────────────────────────
 UPDATE_STATE_FILE: str = os.path.join(_RUNTIME_DIR, "kportwatch-update.json")

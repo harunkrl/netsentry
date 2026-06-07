@@ -499,15 +499,14 @@ class DaemonController:
             except OSError as e:
                 logger.warning("Failed to send notification: %s", e)
 
-        # Evict expired alert hashes
-        if len(self.notified_alerts) > 500:
-            now_ts = time.time()
-            expired = [
-                k for k, v in self.notified_alerts.items()
-                if (now_ts - v) > self.cfg.alert_ttl
-            ]
-            for k in expired:
-                del self.notified_alerts[k]
+        # Evict expired alert hashes (every cycle to prevent unbounded growth)
+        now_ts = time.time()
+        expired = [
+            k for k, v in self.notified_alerts.items()
+            if (now_ts - v) > self.cfg.alert_ttl
+        ]
+        for k in expired:
+            del self.notified_alerts[k]
 
     def _adaptive_interval(self, listening: list, alerts: list) -> float:
         """Compute the next poll interval based on activity."""

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading as _threading
 import tomllib  # Python 3.11+
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
@@ -156,16 +157,18 @@ class AppConfig:
         return os.path.join(os.path.dirname(self.data_file), "kportwatch-heartbeat.json")
 
 
-# ── Singleton ─────────────────────────────────────────────────────
+# ── Singleton (thread-safe) ────────────────────────────────────
 
+_config_lock = _threading.Lock()
 _current_config: AppConfig | None = None
 
 
 def get_config() -> AppConfig:
     """Return the current configuration.  Must call ``load_config()`` first."""
-    if _current_config is None:
-        return AppConfig()
-    return _current_config
+    with _config_lock:
+        if _current_config is None:
+            return AppConfig()
+        return _current_config
 
 
 # ── TOML loader ───────────────────────────────────────────────────
@@ -417,7 +420,8 @@ def load_config(path: str | None = None) -> AppConfig:
             if isinstance(v, (int, float)) and int(v) >= 1:
                 cfg.history_retention_days = int(v)
 
-    _current_config = cfg
+    with _config_lock:
+        _current_config = cfg
     return cfg
 
 

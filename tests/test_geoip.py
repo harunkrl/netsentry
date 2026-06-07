@@ -14,35 +14,36 @@ from shared.network import is_private_ip
 
 @pytest.fixture(autouse=True)
 def _reset_geoip_module():
-    """Reset all module-level state before each test."""
-    geoip_mod._memory_cache.clear()
-    geoip_mod._pending_lookups.clear()
-    geoip_mod._initialized = False
-    geoip_mod._lookups_since_save = 0
-    geoip_mod._last_request_time = 0.0
+    """Reset the GeoIP service singleton state before each test."""
+    svc = geoip_mod._default_service
+    svc._memory_cache.clear()
+    svc._pending_lookups.clear()
+    svc._initialized = False
+    svc._lookups_since_save = 0
+    svc._last_request_time = 0.0
     # Reset config to defaults
-    geoip_mod._api_url = "https://ipwho.is/"
-    geoip_mod._cache_file = ""
-    geoip_mod._cache_max_entries = 4096
-    geoip_mod._cache_ttl_days = 7
-    geoip_mod._timeout = 5.0
-    geoip_mod._batch_size = 10
+    svc._api_url = "https://ipwho.is/"
+    svc._cache_file = ""
+    svc._cache_max_entries = 4096
+    svc._cache_ttl_days = 7
+    svc._timeout = 5.0
+    svc._batch_size = 10
     yield
     # Cleanup after test
-    geoip_mod._memory_cache.clear()
-    geoip_mod._pending_lookups.clear()
-    # Re-init executor if shut down by another test (e.g. daemon_controller cleanup)
+    svc._memory_cache.clear()
+    svc._pending_lookups.clear()
     _reinit_executor(geoip_mod)
-    geoip_mod._initialized = False
+    svc._initialized = False
 
 
 def _reinit_executor(mod):
     from concurrent.futures import ThreadPoolExecutor
+    svc = mod._default_service
     try:
-        if mod._executor is None or mod._executor._shutdown:
-            mod._executor = ThreadPoolExecutor(max_workers=1)
+        if svc._executor is None or svc._executor._shutdown:
+            svc._executor = ThreadPoolExecutor(max_workers=1)
     except (AttributeError, RuntimeError):
-        mod._executor = ThreadPoolExecutor(max_workers=1)
+        svc._executor = ThreadPoolExecutor(max_workers=1)
 
 
 def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",
@@ -58,7 +59,7 @@ def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",
         "isp": "TestISP",
         "cached_at": cached_at or time.time(),
     }
-    geoip_mod._memory_cache[ip] = entry
+    geoip_mod._default_service._memory_cache[ip] = entry
     return entry
 
 
@@ -147,27 +148,27 @@ class TestCacheHit:
         assert result is None
 
     def test_pending_ip_returns_none(self):
-        geoip_mod._pending_lookups.add("1.1.1.1")
+        geoip_mod._default_service._pending_lookups.add("1.1.1.1")
         result = geoip_mod.get_geoip("1.1.1.1")
         assert result is None
         # Cleanup
-        geoip_mod._pending_lookups.discard("1.1.1.1")
+        geoip_mod._default_service._pending_lookups.discard("1.1.1.1")
 
 
 # ── Lookup trigger ─────────────────────────────────────────────
 
 class TestLookupTrigger:
     def test_uncached_ip_submits_background_lookup(self):
-        with patch.object(geoip_mod._executor, "submit") as mock_submit:
+        with patch.object(geoip_mod._default_service._executor, "submit") as mock_submit:
             geoip_mod.get_geoip("1.1.1.1")
-            mock_submit.assert_called_once_with(geoip_mod._do_lookup, "1.1.1.1")
+            mock_submit.assert_called_once_with(geoip_mod._default_service._do_lookup, "1.1.1.1")
 
     def test_pending_ip_not_resubmitted(self):
-        geoip_mod._pending_lookups.add("1.1.1.1")
-        with patch.object(geoip_mod._executor, "submit") as mock_submit:
+        geoip_mod._default_service._pending_lookups.add("1.1.1.1")
+        with patch.object(geoip_mod._default_service._executor, "submit") as mock_submit:
             geoip_mod.get_geoip("1.1.1.1")
             mock_submit.assert_not_called()
-        geoip_mod._pending_lookups.discard("1.1.1.1")
+        geoip_mod._default_service._pending_lookups.discard("1.1.1.1")
 
 
 # ── Do lookup (API interaction) ────────────────────────────────
@@ -189,10 +190,10 @@ class TestDoLookup:
         mock_response.__exit__ = MagicMock(return_value=False)
 
         with patch("backend.parsers.geoip.urlopen", return_value=mock_response):
-            geoip_mod._do_lookup("8.8.8.8")
+            geoip_mod._default_service._do_lookup("8.8.8.8")
 
-        assert "8.8.8.8" in geoip_mod._memory_cache
-        entry = geoip_mod._memory_cache["8.8.8.8"]
+        assert "8.8.8.8" in geoip_mod._default_service._memory_cache
+        entry = geoip_mod._default_service._memory_cache["8.8.8.8"]
         assert entry["country"] == "United States"
         assert entry["countryCode"] == "US"
         assert entry["city"] == "Mountain View"
@@ -202,20 +203,20 @@ class TestDoLookup:
     def test_api_failure_stores_nothing(self):
         from urllib.error import URLError
         with patch("backend.parsers.geoip.urlopen", side_effect=URLError("timeout")):
-            geoip_mod._do_lookup("1.1.1.1")
+            geoip_mod._default_service._do_lookup("1.1.1.1")
 
         # Should not be in cache
-        assert "1.1.1.1" not in geoip_mod._memory_cache
+        assert "1.1.1.1" not in geoip_mod._default_service._memory_cache
         # Should be removed from pending
-        assert "1.1.1.1" not in geoip_mod._pending_lookups
+        assert "1.1.1.1" not in geoip_mod._default_service._pending_lookups
 
     def test_api_429_rate_limit(self):
         from urllib.error import HTTPError
         error = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch("backend.parsers.geoip.urlopen", side_effect=error):
-            geoip_mod._do_lookup("1.1.1.1")
+            geoip_mod._default_service._do_lookup("1.1.1.1")
 
-        assert "1.1.1.1" not in geoip_mod._memory_cache
+        assert "1.1.1.1" not in geoip_mod._default_service._memory_cache
 
     def test_api_returns_fail_status(self):
         mock_response = MagicMock()
@@ -227,12 +228,12 @@ class TestDoLookup:
         mock_response.__exit__ = MagicMock(return_value=False)
 
         with patch("backend.parsers.geoip.urlopen", return_value=mock_response):
-            geoip_mod._do_lookup("0.0.0.0")
+            geoip_mod._default_service._do_lookup("0.0.0.0")
 
-        assert "0.0.0.0" not in geoip_mod._memory_cache
+        assert "0.0.0.0" not in geoip_mod._default_service._memory_cache
 
     def test_pending_cleared_after_lookup(self):
-        geoip_mod._pending_lookups.add("9.9.9.9")
+        geoip_mod._default_service._pending_lookups.add("9.9.9.9")
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps({
             "status": "success",
@@ -248,20 +249,20 @@ class TestDoLookup:
         mock_response.__exit__ = MagicMock(return_value=False)
 
         with patch("backend.parsers.geoip.urlopen", return_value=mock_response):
-            geoip_mod._do_lookup("9.9.9.9")
+            geoip_mod._default_service._do_lookup("9.9.9.9")
 
-        assert "9.9.9.9" not in geoip_mod._pending_lookups
+        assert "9.9.9.9" not in geoip_mod._default_service._pending_lookups
 
 
 # ── LRU eviction ───────────────────────────────────────────────
 
 class TestLRUEviction:
     def test_evicts_oldest_when_over_limit(self):
-        geoip_mod._cache_max_entries = 3
+        geoip_mod._default_service._cache_max_entries = 3
         _seed_cache("1.1.1.1")
         _seed_cache("2.2.2.2")
         _seed_cache("3.3.3.3")
-        assert len(geoip_mod._memory_cache) == 3
+        assert len(geoip_mod._default_service._memory_cache) == 3
 
         # Adding one more should evict the oldest (1.1.1.1)
         mock_response = MagicMock()
@@ -273,12 +274,12 @@ class TestLRUEviction:
         mock_response.__exit__ = MagicMock(return_value=False)
 
         with patch("backend.parsers.geoip.urlopen", return_value=mock_response):
-            geoip_mod._pending_lookups.add("4.4.4.4")
-            geoip_mod._do_lookup("4.4.4.4")
+            geoip_mod._default_service._pending_lookups.add("4.4.4.4")
+            geoip_mod._default_service._do_lookup("4.4.4.4")
 
-        assert len(geoip_mod._memory_cache) == 3
-        assert "1.1.1.1" not in geoip_mod._memory_cache
-        assert "4.4.4.4" in geoip_mod._memory_cache
+        assert len(geoip_mod._default_service._memory_cache) == 3
+        assert "1.1.1.1" not in geoip_mod._default_service._memory_cache
+        assert "4.4.4.4" in geoip_mod._default_service._memory_cache
 
 
 # ── Persistent cache I/O ───────────────────────────────────────
@@ -286,7 +287,7 @@ class TestLRUEviction:
 class TestPersistentCache:
     def test_save_and_load(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
 
         _seed_cache("8.8.8.8", country="United States", country_code="US", city="Mountain View")
         _seed_cache("1.1.1.1", country="Australia", country_code="AU", city="Sydney")
@@ -296,34 +297,34 @@ class TestPersistentCache:
         assert os.path.exists(cache_file)
 
         # Clear memory and reload
-        geoip_mod._memory_cache.clear()
+        geoip_mod._default_service._memory_cache.clear()
         geoip_mod._load_cache()
 
-        assert len(geoip_mod._memory_cache) == 2
-        assert geoip_mod._memory_cache["8.8.8.8"]["country"] == "United States"
-        assert geoip_mod._memory_cache["1.1.1.1"]["countryCode"] == "AU"
+        assert len(geoip_mod._default_service._memory_cache) == 2
+        assert geoip_mod._default_service._memory_cache["8.8.8.8"]["country"] == "United States"
+        assert geoip_mod._default_service._memory_cache["1.1.1.1"]["countryCode"] == "AU"
 
     def test_load_corrupt_file(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
         with open(cache_file, "w") as f:
             f.write("not valid json {{{")
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
         geoip_mod._load_cache()
         # Should not crash, cache remains empty
-        assert len(geoip_mod._memory_cache) == 0
+        assert len(geoip_mod._default_service._memory_cache) == 0
 
     def test_load_missing_file(self, tmp_path):
-        geoip_mod._cache_file = str(tmp_path / "nonexistent.json")
+        geoip_mod._default_service._cache_file = str(tmp_path / "nonexistent.json")
         geoip_mod._load_cache()
-        assert len(geoip_mod._memory_cache) == 0
+        assert len(geoip_mod._default_service._memory_cache) == 0
 
     def test_load_invalid_format(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
         with open(cache_file, "w") as f:
             json.dump(["not", "a", "dict"], f)
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
         geoip_mod._load_cache()
-        assert len(geoip_mod._memory_cache) == 0
+        assert len(geoip_mod._default_service._memory_cache) == 0
 
     def test_load_skips_invalid_entries(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
@@ -337,14 +338,14 @@ class TestPersistentCache:
         }
         with open(cache_file, "w") as f:
             json.dump(data, f)
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
         geoip_mod._load_cache()
-        assert len(geoip_mod._memory_cache) == 1
-        assert "8.8.8.8" in geoip_mod._memory_cache
+        assert len(geoip_mod._default_service._memory_cache) == 1
+        assert "8.8.8.8" in geoip_mod._default_service._memory_cache
 
     def test_atomic_write_no_partial_on_error(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
         _seed_cache("8.8.8.8")
 
         with patch("json.dump", side_effect=OSError("disk full")):
@@ -355,7 +356,7 @@ class TestPersistentCache:
 
     def test_flush_cache_calls_save(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod._cache_file = cache_file
+        geoip_mod._default_service._cache_file = cache_file
         _seed_cache("8.8.8.8")
         geoip_mod.flush_cache()
         assert os.path.exists(cache_file)
@@ -380,7 +381,7 @@ class TestBatchLookup:
     def test_batch_mixed_cached_and_uncached(self):
         _seed_cache("8.8.8.8", country="United States")
 
-        with patch.object(geoip_mod._executor, "submit"):
+        with patch.object(geoip_mod._default_service._executor, "submit"):
             results = geoip_mod.lookup_batch(["8.8.8.8", "9.9.9.9"])
 
         assert results["8.8.8.8"]["country"] == "United States"
@@ -404,14 +405,14 @@ class TestInit:
             "geoip_batch_size": 5,
             "geoip_timeout": 3.0,
         })
-        assert geoip_mod._api_url == "https://custom-api.example.com/"
-        assert geoip_mod._cache_max_entries == 500
-        assert geoip_mod._cache_ttl_days == 14
-        assert geoip_mod._initialized is True
+        assert geoip_mod._default_service._api_url == "https://custom-api.example.com/"
+        assert geoip_mod._default_service._cache_max_entries == 500
+        assert geoip_mod._default_service._cache_ttl_days == 14
+        assert geoip_mod._default_service._initialized is True
 
     def test_init_with_none_uses_defaults(self):
         geoip_mod.init(None)
-        assert geoip_mod._initialized is True
+        assert geoip_mod._default_service._initialized is True
 
     def test_init_rejects_http_url(self, tmp_path):
         """Non-HTTPS API URLs should be rejected and forced to default."""
@@ -420,7 +421,7 @@ class TestInit:
             "geoip_api_url": "http://malicious.example.com/",
             "geoip_cache_file": cache_file,
         })
-        assert geoip_mod._api_url == "https://ipwho.is/"
+        assert geoip_mod._default_service._api_url == "https://ipwho.is/"
 
     def test_init_rejects_localhost_url(self, tmp_path):
         """Localhost API URLs should be rejected and forced to default."""
@@ -429,7 +430,7 @@ class TestInit:
             "geoip_api_url": "https://127.0.0.1/",
             "geoip_cache_file": cache_file,
         })
-        assert geoip_mod._api_url == "https://ipwho.is/"
+        assert geoip_mod._default_service._api_url == "https://ipwho.is/"
 
     def test_init_loads_existing_cache(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
@@ -443,4 +444,4 @@ class TestInit:
             json.dump(data, f)
 
         geoip_mod.init({"geoip_cache_file": cache_file})
-        assert "8.8.8.8" in geoip_mod._memory_cache
+        assert "8.8.8.8" in geoip_mod._default_service._memory_cache

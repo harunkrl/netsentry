@@ -7,15 +7,29 @@
   <vendor_url>https://github.com/harunkrl/kportwatch</vendor_url>
   <icon_name>security-high</icon_name>
 
-  <action id="com.kportwatch.helper.getports">
-    <description>Manage network socket information and process termination</description>
-    <message>Authentication is required to manage network sockets and terminate processes</message>
-    <defaults>
-      <allow_any>auth_admin</allow_any>
-      <allow_inactive>auth_admin</allow_inactive>
-      <allow_active>auth_admin_keep</allow_active>
-    </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">%h/.local/bin/kportwatchctl</annotate>
-    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
-  </action>
+    <!-- Read-only: fetch network socket information -->
+    <action id="com.kportwatch.helper.getports">
+        <description>View network socket information</description>
+        <message>Authentication is required to view network socket information</message>
+        <defaults>
+            <allow_any>auth_self</allow_any>
+            <allow_inactive>auth_self</allow_inactive>
+            <allow_active>auth_self_keep</allow_active>
+        </defaults>
+        <annotate key="org.freedesktop.policykit.exec.path">%h/.local/bin/kportwatchctl</annotate>
+        <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+    </action>
+
+    <!-- Destructive: terminate a network process -->
+    <action id="com.kportwatch.helper.kill">
+        <description>Terminate a network process via SIGTERM/SIGKILL</description>
+        <message>Authentication is required to terminate a network process</message>
+        <defaults>
+            <allow_any>auth_admin</allow_any>
+            <allow_inactive>auth_admin</allow_inactive>
+            <allow_active>auth_admin_keep</allow_active>
+        </defaults>
+        <annotate key="org.freedesktop.policykit.exec.path">%h/.local/bin/kportwatchctl</annotate>
+        <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+    </action>
 </policyconfig>

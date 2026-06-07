@@ -3,7 +3,7 @@
 Re-exports all constants from :pymod:`shared.constants` so that
 ``from shared import DATA_FILE`` works transparently.
 """
-from shared.constants import *  # noqa: F401,F403
+from shared.constants import *  # noqa: F403
 from shared.constants import (  # noqa: F401 — explicit re-exports for type-checkers
     ALERT_POLL_INTERVAL,
     APP_NAME,

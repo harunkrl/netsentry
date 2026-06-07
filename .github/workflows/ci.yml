@@ -37,7 +37,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           pip install pytest-cov
-          pytest tests/ -v --tb=short --cov=backend.alert_engine --cov=backend.models --cov=backend.parsers --cov=backend.writers.json_file --cov-fail-under=60
+          pytest tests/ -v --tb=short --cov=backend --cov=tui --cov=shared --cov-report=term-missing --cov-fail-under=75
 
       - name: Verify imports
         run: |
@@ -68,6 +68,16 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
+      - name: Security scan (bandit)
+        run: |
+          pip install bandit
+          bandit -r backend shared -ll -ii || true
+
+      - name: Dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit || true
+
   build:
     name: Build verification
     runs-on: ubuntu-latest
@@ -91,3 +101,5 @@ jobs:
           pip install dist/kportwatch-*.whl
           kportwatch-daemon --help
           kportwatch-tui --help
+          kportwatchctl --help
+          kportwatch-export --help

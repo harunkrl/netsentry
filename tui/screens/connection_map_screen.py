@@ -35,7 +35,7 @@ _SORT_LABELS = ["Country", "City", "IP", "Port", "Process", "Count"]
 
 
 # ── ASCII World Map (Braille Yüksek Çözünürlüklü) ─────────
-# Matematiksel hizalama dinamik olarak hesaplanacaktır.
+# Mathematical alignment calculated dynamically.
 _WORLD_MAP: list[str] = [
     r"⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⡀⣀⢠⢠⢠⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
     r"⠀⠀⠀⠀⠀⠀⠀⡀⡀⡀⠀⢀⢀⠀⠀⠀⠀⡀⡠⡠⣀⠀⠁⢑⢕⢅⢇⢣⠃⠁⠀⠀⠀⠀⢀⢀⢀⠀⠀⠀⠀⡀⡄⡄⡆⡆⢇⢣⢢⢠⢠⡀⡠⡠⡀⡀⡀⢀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",

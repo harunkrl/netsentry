@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from unittest.mock import patch
 
 import pytest
 from backend.models import ProcessInfo, Snapshot
@@ -70,17 +71,37 @@ class TestBuildProcessTree:
     """Tests for build_process_tree()."""
 
     def test_basic_tree(self):
-        """Build tree from live /proc — at minimum PID 1 and 2 should exist."""
-        tree = build_process_tree()
-        assert 1 in tree  # systemd/init
-        assert 2 in tree  # kthreadd
-        assert tree[1].name in ("systemd", "init")
+        """Build tree from mocked /proc — PID 1 and 2 should be parsed."""
+        def fake_read(path):
+            if "/1/stat" in path:
+                return "1 (systemd) S 0 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+            if "/2/stat" in path:
+                return "2 (kthreadd) S 0 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+            return None
+
+        with patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read), \
+             patch("os.listdir", return_value=["1", "2"]):
+            tree = build_process_tree()
+
+        assert 1 in tree
+        assert 2 in tree
+        assert tree[1].name == "systemd"
         assert tree[1].ppid == 0
         assert tree[2].ppid == 0
 
     def test_children_populated(self):
-        """systemd should have children on any Linux system."""
-        tree = build_process_tree()
+        """systemd should have children when tree has child processes."""
+        def fake_read(path):
+            if "/1/stat" in path:
+                return "1 (systemd) S 0 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+            if "/100/stat" in path:
+                return "100 (child) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+            return None
+
+        with patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read), \
+             patch("os.listdir", return_value=["1", "100"]):
+            tree = build_process_tree()
+
         assert len(tree[1].children) > 0
 
     def test_has_network_flag(self):

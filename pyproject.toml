@@ -76,6 +76,11 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+skip_empty = true
+
 # ── Ruff ───────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
@@ -83,8 +88,8 @@ target-version = "py311"
 src = ["backend", "tui", "shared", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "RUF"]
+ignore = ["E501", "RUF012"]
 
 [tool.ruff.format]
 quote-style = "double"

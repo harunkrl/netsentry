@@ -230,43 +230,20 @@ class TestParseAllProc:
     def test_parse_all_proc_combines_all(
         self, tmp_path: Path, proc_tcp_content: str
     ) -> None:
-        # Create temp files for each proc path
+        """parse_all_proc should combine entries from all 4 proc files."""
         tcp_file = tmp_path / "tcp"
         tcp6_file = tmp_path / "tcp6"
         udp_file = tmp_path / "udp"
         udp6_file = tmp_path / "udp6"
 
         tcp_file.write_text(proc_tcp_content)
-        tcp6_file.write_text("")  # empty
+        tcp6_file.write_text("")
         udp_file.write_text(
             "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
             "   0: 00000000:14E9 00000000:0000 07 00000000:00000000 00:00000000 00000000  1000        0 55555 1 0000000000000000 100 0 0 10 0\n"
         )
         udp6_file.write_text("")
 
-        [
-            (str(tcp_file), "tcp"),
-            (str(tcp6_file), "tcp6"),
-            (str(udp_file), "udp"),
-            (str(udp6_file), "udp6"),
-        ]
-
-        with patch("backend.parsers.proc_net.parse_proc_net") as mock_parse:
-            # Set up different return values per call
-            tcp_entries = parse_proc_net(str(tcp_file), "tcp")
-            udp_entries = parse_proc_net(str(udp_file), "udp")
-
-            mock_parse.side_effect = [tcp_entries, [], udp_entries, []]
-
-            with patch(
-                "backend.parsers.proc_net.parse_all_proc",
-                wraps=parse_all_proc,
-            ) as _:
-                # We can't easily wrap, so call directly with mocked paths
-                # Instead, let's mock at the module level
-                pass
-
-        # Simpler approach: mock PROC_TCP etc. at module level
         from shared import PROC_TCP, PROC_TCP6, PROC_UDP, PROC_UDP6
 
         mock_path_map = {

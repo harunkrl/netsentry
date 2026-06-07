@@ -4,7 +4,7 @@ Line format (whitespace-separated):
   sl  local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode ...
 
 IPv4 addresses are 8-hex-char, big-endian (e.g. 0100007F → 127.0.0.1).
-IPv6 addresses are 32-hex-char, stored as 4 × 32-bit words in little-endian.
+IPv6 addresses are 32-hex-char, stored as 4 x 32-bit words in little-endian.
 """
 from __future__ import annotations
 

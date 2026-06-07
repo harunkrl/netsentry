@@ -56,7 +56,7 @@ class TestClassifyEntries:
         assert established[0].local_port == 44532
 
     def test_udp_unconn_classified_as_listening(self, unconn_udp):
-        listening, established = classify_entries([unconn_udp])
+        listening, _established = classify_entries([unconn_udp])
         assert len(listening) == 1
         assert listening[0].proto == "udp"
 

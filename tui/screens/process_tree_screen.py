@@ -22,8 +22,9 @@ from backend.parsers.process_tree import get_tree_roots
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.screen import Screen
-from textual.widgets import Footer, Header, Input, Static, Tree
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen, Screen
+from textual.widgets import Button, Footer, Header, Input, Label, Static, Tree
 
 from tui.data.provider import DataProvider
 
@@ -49,13 +50,8 @@ class ProcessTreeScreen(Screen):
         padding: 0 1;
         background: $surface;
     }
-    #search-bar {
-        height: auto;
+    #search-input.hidden {
         display: none;
-        margin: 0 1;
-    }
-    #search-input {
-        width: 100%;
     }
     #process-tree {
         height: 1fr;
@@ -82,6 +78,7 @@ class ProcessTreeScreen(Screen):
         yield Input(
             placeholder="Filter processes (Esc to close)...",
             id="search-input",
+            classes="hidden",
         )
         tree = Tree("Processes", id="process-tree")
         # Disable Textual's auto_expand — it uses toggle() which collapses
@@ -99,6 +96,11 @@ class ProcessTreeScreen(Screen):
         self.refresh_data()
         # O17: Auto-refresh every 2s like other screens
         self._refresh_handle = self.set_interval(2.0, self.refresh_data)
+
+    def on_unmount(self) -> None:
+        """Stop the refresh interval when screen is closed."""
+        if hasattr(self, '_refresh_handle') and self._refresh_handle:
+            self._refresh_handle.stop()
 
     # ── Data refresh ──────────────────────────────────────────
     @work(exclusive=True)
@@ -341,7 +343,7 @@ class ProcessTreeScreen(Screen):
         self.app.pop_screen()
 
     def action_kill(self) -> None:
-        """Kill the process currently selected in the tree."""
+        """Kill the process currently selected in the tree (with confirmation)."""
         tree = self.query_one("#process-tree", Tree)
         node = tree.get_node_at_line(tree.cursor_line)
         if node is None or node.data is None:
@@ -352,17 +354,8 @@ class ProcessTreeScreen(Screen):
         info = self._processes.get(pid)
         name = info.name if info else f"PID {pid}"
 
-        try:
-            os.kill(pid, signal.SIGTERM)
-            self.app.notify(f"Sent SIGTERM to {name} (PID {pid})", severity="information")
-            # Refresh after a brief delay
-            self.set_timer(1.0, self.refresh_data)
-        except ProcessLookupError:
-            self.app.notify(f"Process {name} (PID {pid}) not found", severity="error")
-        except PermissionError:
-            self.app.notify(f"Permission denied for PID {pid}", severity="error")
-        except OSError as e:
-            self.app.notify(f"Error: {e}", severity="error")
+        # Ask for confirmation before killing
+        self.app.push_screen(ProcessKillConfirm(pid, name))
 
     def action_search(self) -> None:
         """Show the search bar."""
@@ -443,3 +436,86 @@ class ProcessTreeScreen(Screen):
             node.expand()
         for child in getattr(node, 'children', []):
             self._expand_matching(child)
+
+
+class ProcessKillConfirm(ModalScreen[bool]):
+    """Simple kill confirmation dialog for ProcessTreeScreen."""
+
+    CSS = """
+    ProcessKillConfirm {
+        align: center middle;
+    }
+    #kill-dialog {
+        width: 56;
+        max-width: 80;
+        height: auto;
+        border: round $error;
+        background: $surface;
+        padding: 1 2;
+    }
+    #kill-dialog Label {
+        margin: 0 0 1 0;
+    }
+    #kill-buttons {
+        height: auto;
+        margin: 1 0 0 0;
+    }
+    #kill-buttons Button {
+        margin: 0 1;
+    }
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=False),
+    ]
+
+    def __init__(self, pid: int, name: str) -> None:
+        super().__init__()
+        self._pid = pid
+        self._name = name
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="kill-dialog"):
+            yield Label("[bold red]⚠  Kill Process[/]")
+            yield Static(f"  Process : [bold]{self._name}[/]")
+            yield Static(f"  PID     : [bold]{self._pid}[/]")
+            yield Label("")
+            with Horizontal(id="kill-buttons"):
+                yield Button("SIGTERM (graceful)", variant="warning", id="btn-sigterm")
+                yield Button("SIGKILL (force)", variant="error", id="btn-sigkill")
+                yield Button("Cancel", variant="default", id="btn-cancel")
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        btn_id = event.button.id
+
+        if btn_id == "btn-cancel":
+            self.dismiss(False)
+            return
+
+        try:
+            if btn_id == "btn-sigterm":
+                os.kill(self._pid, signal.SIGTERM)
+                self.app.notify(
+                    f"Sent SIGTERM to {self._name} (PID {self._pid})",
+                    severity="information",
+                )
+                self.dismiss(True)
+            elif btn_id == "btn-sigkill":
+                os.kill(self._pid, signal.SIGKILL)
+                self.app.notify(
+                    f"Force-killed {self._name} (PID {self._pid})",
+                    severity="information",
+                )
+                self.dismiss(True)
+        except ProcessLookupError:
+            self.app.notify(f"Process {self._name} (PID {self._pid}) not found", severity="error")
+            self.dismiss(False)
+        except PermissionError:
+            self.app.notify(f"Permission denied for PID {self._pid}", severity="error")
+            self.dismiss(False)
+        except OSError as e:
+            self.app.notify(f"Error: {e}", severity="error")
+            self.dismiss(False)

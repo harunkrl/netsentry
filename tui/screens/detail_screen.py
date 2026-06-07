@@ -65,11 +65,11 @@ class DetailScreen(Screen):
     #detail-container {
         margin: 1 2;
         padding: 1 2;
-        border: round #008855;
+        border: round $primary;
         background: $surface;
     }
     .detail-section-title {
-        color: #00ff99;
+        color: $primary;
         text-style: bold;
         margin: 1 0 0 0;
     }
@@ -77,7 +77,7 @@ class DetailScreen(Screen):
         dock: bottom;
         height: 1;
         padding: 0 2;
-        color: #6a6a7a;
+        color: $text-disabled;
     }
     """
 
@@ -95,7 +95,7 @@ class DetailScreen(Screen):
             pid = str(entry.pid) if entry.pid else "—"
             cmdline = entry.cmdline or "—"
 
-            yield Static("[bold #00ff99]CONNECTION DETAILS[/]")
+            yield Static("[bold cyan]CONNECTION DETAILS[/]")
             yield Rule()
 
             yield from self._make_kv_rows([
@@ -106,7 +106,7 @@ class DetailScreen(Screen):
             ])
 
             yield Static("")
-            yield Static("[bold #00ff99]NETWORK[/]")
+            yield Static("[bold cyan]NETWORK[/]")
             yield Rule()
 
             remote_display = f"{entry.remote_ip}:{entry.remote_port}"
@@ -127,7 +127,7 @@ class DetailScreen(Screen):
                 elapsed = time.time() - first_seen
                 dur = _format_duration(elapsed)
                 yield Static("")
-                yield Static("[bold #00ff99]DURATION[/]")
+                yield Static("[bold cyan]DURATION[/]")
                 yield Rule()
                 yield from self._make_kv_rows([
                     ("First Seen", f"{_format_time(first_seen)}"),
@@ -159,7 +159,7 @@ class DetailScreen(Screen):
 
             if any([geo_country, geo_city, geo_org]):
                 yield Static("")
-                yield Static("[bold #00ff99]GEOLOCATION[/]")
+                yield Static("[bold cyan]GEOLOCATION[/]")
                 yield Rule()
                 geo_rows = []
                 if geo_country:
@@ -178,7 +178,7 @@ class DetailScreen(Screen):
             alert_details = getattr(entry, "alert_details", None)
             if risk_score is not None or alert_details:
                 yield Static("")
-                yield Static("[bold #00ff99]SECURITY[/]")
+                yield Static("[bold cyan]SECURITY[/]")
                 yield Rule()
                 sec_rows = []
                 if risk_score is not None:
@@ -210,7 +210,7 @@ class DetailScreen(Screen):
         """Yield Static widgets for key-value pairs."""
         for key, value in pairs:
             yield Static(
-                f"  [bold #00cc88]{key:<14}[/]  {value}"
+                f"  [bold cyan]{key:<14}[/]  {value}"
             )
 
     def action_copy_info(self) -> None:

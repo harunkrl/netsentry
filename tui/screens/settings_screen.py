@@ -22,7 +22,9 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static, Switch, TabbedContent, TabPane
 
 # Available themes (must match tui/themes.py)
-AVAILABLE_THEMES = ["Cyberpunk", "Midnight", "Hacker"]
+from tui.themes import THEME_DISPLAY_NAMES
+
+AVAILABLE_THEMES = THEME_DISPLAY_NAMES
 
 
 class SettingRow(Container):
@@ -38,14 +40,14 @@ class SettingRow(Container):
         grid-columns: 1fr 16;
         height: auto;
         padding: 1 2;
-        border-bottom: solid #1a3a2a 80%;
+        border-bottom: solid $panel 80%;
     }
     SettingRow:focus {
-        background: #0a2a1a;
-        border: thick #00ff99 60%;
+        background: $panel;
+        border: thick $primary 60%;
     }
     SettingRow:hover {
-        background: #0a2a1a;
+        background: $panel;
     }
 
     SettingRow > .setting-info {
@@ -53,12 +55,12 @@ class SettingRow(Container):
     }
 
     SettingRow > .setting-info > .setting-title {
-        color: #00ff99;
+        color: $primary;
         text-style: bold;
     }
 
     SettingRow > .setting-info > .setting-desc {
-        color: #6a6a7a;
+        color: $text-disabled;
         margin-top: 1;
         text-wrap: wrap;
         width: 100%;
@@ -121,14 +123,14 @@ class SelectableRow(Container):
         grid-columns: 1fr 20;
         height: auto;
         padding: 1 2;
-        border-bottom: solid #1a3a2a 80%;
+        border-bottom: solid $panel 80%;
     }
     SelectableRow:focus {
-        background: #0a2a1a;
-        border: thick #00ff99 60%;
+        background: $panel;
+        border: thick $primary 60%;
     }
     SelectableRow:hover {
-        background: #0a2a1a;
+        background: $panel;
     }
 
     SelectableRow > .setting-info {
@@ -136,12 +138,12 @@ class SelectableRow(Container):
     }
 
     SelectableRow > .setting-info > .setting-title {
-        color: #00ff99;
+        color: $primary;
         text-style: bold;
     }
 
     SelectableRow > .setting-info > .setting-desc {
-        color: #6a6a7a;
+        color: $text-disabled;
         margin-top: 1;
         text-wrap: wrap;
         width: 100%;
@@ -154,9 +156,9 @@ class SelectableRow(Container):
     }
 
     SelectableRow > .setting-value-container > .value-label {
-        color: #00ff99;
+        color: $primary;
         text-style: bold;
-        background: #0a2a1a;
+        background: $panel;
         padding: 0 2;
     }
     """
@@ -226,16 +228,16 @@ class SettingsScreen(ModalScreen[None]):
         height: 34;
         max-width: 95%;
         max-height: 90%;
-        background: #0d0d0d;
-        border: round #008855;
+        background: $surface;
+        border: round $primary;
         padding: 0;
     }
 
     #settings-header {
         height: 3;
         padding: 0 2;
-        background: #008855;
-        color: #000;
+        background: $primary;
+        color: $background;
         text-style: bold;
         content-align: center middle;
     }
@@ -251,9 +253,9 @@ class SettingsScreen(ModalScreen[None]):
         height: auto;
         min-height: 3;
         padding: 0 2 1 2;
-        color: #6a6a8a;
+        color: $text-disabled;
         align: center middle;
-        border-top: solid #1a3a2a;
+        border-top: solid $panel;
     }
 
     #settings-footer-text {
@@ -267,10 +269,10 @@ class SettingsScreen(ModalScreen[None]):
     }
 
     #settings-body ScrollBar {
-        color: #00ff99;
+        color: $primary;
     }
     #settings-body ScrollBar > .scrollbar--thumb {
-        background: #008855;
+        background: $secondary;
     }
     """
 
@@ -339,28 +341,28 @@ class SettingsScreen(ModalScreen[None]):
                             ),
                             value=self._geoip_enabled,
                         )
-                        yield SettingRow(
+                        yield SelectableRow(
                             key="burst_threshold",
                             section="alerts",
                             title="Burst Alert Threshold",
                             description=(
-                                f"Number of rapid connections to trigger a burst alert. "
-                                f"Current: {self._burst_threshold}. Toggle to reset to default (3)."
+                                "Number of rapid connections to trigger a burst alert."
                             ),
-                            value=self._burst_threshold <= 3,
+                            value=str(self._burst_threshold),
+                            options=["3", "5", "10", "20"],
                         )
 
                     # Security Tab
                     with TabPane("Security", id="tab-security"):
-                        yield SettingRow(
+                        yield SelectableRow(
                             key="scan_threshold",
                             section="security",
                             title="Port Scan Detection",
                             description=(
-                                f"Number of unique ports from one IP to flag as port scan. "
-                                f"Current: {self._scan_threshold}. Toggle between 5 (sensitive) and 10 (relaxed)."
+                                "Unique ports from one IP to flag as port scan."
                             ),
-                            value=self._scan_threshold <= 5,
+                            value=str(self._scan_threshold),
+                            options=["3", "5", "10", "15", "20"],
                         )
 
                     # Appearance Tab
@@ -427,27 +429,7 @@ class SettingsScreen(ModalScreen[None]):
                 value=event.value,
             )
 
-        elif switch_id == "switch-burst_threshold":
-            new_val = 3 if event.value else 5
-            self._burst_threshold = new_val
-            self._save_and_sync(
-                section="alerts",
-                key="burst_threshold",
-                value=new_val,
-            )
-
-        elif switch_id == "switch-scan_threshold":
-            new_val = 5 if event.value else 10
-            self._scan_threshold = new_val
-            self._save_and_sync(
-                section="security",
-                key="scan_threshold",
-                value=new_val,
-            )
-
-
-
-    def _save_and_sync(self, section: str, key: str, value: bool) -> None:
+    def _save_and_sync(self, section: str, key: str, value) -> None:
         """Save to config.toml and reload daemon config if needed."""
         try:
             save_config_setting(section, key, value)
@@ -613,20 +595,23 @@ class SettingsScreen(ModalScreen[None]):
         return os.getcwd()
 
     def on_selectable_row_value_changed(self, event: SelectableRow.ValueChanged) -> None:
-        """Handle selectable row value changes (e.g., theme selector)."""
+        """Handle selectable row value changes (theme, thresholds, etc.)."""
         if event.key == "theme":
             self._current_theme = event.value
-            # Apply theme immediately
             try:
                 from tui.themes import apply_theme_by_name
                 apply_theme_by_name(self.app, event.value)
             except Exception:
                 pass
-            self._save_and_sync(
-                section="tui",
-                key="theme",
-                value=event.value,
-            )
+            self._save_and_sync(section="tui", key="theme", value=event.value)
+        elif event.key == "burst_threshold":
+            val = int(event.value)
+            self._burst_threshold = val
+            self._save_and_sync(section="alerts", key="burst_threshold", value=val)
+        elif event.key == "scan_threshold":
+            val = int(event.value)
+            self._scan_threshold = val
+            self._save_and_sync(section="security", key="scan_threshold", value=val)
 
     def action_close(self) -> None:
         self.dismiss(None)

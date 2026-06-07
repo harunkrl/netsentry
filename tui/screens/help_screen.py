@@ -8,7 +8,11 @@ from textual.containers import VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Markdown
 
-HELP_MD = """
+from tui.themes import THEME_DISPLAY_NAMES
+
+_THEME_LIST = ", ".join(f"**{n}**" for n in THEME_DISPLAY_NAMES)
+
+HELP_MD = f"""
 # KPortWatch TUI — Keyboard Shortcuts
 
 ## Navigation
@@ -56,10 +60,8 @@ The connection log supports severity-based filtering. States are categorized as:
 - Access detected scans via the detail view of flagged IPs.
 
 ## Themes
-Three built-in themes available via **Settings → Appearance**:
-- **Cyberpunk** — Green neon on dark (default)
-- **Midnight** — Cool blue nord palette
-- **Hacker** — Classic solarized green
+Available themes via **Settings → Appearance**:
+{_THEME_LIST}
 
 ## Tips
 - **Shift + Mouse drag**: Select text (bypasses TUI mouse capture)

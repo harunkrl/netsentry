@@ -178,7 +178,7 @@ class ConnectionMapScreen(Screen):
         height: auto;
         max-height: 22;
         border: round $primary;
-        background: #1e1e2e;
+        background: $surface;
         padding: 0 1;
         overflow-x: auto;
     }
@@ -195,7 +195,7 @@ class ConnectionMapScreen(Screen):
         height: 1fr;
         border: round $primary;
         padding: 0 1;
-        background: #1e1e2e;
+        background: $surface;
     }
     /* Map visibility uses .hidden from styles.tcss */
     """

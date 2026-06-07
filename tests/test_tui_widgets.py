@@ -573,7 +573,7 @@ class TestSettingsScreen:
     def test_available_themes(self):
         """AVAILABLE_THEMES has 3 entries matching theme display names."""
         from tui.screens.settings_screen import AVAILABLE_THEMES
-        assert len(AVAILABLE_THEMES) == 3
+        assert len(AVAILABLE_THEMES) == 4
         assert "Cyberpunk" in AVAILABLE_THEMES
         assert "Midnight" in AVAILABLE_THEMES
         assert "Hacker" in AVAILABLE_THEMES

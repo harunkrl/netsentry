@@ -375,6 +375,16 @@ PlasmoidItem {
         connectedSources: []
         onNewData: (sourceName, data) => {
             connectedSources = []
+            // Show feedback notification for kill result
+            var stdout = data["stdout"] || ""
+            var stderr = data["stderr"] || ""
+            if (stderr.length > 0) {
+                plasmoid.showPassiveNotification("Kill failed: " + stderr.trim())
+            } else if (stdout.length > 0) {
+                plasmoid.showPassiveNotification(stdout.trim())
+            } else {
+                plasmoid.showPassiveNotification("Kill command completed")
+            }
         }
     }
 

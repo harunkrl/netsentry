@@ -388,7 +388,7 @@ class TestGeoIPConfig:
     def test_geoip_defaults(self, tmp_path: Path):
         cfg = load_config(str(tmp_path / "nonexistent.toml"))
         assert cfg.geoip_enabled is True
-        assert cfg.geoip_api_url == "http://ip-api.com/json/"
+        assert cfg.geoip_api_url == "https://ipwho.is/"
         assert cfg.geoip_cache_max_entries == 4096
         assert cfg.geoip_cache_ttl_days == 7
         assert cfg.geoip_batch_size == 10

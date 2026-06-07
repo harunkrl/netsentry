@@ -131,7 +131,7 @@ class AppConfig:
 
     # GeoIP
     geoip_enabled: bool = True
-    geoip_api_url: str = "http://ip-api.com/json/"
+    geoip_api_url: str = "https://ipwho.is/"
     geoip_cache_file: str = GEOIP_CACHE_FILE
     geoip_cache_max_entries: int = 4096
     geoip_cache_ttl_days: int = 7

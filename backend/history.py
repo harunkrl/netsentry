@@ -185,14 +185,20 @@ def export_history_csv(
     history_dir: str | None = None,
     date: str | None = None,
     event_type: str | None = None,
+    last_n: int | None = None,
 ) -> int:
     """Export history entries to a CSV file.
+
+    Args:
+        last_n: If set, only export the last N entries.
 
     Returns the number of rows written.
     """
     entries = read_history(history_dir, date, event_type)
     if not entries:
         return 0
+    if last_n is not None and last_n > 0:
+        entries = entries[-last_n:]
 
     import csv
     # Collect all keys across entries for header
@@ -218,14 +224,20 @@ def export_history_json(
     history_dir: str | None = None,
     date: str | None = None,
     event_type: str | None = None,
+    last_n: int | None = None,
 ) -> int:
     """Export history entries to a JSON file.
+
+    Args:
+        last_n: If set, only export the last N entries.
 
     Returns the number of entries written.
     """
     entries = read_history(history_dir, date, event_type)
     if not entries:
         return 0
+    if last_n is not None and last_n > 0:
+        entries = entries[-last_n:]
 
     with open(output_path, "w") as fh:
         json.dump(entries, fh, indent=2, ensure_ascii=False)

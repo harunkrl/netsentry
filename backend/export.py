@@ -81,9 +81,9 @@ def main() -> None:
         outpath = f"kportwatch-export-{date}.{ext}"
 
     if args.format == "csv":
-        count = export_history_csv(outpath, date=args.date, event_type=args.type)
+        count = export_history_csv(outpath, date=args.date, event_type=args.type, last_n=args.last)
     else:
-        count = export_history_json(outpath, date=args.date, event_type=args.type)
+        count = export_history_json(outpath, date=args.date, event_type=args.type, last_n=args.last)
 
     if count == 0:
         print(f"No entries found for {args.date or 'today'}.", file=sys.stderr)

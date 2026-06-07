@@ -21,7 +21,7 @@ def _reset_geoip_module():
     geoip_mod._lookups_since_save = 0
     geoip_mod._last_request_time = 0.0
     # Reset config to defaults
-    geoip_mod._api_url = "http://ip-api.com/json/"
+    geoip_mod._api_url = "https://ipwho.is/"
     geoip_mod._cache_file = ""
     geoip_mod._cache_max_entries = 4096
     geoip_mod._cache_ttl_days = 7

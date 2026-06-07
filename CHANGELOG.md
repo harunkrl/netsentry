@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-06-07
+
+### Added
+- **Backend**: psutil-based collectors replacing manual /proc parsing (~50 lines vs ~560 lines).
+- **Backend**: GeoIP lookup with persistent JSON cache and ipwho.is (HTTPS) primary / ip-api.com fallback.
+- **Backend**: Unix domain socket server for streaming client (kportwatchctl).
+- **Backend**: Daemon controller with start/stop/restart/status via D-Bus.
+- **Backend**: Auto-update checker with GitHub release tracking.
+- **Backend**: Export CLI (`kportwatch-export`) with CSV/JSON output, date filter, `--last N` support.
+- **Backend**: Baseline learning engine with SIGHUP reset.
+- **Backend**: Alert engine with burst detection, malicious ports, custom rules, whitelist/blacklist.
+- **Backend**: Thread-safe config management with fcntl file locking.
+- **TUI**: 8 built-in themes (Cyberpunk, Midnight, Hacker, Daylight, Nord, etc.).
+- **TUI**: Settings screen with auto-save to TOML config.
+- **TUI**: Connection map screen with ASCII world map and GeoIP overlay.
+- **TUI**: Process tree screen with kill confirmation dialog.
+- **TUI**: Port scan detection with configurable threshold.
+- **TUI**: Safe clipboard copy across Wayland/X11.
+- **Widget**: Dark/light Plasma themes, traffic display, port badge, kill action.
+- **Widget**: Key-based model reconciliation (no stale index bugs).
+- **Widget**: Passive notification banner.
+- **CI/CD**: GitHub Actions with pytest (75%+ coverage), ruff linting, bandit security audit.
+- **CI/CD**: Dependabot for GitHub Actions and pip dependencies.
+- **Systemd**: Hardened service unit with sandboxing directives.
+
+### Changed
+- GeoIP primary API switched from HTTP (ip-api.com) to HTTPS (ipwho.is).
+- Removed `psutil._common.sconn` private type hints (forward-compat with future psutil).
+- Config default `geoip_api_url` updated to `https://ipwho.is/`.
+
+### Fixed
+- Atomic file writes for data files (tmp + os.rename pattern).
+- Widget model updates now use unique key-based reconciliation instead of index-based.
+
 ## [1.0.0] - 2026-05-31
 
 ### Added

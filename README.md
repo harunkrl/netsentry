@@ -112,6 +112,49 @@ KPortWatch is a **hybrid architecture** network security monitor designed for Ar
 
 ---
 
+## 📁 Project Structure
+
+```
+kportwatch/
+├── backend/                # Daemon and core logic
+│   ├── kportwatch_daemon.py     # Main daemon loop
+│   ├── daemon_controller.py     # D-Bus controller (start/stop/restart)
+│   ├── kportwatchctl.py         # CLI client (socket-based)
+│   ├── export.py                # History export CLI
+│   ├── alert_engine.py          # Alert evaluation engine
+│   ├── baseline.py              # Baseline learning
+│   ├── history.py               # History recording (daily JSON)
+│   ├── update.py                # Auto-update checker
+│   ├── risk_score.py            # Port risk scoring (0-100)
+│   ├── writers/                 # Data output (JSON, Unix socket)
+│   └── parsers/                 # /proc parsers, GeoIP, rDNS
+├── tui/                    # Terminal UI (Textual)
+│   ├── kportwatch_tui.py        # TUI app entry point
+│   ├── screens/                 # Screens (main, map, tree, settings, help)
+│   ├── widgets/                 # Widgets (port table, connection log, traffic bar)
+│   ├── themes.py                # 8 built-in themes
+│   └── utils/                   # Clipboard, data provider
+├── widget/                 # KDE Plasma 6 Widget (QML)
+│   └── contents/
+│       ├── config/              # Config definitions
+│       └── ui/                  # QML UI (main.qml)
+├── shared/                 # Shared utilities
+│   ├── config.py                # TOML config loader + save
+│   ├── constants.py             # Defaults and paths
+│   ├── models.py                # Data models (SocketEntry, etc.)
+│   ├── network.py               # is_private_ip, CIDR utilities
+│   └── fs_utils.py              # Atomic file writes
+├── systemd/                # systemd service unit
+├── polkit/                 # Polkit policy (kill action)
+├── tests/                  # pytest test suite
+├── .github/workflows/      # CI (pytest, ruff, bandit, pip-audit)
+├── install.sh / uninstall.sh
+├── pyproject.toml
+└── CHANGELOG.md
+```
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites

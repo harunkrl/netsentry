@@ -7,7 +7,8 @@ for offline capability.
 Architecture mirrors ``backend.parsers.rdns`` — module-level state,
 OrderedDict LRU cache, thread-pool background lookups, lock-based safety.
 
-ip-api.com free tier: 45 requests/minute (HTTP, no key required).
+Uses ipwho.is as primary API (HTTPS, no key required, 10 000 req/month).
+Falls back to ip-api.com (HTTP, 45 req/min) if ipwho.is fails.
 """
 from __future__ import annotations
 
@@ -39,10 +40,10 @@ def shutdown() -> None:
     _executor.shutdown(wait=False)
 
 # ── Configurable parameters (set via init()) ────────────────────
-# NOTE: ip-api.com free tier only supports HTTP.
-# For HTTPS, use the pro tier or switch to an alternative API (e.g. ipinfo.io).
-# Response data is validated (lat/lon range, country code format) as a mitigation.
-_api_url: str = "http://ip-api.com/json/"
+# Primary: ipwho.is (HTTPS, free, no key)
+# Fallback: ip-api.com (HTTP, free, 45 req/min)
+_api_url: str = "https://ipwho.is/"
+_fallback_url: str = "http://ip-api.com/json/"
 _cache_file: str = ""
 _cache_max_entries: int = 4096
 _cache_ttl_days: int = 7
@@ -163,7 +164,10 @@ def flush_cache() -> None:
 # ── Background lookup ──────────────────────────────────────────
 
 def _do_lookup(ip: str) -> None:
-    """Perform a single GeoIP lookup via ip-api.com (runs in thread pool)."""
+    """Perform a single GeoIP lookup (runs in thread pool).
+
+    Tries ipwho.is (HTTPS) first, falls back to ip-api.com (HTTP).
+    """
     global _last_request_time, _lookups_since_save
 
     # Rate-limit: ensure minimum interval between API requests
@@ -173,37 +177,65 @@ def _do_lookup(ip: str) -> None:
     if elapsed < _min_request_interval:
         time.sleep(_min_request_interval - elapsed)
 
-    url = f"{_api_url}{ip}?fields=status,message,country,countryCode,city,lat,lon,isp,org"
-
     geo_info: dict | None = None
+
+    # ── Primary: ipwho.is (HTTPS) ──
+    url = f"{_api_url}{ip}"
     try:
         req = Request(url, headers={"User-Agent": "KPortWatch/2.1"})
         with urlopen(req, timeout=_timeout) as resp:
             body = json.loads(resp.read().decode("utf-8"))
 
-        if body.get("status") == "success":
+        if body.get("success", False) is not False:
             geo_info = {
                 "country": body.get("country", ""),
-                "countryCode": body.get("countryCode", ""),
+                "countryCode": body.get("country_code", ""),
                 "city": body.get("city", ""),
-                "lat": body.get("lat", 0.0),
-                "lon": body.get("lon", 0.0),
-                "isp": body.get("isp", ""),
-                "org": body.get("org", ""),
+                "lat": body.get("latitude", 0.0),
+                "lon": body.get("longitude", 0.0),
+                "isp": body.get("connection", {}).get("isp", ""),
+                "org": body.get("connection", {}).get("org", ""),
                 "cached_at": time.time(),
             }
         else:
             reason = body.get("message", "unknown")
-            logger.debug("GeoIP lookup failed for %s: %s", ip, reason)
-    except HTTPError as exc:
-        if exc.code == 429:
-            logger.warning("GeoIP rate-limited by ip-api.com (429)")
-        else:
-            logger.debug("GeoIP HTTP error for %s: %s", ip, exc)
-    except (URLError, OSError, json.JSONDecodeError) as exc:
-        logger.debug("GeoIP lookup error for %s: %s", ip, exc)
+            logger.debug("GeoIP (ipwho.is) lookup failed for %s: %s", ip, reason)
+    except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
+        logger.debug("GeoIP (ipwho.is) error for %s: %s", ip, exc)
     except Exception as exc:
-        logger.debug("GeoIP unexpected error for %s: %s", ip, exc)
+        logger.debug("GeoIP (ipwho.is) unexpected error for %s: %s", ip, exc)
+
+    # ── Fallback: ip-api.com (HTTP) ──
+    if geo_info is None:
+        url = f"{_fallback_url}{ip}?fields=status,message,country,countryCode,city,lat,lon,isp,org"
+        try:
+            req = Request(url, headers={"User-Agent": "KPortWatch/2.1"})
+            with urlopen(req, timeout=_timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+
+            if body.get("status") == "success":
+                geo_info = {
+                    "country": body.get("country", ""),
+                    "countryCode": body.get("countryCode", ""),
+                    "city": body.get("city", ""),
+                    "lat": body.get("lat", 0.0),
+                    "lon": body.get("lon", 0.0),
+                    "isp": body.get("isp", ""),
+                    "org": body.get("org", ""),
+                    "cached_at": time.time(),
+                }
+            else:
+                reason = body.get("message", "unknown")
+                logger.debug("GeoIP (ip-api.com fallback) failed for %s: %s", ip, reason)
+        except HTTPError as exc:
+            if exc.code == 429:
+                logger.warning("GeoIP rate-limited by ip-api.com (429)")
+            else:
+                logger.debug("GeoIP (ip-api.com fallback) HTTP error for %s: %s", ip, exc)
+        except (URLError, OSError, json.JSONDecodeError) as exc:
+            logger.debug("GeoIP (ip-api.com fallback) error for %s: %s", ip, exc)
+        except Exception as exc:
+            logger.debug("GeoIP (ip-api.com fallback) unexpected error for %s: %s", ip, exc)
 
     # Store result in cache
     with _lock:

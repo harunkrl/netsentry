@@ -137,38 +137,44 @@ KPortWatch is a **hybrid architecture** network security monitor designed for Ar
 
 ```
 kportwatch/
-├── backend/                # Daemon and core logic
-│   ├── kportwatch_daemon.py     # Main daemon loop
-│   ├── daemon_controller.py     # D-Bus controller (start/stop/restart)
-│   ├── kportwatchctl.py         # CLI client (socket-based)
-│   ├── export.py                # History export CLI
-│   ├── alert_engine.py          # Alert evaluation engine
-│   ├── baseline.py              # Baseline learning
-│   ├── history.py               # History recording (daily JSON)
-│   ├── update.py                # Auto-update checker
-│   ├── risk_score.py            # Port risk scoring (0-100)
-│   ├── writers/                 # Data output (JSON, Unix socket)
-│   └── parsers/                 # /proc parsers, GeoIP, rDNS
-├── tui/                    # Terminal UI (Textual)
-│   ├── kportwatch_tui.py        # TUI app entry point
-│   ├── screens/                 # Screens (main, map, tree, settings, help)
-│   ├── widgets/                 # Widgets (port table, connection log, traffic bar)
-│   ├── themes.py                # 8 built-in themes
-│   └── utils/                   # Clipboard, data provider
-├── widget/                 # KDE Plasma 6 Widget (QML)
+├── backend/                    # Daemon and core logic
+│   ├── daemon/                     # Thin orchestrator + decoupled components
+│   │   ├── controller.py               # DaemonController — lifecycle, run loop
+│   │   ├── collector.py                # DataCollector — socket entries, tree, traffic
+│   │   ├── commands.py                 # CommandHandler — socket commands (kill)
+│   │   ├── snapshot.py                 # SnapshotBuilder — risk scores, publish
+│   │   ├── notifications.py            # NotificationManager — desktop alerts
+│   │   └── updater.py                  # UpdateChecker — version checking
+│   ├── daemon_controller.py       # Re-export shim (backward compat)
+│   ├── kportwatch_daemon.py        # Main daemon entry point
+│   ├── kportwatchctl.py            # CLI client (socket-based)
+│   ├── alert_engine.py             # Alert evaluation engine
+│   ├── risk_score.py               # Port risk scoring (0-100)
+│   ├── history.py                  # History recording (daily JSON)
+│   ├── update.py                   # Auto-update checker
+│   ├── writers/                    # Data output (JSON, Unix socket)
+│   ├── collectors/                 # psutil-based data collection
+│   └── parsers/                    # /proc parsers, GeoIP, rDNS
+├── tui/                        # Terminal UI (Textual)
+│   ├── kportwatch_tui.py            # TUI app entry point
+│   ├── screens/                     # Screens (main, map, tree, settings, help)
+│   ├── widgets/                     # Widgets (port table, connection log, traffic bar)
+│   ├── themes.py                    # 8 built-in themes
+│   └── utils/                       # Clipboard, data provider
+├── widget/                     # KDE Plasma 6 Widget (QML)
 │   └── contents/
-│       ├── config/              # Config definitions
-│       └── ui/                  # QML UI (main.qml)
-├── shared/                 # Shared utilities
-│   ├── config.py                # TOML config loader + save
-│   ├── constants.py             # Defaults and paths
-│   ├── models.py                # Data models (SocketEntry, etc.)
-│   ├── network.py               # is_private_ip, CIDR utilities
-│   └── fs_utils.py              # Atomic file writes
-├── systemd/                # systemd service unit
-├── polkit/                 # Polkit policy (kill action)
-├── tests/                  # pytest test suite
-├── .github/workflows/      # CI (pytest, ruff, bandit, pip-audit)
+│       ├── config/                  # Config definitions
+│       └── ui/                      # QML UI (main.qml)
+├── shared/                     # Shared utilities
+│   ├── config.py                    # TOML config loader + save
+│   ├── constants.py                 # Defaults and paths
+│   ├── models.py                    # Data models (SocketEntry, etc.)
+│   ├── network.py                   # is_private_ip, CIDR utilities
+│   └── fs_utils.py                  # Atomic file writes
+├── systemd/                    # systemd service unit
+├── polkit/                     # Polkit policy (kill action)
+├── tests/                      # pytest test suite
+├── .github/workflows/          # CI (pytest, ruff, bandit, pip-audit)
 ├── install.sh / uninstall.sh
 ├── pyproject.toml
 └── CHANGELOG.md
@@ -261,99 +267,6 @@ kportwatch-update --apply
 
 ---
 
-## 📁 Project Structure
-
-```
-KPortWatch/
-├── shared/
-│   ├── constants.py              # Paths, alert levels, malicious ports, version
-│   ├── config.py                 # TOML config loader (AppConfig dataclass)
-│   ├── fs_utils.py               # Shared filesystem utilities (read_file_safe, atomic_write)
-│   └── network.py                # Network utilities (is_private_ip)
-├── backend/
-│   ├── models.py                 # SocketEntry, Alert, Snapshot, ProcessInfo, InterfaceStats
-│   ├── daemon_controller.py      # DaemonController class (lifecycle management)
-│   ├── parsers/
-│   │   ├── proc_net.py           # /proc/net/tcp,udp parser (IPv4+IPv6)
-│   │   ├── inode_map.py          # Socket inode → PID mapping
-│   │   ├── rdns.py               # Async rDNS lookup with LRU cache
-│   │   ├── geoip.py              # GeoIP lookup (ip-api.com + persistent cache)
-│   │   ├── net_dev.py            # /proc/net/dev traffic statistics
-│   │   └── process_tree.py       # /proc/[pid]/stat process tree builder
-│   ├── collectors/
-│   │   └── psutil_collector.py    # psutil-based data collection
-│   ├── alert_engine.py           # Baseline learning + alert rules + custom rules
-│   ├── risk_score.py             # Port risk scoring (0-100)
-│   ├── history.py                # Daily history recording + export
-│   ├── export.py                 # CLI export entry point
-│   ├── update.py                 # GitHub release checker + auto-update
-│   ├── writers/
-│   │   ├── json_file.py          # Atomic JSON snapshot writer
-│   │   └── unix_socket.py        # Unix domain socket streaming server
-│   ├── kportwatch_daemon.py       # Main daemon entry point
-│   ├── kportwatchctl.py           # CLI control utility
-│   └── kportwatch_client.py       # Unix socket streaming client
-├── tui/
-│   ├── kportwatch_tui.py          # Textual App entry point
-│   ├── themes.py                 # Theme definitions (Cyberpunk, Midnight, Hacker, Daylight)
-│   ├── screens/
-│   │   ├── main_screen.py        # Split-pane main layout
-│   │   ├── connection_map_screen.py  # GeoIP world map + country table
-│   │   ├── process_tree_screen.py    # Hierarchical process tree + kill confirmation
-│   │   ├── detail_screen.py      # Connection detail modal
-│   │   ├── settings_screen.py    # Settings dialog with theme/threshold controls
-│   │   ├── kill_confirm.py       # SIGTERM/SIGKILL modal
-│   │   └── help_screen.py        # Keyboard shortcuts help
-│   ├── widgets/
-│   │   ├── port_table.py         # DataTable of listening ports
-│   │   ├── connection_log.py     # RichLog of active connections
-│   │   ├── traffic_bar.py        # Per-interface RX/TX rate display
-│   │   └── status_bar.py         # Bottom status bar
-│   ├── data/
-│   │   └── provider.py           # JSON reader + process killer
-│   ├── utils/
-│   │   ├── clipboard.py          # Safe clipboard utility
-│   │   └── provider.py           # DataProvider singleton helper
-│   └── styles.tcss               # Premium dark security theme
-├── widget/
-│   ├── metadata.json             # Plasma 6 plugin metadata
-│   └── contents/
-│       ├── ui/
-│       │   ├── main.qml          # Root PlasmoidItem + DataSource
-│       │   ├── CompactRepresentation.qml  # Panel icon + badge
-│       │   ├── FullRepresentation.qml     # Popup port table
-│       │   └── config/
-│       │       └── ConfigGeneral.qml      # Settings UI
-│       ├── config/
-│       │   ├── config.qml
-│       │   └── main.xml          # KConfigXT schema
-│       └── scripts/
-│           └── launch-tui.sh     # Konsole launch wrapper
-├── polkit/
-│   └── com.kportwatch.helper.policy
-├── tests/
-│   ├── conftest.py               # Shared fixtures (SocketEntry, Snapshot, etc.)
-│   ├── test_geoip.py             # GeoIP module tests (45 tests)
-│   ├── test_proc_net.py          # /proc/net parser tests
-│   ├── test_alert_engine.py      # Alert engine + custom rules tests
-│   ├── test_config.py            # TOML config loader tests
-│   ├── test_models.py            # Data model + serialization tests
-│   ├── test_daemon.py            # Daemon classify + heartbeat tests
-│   ├── test_process_tree.py      # Process tree builder tests
-│   ├── test_net_dev.py           # Traffic statistics tests
-│   ├── test_rdns.py              # rDNS cache + lookup tests
-│   ├── test_risk_score.py        # Port risk scoring tests
-│   ├── test_history.py           # History recording tests
-│   ├── test_update.py            # Auto-update mechanism tests
-│   ├── test_unix_socket.py       # Unix socket server tests
-│   ├── test_provider.py          # TUI data provider tests
-│   └── test_json_file.py         # Atomic JSON writer tests
-├── install.sh
-├── uninstall.sh
-└── README.md
-```
-
----
 
 ## ⚙️ Configuration
 

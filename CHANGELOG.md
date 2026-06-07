@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Backend**: Refactored monolithic `DaemonController` (627 lines) into `backend/daemon/` package with 6 focused modules: `controller.py` (thin orchestrator), `collector.py`, `commands.py`, `snapshot.py`, `notifications.py`, `updater.py`. Applied Aggressive Strangler, Constructor Injection, and Encapsulation principles.
+
 ## [2.1.0] - 2026-06-07
 
 ### Added

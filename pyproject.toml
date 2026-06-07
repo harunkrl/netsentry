@@ -89,7 +89,15 @@ src = ["backend", "tui", "shared", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "RUF"]
-ignore = ["E501", "RUF012"]
+ignore = ["E501", "RUF012", "SIM117"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+# ── ty (type checker) ───────────────────────────────────────
+[tool.ty]
+python-version = "3.11"
+
+[tool.ty.rules]
+# Allow Any for psutil stubs that are incomplete
+disallowed-any = { ignore = ["backend/collectors/*", "backend/parsers/psutil_collector.py"] }

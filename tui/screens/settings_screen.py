@@ -304,7 +304,7 @@ class SettingsScreen(ModalScreen[None]):
         with Vertical(id="settings-dialog"):
             yield Static("SETTINGS", id="settings-header")
 
-            with Vertical(id="settings-body"):  # noqa: SIM117
+            with Vertical(id="settings-body"):
                 with TabbedContent(initial="tab-notifications"):
                     # Notifications Tab
                     with TabPane("Notifications", id="tab-notifications"):

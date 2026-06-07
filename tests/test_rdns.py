@@ -19,6 +19,13 @@ def _reset_rdns_state():
     with rdns._lock:
         rdns._rdns_cache.clear()
         rdns._pending_lookups.clear()
+    # Re-init executor if shut down by another test
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        if rdns._executor is None or rdns._executor._shutdown:
+            rdns._executor = ThreadPoolExecutor(max_workers=1)
+    except (AttributeError, RuntimeError):
+        rdns._executor = ThreadPoolExecutor(max_workers=1)
 
 
 def _seed_cache(entries: dict[str, str]) -> None:

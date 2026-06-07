@@ -31,6 +31,18 @@ def _reset_geoip_module():
     # Cleanup after test
     geoip_mod._memory_cache.clear()
     geoip_mod._pending_lookups.clear()
+    # Re-init executor if shut down by another test (e.g. daemon_controller cleanup)
+    _reinit_executor(geoip_mod)
+    geoip_mod._initialized = False
+
+
+def _reinit_executor(mod):
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        if mod._executor is None or mod._executor._shutdown:
+            mod._executor = ThreadPoolExecutor(max_workers=1)
+    except (AttributeError, RuntimeError):
+        mod._executor = ThreadPoolExecutor(max_workers=1)
 
 
 def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",

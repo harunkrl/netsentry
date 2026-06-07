@@ -33,6 +33,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+        # Cache pip downloads across runs
+        env:
+          PIP_CACHE_DIR: ~/.cache/pip
 
       - name: Run tests with coverage
         run: |
@@ -68,15 +71,31 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
+      - name: Type check (ty)
+        run: |
+          pip install ty
+          ty check backend/ shared/ tui/ || true
+
       - name: Security scan (bandit)
         run: |
           pip install bandit
-          bandit -r backend shared -ll -ii || true
+          bandit -r backend shared -ll -ii -f json -o bandit-report.json || true
+          # Fail on HIGH severity findings
+          python -c "
+          import json, sys
+          with open('bandit-report.json') as f:
+              data = json.load(f)
+          highs = [r for r in data.get('results', []) if r.get('issue_confidence') == 'HIGH' and r.get('issue_severity') == 'HIGH']
+          if highs:
+              for h in highs:
+                  print(f'HIGH: {h["test_id"]} {h["filename"]}:{h["line_number"]} {h["issue_text"]}')
+              sys.exit(1)
+          "
 
       - name: Dependency audit
         run: |
           pip install pip-audit
-          pip-audit || true
+          pip-audit --desc || true
 
       - name: QML syntax check (qmllint)
         run: |

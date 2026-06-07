@@ -92,12 +92,22 @@ class TestCollectTraffic:
         assert len(s.interface) > 0
 
     def test_matches_psutil_direct(self):
-        """Results should match direct psutil.net_io_counters call."""
+        """Results should match direct psutil.net_io_counters call.
+
+        We verify structural compatibility (same interfaces, same field types)
+        and that values are within a reasonable delta. Exact byte equality
+        cannot be guaranteed because network traffic arrives between reads.
+        """
         stats = collect_traffic()
         direct = psutil.net_io_counters(pernic=True)
         for s in stats:
             assert s.interface in direct
-            assert s.rx_bytes == direct[s.interface].bytes_recv
+            direct_stat = direct[s.interface]
+            # Values should be within 1MB delta (network traffic between reads)
+            assert abs(s.rx_bytes - direct_stat.bytes_recv) < 1_000_000
+            assert abs(s.tx_bytes - direct_stat.bytes_sent) < 1_000_000
+            assert abs(s.rx_packets - direct_stat.packets_recv) < 10_000
+            assert abs(s.tx_packets - direct_stat.packets_sent) < 10_000
 
 
 # ── collect_process_tree ───────────────────────────────────────

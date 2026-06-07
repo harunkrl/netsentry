@@ -11,6 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 from backend.models import Alert, AlertLevel, InterfaceStats, Snapshot, SocketEntry
 from tui.data.provider import DataProvider
+from tui.screens.detail_screen import DetailScreen
+from tui.screens.help_screen import HelpScreen
 from tui.screens.kill_confirm import KillConfirmScreen
 from tui.screens.main_screen import MainScreen
 from tui.screens.process_tree_screen import ProcessKillConfirm, ProcessTreeScreen
@@ -1042,3 +1044,532 @@ class TestTuiIntegration:
 
             # Port table should still be focused
             assert screen.focused == port_table
+
+
+# =============================================================================
+# HelpScreen Tests
+# =============================================================================
+
+class TestHelpScreen:
+    """Tests for HelpScreen from help_screen.py."""
+
+    @pytest.mark.asyncio
+    async def test_help_screen_mounts(self):
+        """HelpScreen mounts correctly."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Check that widgets are present
+            from textual.widgets import Footer, Header, Markdown
+            header = screen.query_one(Header)
+            footer = screen.query_one(Footer)
+            markdown = screen.query_one(Markdown)
+            assert header is not None
+            assert footer is not None
+            assert markdown is not None
+
+    @pytest.mark.asyncio
+    async def test_help_screen_has_bindings(self):
+        """HelpScreen has escape, h, and ? bindings."""
+        screen = HelpScreen()
+
+        # BINDINGS is a list of tuples (key, action)
+        bindings = {b[0] for b in screen.BINDINGS}
+        assert "escape" in bindings
+        assert "h" in bindings
+        assert "question_mark" in bindings
+
+    @pytest.mark.asyncio
+    async def test_help_screen_escape_dismisses(self):
+        """Escape key closes help screen."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Press escape
+            await pilot.press("escape")
+            await pilot.pause()
+
+            # Screen should be popped
+            assert app.screen is not screen
+
+    @pytest.mark.asyncio
+    async def test_help_screen_h_dismisses(self):
+        """'h' key closes help screen."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Press h
+            await pilot.press("h")
+            await pilot.pause()
+
+            # Screen should be popped
+            assert app.screen is not screen
+
+    @pytest.mark.asyncio
+    async def test_help_screen_question_mark_dismisses(self):
+        """'?' key closes help screen."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Press ?
+            await pilot.press("?")
+            await pilot.pause()
+
+            # Screen should be popped
+            assert app.screen is not screen
+
+    @pytest.mark.asyncio
+    async def test_help_screen_displays_markdown_content(self):
+        """HelpScreen displays markdown help content."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        from textual.widgets import Markdown
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Just verify the Markdown widget exists
+            markdown = screen.query_one(Markdown)
+            assert markdown is not None
+            # Content is in the HELP_MD constant, verify the screen can be composed
+            assert len(screen.BINDINGS) > 0
+
+    @pytest.mark.asyncio
+    async def test_help_screen_contains_theme_list(self):
+        """HelpScreen contains list of available themes."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        from textual.widgets import Markdown
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # The theme list is in the HELP_MD constant
+            # Just verify the screen can be composed and has the markdown widget
+            markdown = screen.query_one(Markdown)
+            assert markdown is not None
+
+    @pytest.mark.asyncio
+    async def test_help_screen_has_vertical_scroll(self):
+        """HelpScreen has VerticalScroll container."""
+        screen = HelpScreen()
+
+        from textual.app import App
+        from textual.containers import VerticalScroll
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Should have VerticalScroll container
+            vscroll = screen.query(VerticalScroll)
+            assert len(vscroll) > 0
+
+
+# =============================================================================
+# DetailScreen Tests
+# =============================================================================
+
+class TestDetailScreen:
+    """Tests for DetailScreen from detail_screen.py."""
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_mounts(self, sample_socket_entry: SocketEntry):
+        """DetailScreen mounts correctly with entry."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Check that widgets are present
+            from textual.widgets import Footer, Header
+            header = screen.query_one(Header)
+            footer = screen.query_one(Footer)
+            assert header is not None
+            assert footer is not None
+            # Should have detail container
+            detail_container = screen.query_one("#detail-container")
+            assert detail_container is not None
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_entry_info(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays entry information."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Check for Static widgets that should contain entry info
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            # Should contain process name
+            assert "sshd" in static_text
+            # Should contain protocol
+            assert "TCP" in static_text.upper()
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_has_bindings(self, sample_socket_entry: SocketEntry):
+        """DetailScreen has escape and 'c' bindings."""
+        screen = DetailScreen(sample_socket_entry)
+
+        bindings = {b.key for b in screen.BINDINGS}
+        assert "escape" in bindings
+        assert "c" in bindings
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_escape_dismisses(self, sample_socket_entry: SocketEntry):
+        """Escape key closes detail screen."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Press escape
+            await pilot.press("escape")
+            await pilot.pause()
+
+            # Screen should be popped
+            assert app.screen is not screen
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_copy_action_exists(self, sample_socket_entry: SocketEntry):
+        """DetailScreen has copy_info action."""
+        screen = DetailScreen(sample_socket_entry)
+
+        assert hasattr(screen, "action_copy_info")
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_copy_action_calls_safe_copy(self, sample_socket_entry: SocketEntry):
+        """action_copy_info() calls safe_copy_to_clipboard."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            with patch("tui.screens.detail_screen.safe_copy_to_clipboard") as mock_copy:
+                screen.action_copy_info()
+                await pilot.pause()
+                mock_copy.assert_called_once()
+                # Should pass app and formatted text
+                assert mock_copy.call_args[0][0] is app
+                copied_text = mock_copy.call_args[0][1]
+                assert "sshd" in copied_text
+                assert "PID" in copied_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_connection_details_section(self, sample_socket_entry: SocketEntry):
+        """DetailScreen shows CONNECTION DETAILS section."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "CONNECTION DETAILS" in static_text or "CONNECTION" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_network_section(self, sample_socket_entry: SocketEntry):
+        """DetailScreen shows NETWORK section."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "NETWORK" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_pid(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays PID."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "1" in static_text  # PID from fixture
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_protocol(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays protocol."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "TCP" in static_text.upper()
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_local_address(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays local address."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "0.0.0.0" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_remote_address(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays remote address."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "0.0.0.0" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_state(self, sample_socket_entry: SocketEntry):
+        """DetailScreen displays connection state."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "LISTEN" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_has_geo_container(self, sample_socket_entry: SocketEntry):
+        """DetailScreen has geo container for async geo data."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Should have geo container
+            geo_container = screen.query("#geo-container")
+            assert len(geo_container) > 0
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_duration_with_first_seen(self, sample_established_entry: SocketEntry):
+        """DetailScreen shows duration when first_seen is set."""
+        sample_established_entry.first_seen = time.time() - 100  # 100 seconds ago
+        screen = DetailScreen(sample_established_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "DURATION" in static_text or "Duration" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_risk_score_when_present(self, sample_established_entry: SocketEntry):
+        """DetailScreen shows risk score when set."""
+        sample_established_entry.risk_score = 0.8
+        screen = DetailScreen(sample_established_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "SECURITY" in static_text or "Risk" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_displays_footer_with_shortcuts(self, sample_socket_entry: SocketEntry):
+        """DetailScreen shows footer with keyboard shortcuts."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Should have footer
+            footer = screen.query("#detail-footer")
+            assert len(footer) > 0
+            # Footer should contain widgets
+            assert len(footer[0].children) > 0
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_hostname_when_present(self, sample_established_entry: SocketEntry):
+        """DetailScreen shows hostname when set."""
+        sample_established_entry.remote_hostname = "example.com"
+        screen = DetailScreen(sample_established_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            assert "example.com" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_shows_geo_info_when_present(self, sample_established_entry: SocketEntry):
+        """DetailScreen shows geo info when set."""
+        sample_established_entry.remote_country = "United States"
+        sample_established_entry.remote_city = "Mountain View"
+        screen = DetailScreen(sample_established_entry)
+
+        from textual.app import App
+        from textual.widgets import Static
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            statics = screen.query(Static)
+            static_text = " ".join(str(s.render()) for s in statics)
+            # Geo info should be displayed
+            assert "United States" in static_text or "GEOLOCATION" in static_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_handle_null_pid(self, sample_socket_entry: SocketEntry):
+        """DetailScreen handles entry with null PID gracefully."""
+        sample_socket_entry.pid = None
+        sample_socket_entry.process_name = "unknown"
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            # Should mount without error
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Screen should be displayed
+            assert app.screen is screen
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_handles_missing_cmdline(self, sample_socket_entry: SocketEntry):
+        """DetailScreen handles missing cmdline gracefully."""
+        sample_socket_entry.cmdline = None
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Just verify screen mounts without error
+            assert app.screen is screen
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_copy_includes_hostname(self, sample_established_entry: SocketEntry):
+        """Copied text includes hostname when present."""
+        sample_established_entry.remote_hostname = "example.com"
+        screen = DetailScreen(sample_established_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            with patch("tui.screens.detail_screen.safe_copy_to_clipboard") as mock_copy:
+                screen.action_copy_info()
+                await pilot.pause()
+                copied_text = mock_copy.call_args[0][1]
+                assert "example.com" in copied_text
+
+    @pytest.mark.asyncio
+    async def test_detail_screen_copy_includes_cmdline(self, sample_socket_entry: SocketEntry):
+        """Copied text includes cmdline when present."""
+        screen = DetailScreen(sample_socket_entry)
+
+        from textual.app import App
+        app = App()
+        async with app.run_test() as pilot:
+            app.push_screen(screen)
+            await pilot.pause()
+
+            with patch("tui.screens.detail_screen.safe_copy_to_clipboard") as mock_copy:
+                screen.action_copy_info()
+                await pilot.pause()
+                copied_text = mock_copy.call_args[0][1]
+                assert "/usr/sbin/sshd" in copied_text

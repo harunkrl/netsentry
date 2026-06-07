@@ -152,7 +152,12 @@ def perform_update(restart_daemon: bool = True) -> bool:
         logger.error("Cannot find project directory — not a git clone install?")
         return False
 
-    # 1. git pull
+    # 1. Verify latest tag signature (GPG) — best-effort
+    latest = get_latest_version()
+    if latest:
+        _verify_tag(latest, project_dir)
+
+    # 2. git pull
     try:
         result = subprocess.run(
             ["git", "pull", "origin", "main"],
@@ -210,6 +215,47 @@ def _find_project_dir() -> str | None:
             break
         current = parent
     return None
+
+
+def _verify_tag(tag: str, project_dir: str) -> None:
+    """Verify a git tag's GPG signature (best-effort).
+
+    Logs a warning if the tag is unsigned or verification fails.
+    Does NOT block the update — signature verification is advisory.
+    """
+    try:
+        # Fetch tags first
+        subprocess.run(
+            ["git", "fetch", "--tags", "origin"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        result = subprocess.run(
+            ["git", "tag", "-v", tag],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode == 0:
+            logger.info("Tag %s: GPG signature verified", tag)
+        else:
+            # git tag -v fails for unsigned tags or missing public keys
+            stderr = result.stderr.strip()
+            if "not a signed tag" in stderr.lower() or "not signed" in stderr.lower():
+                logger.warning("Tag %s is not GPG-signed — proceeding anyway", tag)
+            elif "public key" in stderr.lower() or "can't check" in stderr.lower():
+                logger.warning(
+                    "Tag %s: GPG key not in keyring — install the signer's key "
+                    "for full verification", tag,
+                )
+            else:
+                logger.warning("Tag %s signature verification failed: %s", tag, stderr)
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.debug("Tag verification skipped: %s", e)
 
 
 def _restart_daemon() -> None:

@@ -11,6 +11,8 @@
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![CI](https://github.com/harunkrl/kportwatch/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://img.shields.io/badge/coverage-75%25+-green)
+![Release](https://github.com/harunkrl/kportwatch/actions/workflows/release.yml/badge.svg)
 
 </div>
 

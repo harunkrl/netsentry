@@ -94,8 +94,94 @@ class UnixSocketServer:
             with self._clients_lock:
                 self.clients.append(client)
 
+    @staticmethod
+    def _get_peer_credentials(client: socket.socket) -> tuple[int, int] | None:
+        """Get the (pid, uid) of the connecting client via SO_PEERCRED.
+
+        Returns None if SO_PEERCRED is not available (non-Linux).
+        """
+        try:
+            import struct
+            # SO_PEERCRED = 17 on Linux, data = struct_ucred { pid, uid, gid }
+            cred = client.getsockopt(socket.SOL_SOCKET, 17, struct.calcsize('3i'))
+            pid, uid, _gid = struct.unpack('3i', cred)
+            return pid, uid
+        except (OSError, AttributeError, struct.error) as e:
+            logger.debug("SO_PEERCRED unavailable: %s", e)
+            return None
+
+    def _authorize_command(self, client: socket.socket, command: dict) -> dict | None:
+        """Verify the client is authorized to issue this command.
+
+        Destructive commands (kill) require the client binary to be
+        kportwatchctl or the TUI.  Returns an error dict if unauthorized,
+        or None if authorized.
+        """
+        cmd_name = command.get("command", "")
+
+        # Read-only commands (status, snapshot) are allowed for same-UID clients
+        if cmd_name not in ("kill",):
+            return None
+
+        # For destructive commands, verify client identity via SO_PEERCRED
+        creds = self._get_peer_credentials(client)
+        if creds is None:
+            logger.warning("Kill command rejected: cannot verify client identity (SO_PEERCRED unavailable)")
+            return {"status": "error", "message": "Client identity verification unavailable"}
+
+        client_pid, client_uid = creds
+
+        # Only allow same-UID clients
+        if client_uid != os.getuid():
+            logger.warning(
+                "Kill command rejected: client uid=%d != daemon uid=%d",
+                client_uid, os.getuid(),
+            )
+            return {"status": "error", "message": "Permission denied: different user"}
+
+        # Verify client is a known KPortWatch binary
+        try:
+            client_exe = os.readlink(f"/proc/{client_pid}/exe")
+        except (FileNotFoundError, PermissionError, OSError):
+            client_exe = "unknown"
+
+        client_cmdline = ""
+        try:
+            with open(f"/proc/{client_pid}/cmdline", "rb") as f:
+                client_cmdline = f.read(4096).replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+        except (FileNotFoundError, PermissionError, OSError):
+            pass
+
+        # Allowlist: kportwatchctl, kportwatch (TUI), python running kportwatch
+        allowed_patterns = ("kportwatchctl", "kportwatch", "kportwatch_client")
+        if not any(p in client_exe or p in client_cmdline for p in allowed_patterns):
+            logger.warning(
+                "Kill command rejected: client exe='%s' cmdline='%s' not in allowlist",
+                client_exe, client_cmdline[:200],
+            )
+            return {
+                "status": "error",
+                "message": "Permission denied: unauthorized client binary",
+            }
+
+        logger.info(
+            "Kill command authorized for PID %d (client: %s)",
+            client_pid, client_exe,
+        )
+        return None
+
     def _handle_command(self, client: socket.socket, command: dict):
         """Process a command request and send back a response."""
+
+        # Authorization check
+        auth_error = self._authorize_command(client, command)
+        if auth_error is not None:
+            with contextlib.suppress(OSError):
+                client.sendall(json.dumps(auth_error).encode('utf-8') + b'\n')
+            with contextlib.suppress(OSError):
+                client.close()
+            return
+
         if self._command_handler:
             try:
                 response = self._command_handler(command)

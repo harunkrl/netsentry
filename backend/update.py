@@ -152,10 +152,11 @@ def perform_update(restart_daemon: bool = True) -> bool:
         logger.error("Cannot find project directory — not a git clone install?")
         return False
 
-    # 1. Verify latest tag signature (GPG) — best-effort
+    # 1. Verify latest tag signature (GPG) — MANDATORY
     latest = get_latest_version()
-    if latest:
-        _verify_tag(latest, project_dir)
+    if latest and not _verify_tag(latest, project_dir):
+        logger.error("Update aborted: tag signature verification failed")
+        return False
 
     # 2. git pull
     try:
@@ -217,11 +218,11 @@ def _find_project_dir() -> str | None:
     return None
 
 
-def _verify_tag(tag: str, project_dir: str) -> None:
-    """Verify a git tag's GPG signature (best-effort).
+def _verify_tag(tag: str, project_dir: str) -> bool:
+    """Verify a git tag's GPG signature.
 
-    Logs a warning if the tag is unsigned or verification fails.
-    Does NOT block the update — signature verification is advisory.
+    Returns True if signature is valid, False otherwise.
+    The caller MUST abort the update if this returns False.
     """
     try:
         # Fetch tags first
@@ -242,20 +243,34 @@ def _verify_tag(tag: str, project_dir: str) -> None:
         )
         if result.returncode == 0:
             logger.info("Tag %s: GPG signature verified", tag)
-        else:
-            # git tag -v fails for unsigned tags or missing public keys
-            stderr = result.stderr.strip()
-            if "not a signed tag" in stderr.lower() or "not signed" in stderr.lower():
-                logger.warning("Tag %s is not GPG-signed — proceeding anyway", tag)
-            elif "public key" in stderr.lower() or "can't check" in stderr.lower():
-                logger.warning(
-                    "Tag %s: GPG key not in keyring — install the signer's key "
-                    "for full verification", tag,
-                )
-            else:
-                logger.warning("Tag %s signature verification failed: %s", tag, stderr)
+            return True
+
+        # git tag -v failed — determine why
+        stderr = result.stderr.strip().lower()
+        if "not a signed tag" in stderr or "not signed" in stderr:
+            logger.error(
+                "SECURITY: Tag %s is NOT GPG-signed — aborting update. "
+                "An unsigned tag could indicate a supply-chain attack.",
+                tag,
+            )
+            return False
+        if "public key" in stderr or "can't check" in stderr:
+            logger.error(
+                "SECURITY: Tag %s GPG key not in keyring — aborting update. "
+                "Install the signer's public key to allow verification.",
+                tag,
+            )
+            return False
+
+        logger.error(
+            "SECURITY: Tag %s signature verification failed: %s — aborting update",
+            tag, stderr,
+        )
+        return False
+
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        logger.debug("Tag verification skipped: %s", e)
+        logger.error("Tag verification error: %s — aborting update", e)
+        return False
 
 
 def _restart_daemon() -> None:

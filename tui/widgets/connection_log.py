@@ -162,13 +162,16 @@ class ConnectionLog(RichLog):
         return self._quick_filter
 
     def set_filter(self, text: str) -> None:
-        """Apply a filter. Clears the log so that only matching connections will be reprinted."""
+        """Apply a filter and re-render with current data."""
         new_filter = text.lower()
         if self._filter_text != new_filter:
             self._filter_text = new_filter
             self.clear()
             self._seen_keys.clear()
             self._plain_lines.clear()
+            # Re-render with last known data so the filter applies immediately
+            if hasattr(self, "_last_entries") and self._last_entries is not None:
+                self.update_data(self._last_entries, is_first_call=True)
 
     def get_plain_text(self) -> str:
         """Return all log content as plain text (no Rich markup)."""
@@ -191,11 +194,19 @@ class ConnectionLog(RichLog):
         """Check if an entry passes the text filter."""
         if not self._filter_text:
             return True
+        ft = self._filter_text
         proc = (e.process_name or "").lower()
+        state = (e.state or "").lower()
+        proto = (e.proto or "").lower()
         remote = (e.remote_hostname or e.remote_ip or "").lower()
-        return (self._filter_text in proc
-                or self._filter_text in remote
-                or self._filter_text in str(e.local_port))
+        local_ip = (e.local_ip or "").lower()
+        return (ft in proc
+                or ft in state
+                or ft in proto
+                or ft in remote
+                or ft in local_ip
+                or ft in str(e.local_port)
+                or ft in str(e.remote_port))
 
     def update_data(self, entries: list[SocketEntry], *, is_first_call: bool = False) -> None:
         """Incrementally log new and closed connections.

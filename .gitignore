@@ -7,7 +7,16 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+# Coverage
 .coverage
+htmlcov/
+coverage.xml
+
+# Bandit report
+bandit-report.json
+
+# Baseline checksum files
+*.sha256
 
 # KPortWatch runtime
 /tmp/kportwatch-data.json
@@ -46,7 +55,5 @@ CONTRIBUTING.md
 # Ruff cache
 .ruff_cache/
 
-# Design specs, analysis reports and plans (local only)
+# Design specs (local only)
 docs/superpowers/
-docs/KPortWatch-Full-Analysis-Report.md
-docs/v3-roadmap.md

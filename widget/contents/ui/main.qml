@@ -392,7 +392,31 @@ PlasmoidItem {
     // ── External actions ───────────────────────────────────────
     function launchTUI() {
         var defaultCmd = "konsole -e ~/.local/bin/kportwatch-tui"
-        tuiExecSource.connectedSources = [root.tuiCommand ? root.tuiCommand : defaultCmd]
+        var cmd = (root.tuiCommand ? root.tuiCommand : defaultCmd).trim()
+
+        // Whitelist: only known safe command patterns are allowed.
+        // This prevents shell injection via plasmoid configuration.
+        var allowed = [
+            "kportwatch",
+            "konsole -e kportwatch",
+            "konsole --hide-menubar -e kportwatch",
+            "konsole -e ~/.local/bin/kportwatch-tui",
+            "konsole --hide-menubar -e ~/.local/bin/kportwatch-tui",
+            "alacritty -e kportwatch",
+            "alacritty -e ~/.local/bin/kportwatch-tui",
+            "kitty kportwatch",
+            "kitty ~/.local/bin/kportwatch-tui",
+            "foot kportwatch",
+            "foot ~/.local/bin/kportwatch-tui",
+            defaultCmd
+        ]
+
+        if (allowed.indexOf(cmd) === -1) {
+            plasmoid.showPassiveNotification("Blocked unknown TUI command: " + cmd)
+            return
+        }
+
+        tuiExecSource.connectedSources = [cmd]
     }
 
     Plasma5Support.DataSource {

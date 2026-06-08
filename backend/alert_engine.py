@@ -11,8 +11,13 @@ Built-in alert rules:
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import time
+from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 from shared import (
     BASELINE_FILE,
@@ -100,20 +105,46 @@ class AlertEngine:
         return frozenset(self._baseline_ports)
 
     def save_baseline(self, path: str | None = None) -> None:
-        """Persist the baseline port set to disk."""
+        """Persist the baseline port set to disk with SHA-256 checksum."""
         path = path or BASELINE_FILE
-        data = json.dumps({
+        payload = json.dumps({
             "ports": sorted(self._baseline_ports),
             "timestamp": time.time(),
         }, indent=2)
-        atomic_write(path, data)
+        atomic_write(path, payload)
+
+        # Write integrity checksum
+        checksum = hashlib.sha256(payload.encode()).hexdigest()
+        checksum_path = path + ".sha256"
+        try:
+            atomic_write(checksum_path, checksum)
+        except OSError:
+            log.warning("Failed to write baseline checksum to %s", checksum_path)
 
     def load_baseline(self, path: str | None = None) -> bool:
-        """Load a previously saved baseline. Returns True on success."""
+        """Load a previously saved baseline. Returns True on success.
+
+        Validates SHA-256 checksum if a .sha256 file exists.  A mismatch
+        causes the baseline to be rebuilt from scratch.
+        """
         path = path or BASELINE_FILE
         try:
-            with open(path) as fh:
-                data = json.load(fh)
+            raw = Path(path).read_bytes()
+
+            # Integrity check
+            checksum_path = path + ".sha256"
+            checksum_file = Path(checksum_path)
+            if checksum_file.exists():
+                expected = checksum_file.read_text().strip()
+                actual = hashlib.sha256(raw).hexdigest()
+                if actual != expected:
+                    log.warning(
+                        "Baseline checksum mismatch (%s) — rebuilding baseline",
+                        path,
+                    )
+                    return False
+
+            data = json.loads(raw)
 
             # Validate schema: must have "ports" as a list of ints
             ports = data.get("ports")

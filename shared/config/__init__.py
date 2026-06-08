@@ -1,4 +1,4 @@
-"""KPortWatch — Configuration loader.
+"""KPortWatch — Configuration loader (decomposed).
 
 Loads settings from a TOML config file, falling back to defaults
 from ``shared.constants``.  CLI arguments take highest priority.
@@ -15,15 +15,16 @@ Usage::
     load_config()                  # call once at startup
     cfg = get_config()             # access anywhere
     interval = cfg.poll_interval   # merged value
+
+The public API is identical to the old monolithic config.py.
+All submodules are internal implementation details.
 """
 from __future__ import annotations
 
 import logging
 import os
 import threading as _threading
-import tomllib  # Python 3.11+
 from dataclasses import dataclass, field
-from fnmatch import fnmatch
 
 from shared.constants import (
     ALERT_POLL_INTERVAL,
@@ -39,47 +40,28 @@ from shared.constants import (
     PRIVILEGED_PORT_MAX,
     SOCKET_PATH,
 )
+from shared.config.rules import CustomRule
+from shared.config.parsers import read_toml, parse_port_list, parse_safe_ports, parse_custom_rules
+from shared.config.persistence import save_config_setting, save_tui_setting, CONFIG_DIR, CONFIG_FILE
+from shared.config.generation import generate_example_config
 
 logger = logging.getLogger("kportwatch.config")
 
-# ── Default config file location ──────────────────────────────────
-CONFIG_DIR: str = os.path.expanduser("~/.config/kportwatch")
-CONFIG_FILE: str = os.path.join(CONFIG_DIR, "config.toml")
+__all__ = [
+    "CustomRule",
+    "AppConfig",
+    "get_config",
+    "load_config",
+    "apply_cli_overrides",
+    "generate_example_config",
+    "save_config_setting",
+    "save_tui_setting",
+    "CONFIG_DIR",
+    "CONFIG_FILE",
+]
+
 
 # ── Config dataclass ──────────────────────────────────────────────
-
-@dataclass
-class CustomRule:
-    """A user-defined alert rule from config.toml."""
-    # Match conditions (all must be True — AND logic)
-    port: int | None = None              # exact port match
-    port_pattern: str | None = None      # glob pattern e.g. "808*"
-    remote_ip: str | None = None         # glob pattern e.g. "192.168.1.*"
-    process_name: str | None = None      # glob pattern e.g. "python*"
-    proto: str | None = None             # "tcp" or "udp"
-    # Alert properties
-    level: str = "WARNING"
-    message: str = "Custom rule triggered"
-
-    def matches(self, entry) -> bool:
-        """Check if a SocketEntry matches all conditions."""
-        from backend.models import SocketEntry
-        if not isinstance(entry, SocketEntry):
-            return False
-        if self.port is not None and entry.local_port != self.port:
-            return False
-        if self.port_pattern is not None and not fnmatch(str(entry.local_port), self.port_pattern):
-            return False
-        if self.remote_ip is not None:
-            ip = entry.remote_ip or ""
-            if not fnmatch(ip, self.remote_ip):
-                return False
-        if self.process_name is not None:
-            name = entry.process_name or ""
-            if not fnmatch(name, self.process_name):
-                return False
-        return not (self.proto is not None and entry.proto != self.proto)
-
 
 @dataclass
 class AppConfig:
@@ -152,8 +134,6 @@ class AppConfig:
     def effective_heartbeat_file(self) -> str:
         if self.heartbeat_file:
             return self.heartbeat_file
-        # Default: same dir as data_file, different name
-        import os
         return os.path.join(os.path.dirname(self.data_file), "kportwatch-heartbeat.json")
 
 
@@ -171,49 +151,7 @@ def get_config() -> AppConfig:
         return _current_config
 
 
-# ── TOML loader ───────────────────────────────────────────────────
-
-def _read_toml(path: str) -> dict:
-    """Read a TOML file, returning an empty dict on any error."""
-    try:
-        with open(path, "rb") as fh:
-            return tomllib.load(fh)
-    except FileNotFoundError:
-        logger.debug("Config file not found: %s — using defaults", path)
-    except Exception as e:
-        logger.warning("Failed to read config file %s: %s", path, e)
-    return {}
-
-
-def _parse_port_list(raw) -> frozenset[int] | None:
-    """Parse a TOML port list into a frozenset of validated port ints."""
-    if raw is None:
-        return None
-    if not isinstance(raw, (list, tuple)):
-        return None
-    ports = set()
-    for p in raw:
-        if isinstance(p, int) and 0 <= p <= 65535:
-            ports.add(p)
-    return frozenset(ports)
-
-
-def _parse_safe_ports(raw) -> dict[int, str] | None:
-    """Parse a TOML safe-ports table into {port: service_name}."""
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        return None
-    result: dict[int, str] = {}
-    for key, val in raw.items():
-        try:
-            port = int(key)
-            if 0 <= port <= 65535:
-                result[port] = str(val)
-        except (ValueError, TypeError):
-            continue
-    return result if result else None
-
+# ── Loader ───────────────────────────────────────────────────────────
 
 def load_config(path: str | None = None) -> AppConfig:
     """Load configuration from TOML file, merging over defaults.
@@ -228,7 +166,7 @@ def load_config(path: str | None = None) -> AppConfig:
     global _current_config
 
     cfg_path = path or CONFIG_FILE
-    data = _read_toml(cfg_path)
+    data = read_toml(cfg_path)
 
     # Start from defaults
     cfg = AppConfig()
@@ -267,11 +205,11 @@ def load_config(path: str | None = None) -> AppConfig:
             if isinstance(v, int) and v > 0:
                 cfg.burst_threshold = v
         if "malicious_ports" in alerts:
-            parsed = _parse_port_list(alerts["malicious_ports"])
+            parsed = parse_port_list(alerts["malicious_ports"])
             if parsed is not None:
                 cfg.malicious_ports = parsed
         if "known_safe_ports" in alerts:
-            parsed = _parse_safe_ports(alerts["known_safe_ports"])
+            parsed = parse_safe_ports(alerts["known_safe_ports"])
             if parsed is not None:
                 cfg.known_safe_ports = parsed
         if "privileged_port_max" in alerts:
@@ -314,38 +252,18 @@ def load_config(path: str | None = None) -> AppConfig:
                 cfg.notification_rate_window = float(v)
 
         # ── Custom rules ────────────────────────
-        custom_rules_raw = data.get("custom_rules", [])
-        if isinstance(custom_rules_raw, list):
-            for raw_rule in custom_rules_raw:
-                if not isinstance(raw_rule, dict):
-                    continue
-                match = raw_rule.get("match", {})
-                level = raw_rule.get("level", "WARNING")
-                if isinstance(level, str) and level.upper() in ("INFO", "WARNING", "CRITICAL"):
-                    level = level.upper()
-                else:
-                    level = "WARNING"
-                rule = CustomRule(
-                    port=match.get("port") if isinstance(match.get("port"), int) else None,
-                    port_pattern=match.get("port_pattern") if isinstance(match.get("port_pattern"), str) else None,
-                    remote_ip=match.get("remote_ip") if isinstance(match.get("remote_ip"), str) else None,
-                    process_name=match.get("process_name") if isinstance(match.get("process_name"), str) else None,
-                    proto=match.get("proto") if isinstance(match.get("proto"), str) else None,
-                    level=level,
-                    message=raw_rule.get("message", "Custom rule triggered"),
-                )
-                cfg.custom_rules.append(rule)
+        cfg.custom_rules = parse_custom_rules(data.get("custom_rules", []))
 
         # ── Whitelist / Blacklist ────────────────
         wl = data.get("whitelist", {})
         if "ports" in wl:
-            parsed = _parse_port_list(wl["ports"])
+            parsed = parse_port_list(wl["ports"])
             if parsed is not None:
                 cfg.port_whitelist = parsed
 
         bl = data.get("blacklist", {})
         if "ports" in bl:
-            parsed = _parse_port_list(bl["ports"])
+            parsed = parse_port_list(bl["ports"])
             if parsed is not None:
                 cfg.port_blacklist = parsed
         if "ips" in bl:
@@ -428,186 +346,5 @@ def load_config(path: str | None = None) -> AppConfig:
 def apply_cli_overrides(cfg: AppConfig, args) -> AppConfig:
     """Apply CLI argument overrides on top of the loaded config."""
     if hasattr(args, "interval") and args.interval is not None:
-        # argparse already set it from --interval, but we need to ensure
-        # it overrides the config file value
         cfg.poll_interval = args.interval
     return cfg
-
-
-def generate_example_config(path: str) -> None:
-    """Write an example config file with all options and comments."""
-    example = """\
-# KPortWatch Configuration
-# Place at ~/.config/kportwatch/config.toml
-# All values are optional — defaults are used when omitted.
-
-[polling]
-# Normal polling interval in seconds
-interval = 2.0
-# Faster polling when alerts are active
-alert_interval = 1.0
-# Slower polling when idle (no changes)
-idle_interval = 10.0
-# Seconds of no changes before switching to idle
-idle_threshold_secs = 300.0
-
-[alerts]
-# Seconds to learn baseline ports on first run
-baseline_duration = 300.0
-# Number of new ports in one cycle to trigger burst alert
-burst_threshold = 3
-# Privileged port boundary (< this value)
-privileged_port_max = 1023
-# Known malicious C2/backdoor ports
-malicious_ports = [4444, 5555, 31337, 12345, 12346, 6666, 6667, 6668, 6669, 27374, 33270, 33567, 65000]
-# Ports considered safe — {port: "service_name"}
-[alerts.known_safe_ports]
-22 = "sshd"
-80 = "httpd"
-443 = "https"
-631 = "cups"
-5353 = "avahi"
-1716 = "kdeconnectd"
-
-# ── Custom alert rules ──────────────────────────────────────────
-# Each rule has a "match" table and alert properties.
-# All match conditions use AND logic (all must be true).
-# Supported match fields: port (int), port_pattern (glob),
-#   remote_ip (glob), process_name (glob), proto ("tcp"/"udp")
-#
-# [[custom_rules]]
-# match = { port = 8080 }
-# level = "WARNING"
-# message = "Unauthorized dev server on port 8080"
-#
-# [[custom_rules]]
-# match = { remote_ip = "192.168.1.*" }
-# level = "CRITICAL"
-# message = "Suspicious internal connection detected"
-#
-# [[custom_rules]]
-# match = { process_name = "ncat*" }
-# level = "CRITICAL"
-# message = "Ncat process detected — possible reverse shell"
-
-# ── Whitelist (never alert on these) ─────────────────────────────
-# [whitelist]
-# ports = [8080, 9090]
-
-# ── Blacklist (always CRITICAL) ──────────────────────────────────
-# [blacklist]
-# ports = [4444, 5555]
-# ips = ["10.0.0.*", "192.168.100.*"]
-
-[dns]
-# Maximum cached hostname entries
-cache_size = 1024
-# Maximum concurrent pending DNS lookups
-max_pending = 256
-
-[notifications]
-# Enable desktop notifications via notify-send
-enabled = true
-# Minimum alert level to trigger notification: "INFO", "WARNING", "CRITICAL"
-min_level = "WARNING"
-# Seconds before the same alert can re-notify
-alert_ttl = 3600.0
-# Max notifications per rate_window seconds (rate limiting)
-rate_limit = 10
-rate_window = 60.0
-
-[paths]
-# JSON snapshot file (read by widget and TUI)
-# data_file = "/run/user/1000/kportwatch-data.json"
-# Unix domain socket (for streaming client)
-# socket_path = "/run/user/1000/kportwatch.sock"
-# Baseline file (learned ports)
-# baseline_file = "~/.config/kportwatch/baseline.json"
-
-[geoip]
-# Enable GeoIP lookup for outbound connections
-enabled = true
-# ipwho.is endpoint (HTTPS, free, no key required)
-# api_url = "https://ipwho.is/"
-# Persistent cache file for offline lookups
-# cache_file = "~/.local/share/kportwatch/geoip-cache.json"
-# Maximum cached IP entries (LRU eviction)
-cache_max_entries = 4096
-# Days before cached entry is considered stale
-cache_ttl_days = 7
-# Max IPs to look up per daemon cycle
-batch_size = 10
-# HTTP request timeout in seconds
-timeout = 5.0
-
-[tui]
-# TUI toast notifications (the pop-up messages in the terminal)
-# Toggle at runtime with the 'n' key — saved persistently here.
-notifications_enabled = true
-"""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as fh:
-        fh.write(example)
-    logger.info("Generated example config at %s", path)
-
-
-def save_config_setting(section: str, key: str, value: object) -> None:
-    """Persist a single setting to the config file under the given section.
-
-    Thread-safe: uses fcntl file locking to prevent concurrent write corruption.
-    Reads the existing config, updates the named section, and writes back.
-    Creates the file/section if they don't exist.
-    """
-    import fcntl
-
-    path = CONFIG_FILE
-    raw = ""
-    try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    except OSError:
-        return
-
-    try:
-        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
-        with open(fd, "r+") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                fh.seek(0)
-                raw = fh.read()
-
-                section_tag = f"[{section}]"
-                line = f"{key} = {'true' if value is True else 'false' if value is False else repr(value)}\n"
-
-                if section_tag in raw:
-                    import re
-                    section_start = raw.index(section_tag) + len(section_tag)
-                    next_section = re.search(r"\n(?=\[)", raw[section_start:])
-                    section_end = section_start + next_section.start() if next_section else len(raw)
-                    section_block = raw[section_start:section_end]
-
-                    pattern = rf"({re.escape(key)}\s*=\s*[^\n]+)"
-                    if re.search(pattern, section_block):
-                        new_section_block = re.sub(
-                            pattern,
-                            f"{key} = {'true' if value is True else 'false' if value is False else repr(value)}",
-                            section_block,
-                            count=1,
-                        )
-                        raw = raw[:section_start] + new_section_block + raw[section_end:]
-                    else:
-                        raw = raw.replace(section_tag, f"{section_tag}\n{line}", 1)
-                else:
-                    raw = raw.rstrip() + "\n\n" + section_tag + "\n" + line
-
-                fh.seek(0)
-                fh.write(raw)
-                fh.truncate()
-            finally:
-                fcntl.flock(fh, fcntl.LOCK_UN)
-    except OSError:
-        logger.debug("Failed to save config setting to %s", path, exc_info=True)
-
-
-def save_tui_setting(key: str, value: object) -> None:
-    """Shorthand for ``save_config_setting('tui', key, value)``."""
-    save_config_setting("tui", key, value)

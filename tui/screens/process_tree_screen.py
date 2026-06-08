@@ -531,7 +531,7 @@ class ProcessKillConfirm(ModalScreen[bool]):
                 os.kill(self._pid, signal.SIGKILL)
                 return True, f"Force-killed {self._name} (PID {self._pid})"
             except ProcessLookupError:
-                return False, f"Process {self._self._name} (PID {self._pid}) not found"
+                return False, f"Process {self._name} (PID {self._pid}) not found"
             except PermissionError:
                 return False, f"Permission denied for PID {self._pid}"
             except OSError as e:

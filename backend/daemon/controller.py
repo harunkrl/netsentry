@@ -20,6 +20,12 @@ import os
 import signal
 import time
 
+# sd_notify support — graceful no-op when not running under systemd
+try:
+    from systemd.daemon import notify as _sd_notify
+except ImportError:
+    _sd_notify = lambda *a, **kw: None  # type: ignore[assignment]
+
 from shared import PID_FILE
 from shared.config import apply_cli_overrides, load_config
 
@@ -73,6 +79,7 @@ class DaemonController:
         self.cfg = load_config()
         self.cfg = apply_cli_overrides(self.cfg, self.args)
         self.interval = self.cfg.poll_interval
+        _sd_notify("READY=1")  # notify systemd that daemon is ready
 
         # Propagate DNS cache limits
         from backend.parsers import rdns
@@ -266,6 +273,7 @@ class DaemonController:
                     collected.listening, alerts
                 )
                 self._error_count = 0
+                _sd_notify("WATCHDOG=1")  # heartbeat for systemd
 
             except Exception:
                 self._error_count += 1

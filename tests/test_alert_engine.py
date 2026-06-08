@@ -620,3 +620,140 @@ class TestCustomRuleMatches:
         entry = _make_entry(port=8080)
         rule = CustomRule()
         assert rule.matches(entry) is True
+
+
+# ══════════════════════════════════════════════════════════════
+# Baseline SHA-256 Integrity Tests
+# ══════════════════════════════════════════════════════════════
+
+
+class TestBaselineIntegrity:
+    """Tests for baseline save/load with SHA-256 checksum verification."""
+
+    def test_save_creates_checksum_file(self, tmp_path):
+        """save_baseline writes a .sha256 checksum alongside the baseline."""
+        engine = AlertEngine()
+        engine._baseline_ports = {22, 80, 443}
+        engine._baseline_stable = True
+        baseline_file = str(tmp_path / "baseline.json")
+
+        engine.save_baseline(baseline_file)
+
+        assert (tmp_path / "baseline.json").exists()
+        assert (tmp_path / "baseline.json.sha256").exists()
+
+    def test_checksum_matches_content(self, tmp_path):
+        """Checksum file matches the SHA-256 of the baseline content."""
+        import hashlib
+
+        engine = AlertEngine()
+        engine._baseline_ports = {22, 80}
+        engine._baseline_stable = True
+        baseline_file = str(tmp_path / "baseline.json")
+
+        engine.save_baseline(baseline_file)
+
+        content = (tmp_path / "baseline.json").read_bytes()
+        expected = hashlib.sha256(content).hexdigest()
+        actual = (tmp_path / "baseline.json.sha256").read_text().strip()
+        assert actual == expected
+
+    def test_load_with_valid_checksum(self, tmp_path):
+        """load_baseline succeeds when checksum matches."""
+        engine = AlertEngine()
+        engine._baseline_ports = {22, 80, 443}
+        engine._baseline_stable = True
+        baseline_file = str(tmp_path / "baseline.json")
+
+        engine.save_baseline(baseline_file)
+
+        # Load into a fresh engine
+        fresh = AlertEngine()
+        result = fresh.load_baseline(baseline_file)
+        assert result is True
+        assert fresh._baseline_ports == {22, 80, 443}
+
+    def test_load_detects_tampered_content(self, tmp_path):
+        """load_baseline fails when baseline content is modified after saving."""
+        engine = AlertEngine()
+        engine._baseline_ports = {22, 80}
+        engine._baseline_stable = True
+        baseline_file = str(tmp_path / "baseline.json")
+
+        engine.save_baseline(baseline_file)
+
+        # Tamper with the baseline file
+        import json
+        (tmp_path / "baseline.json").write_text(
+            json.dumps({"ports": [22, 80, 4444], "timestamp": 0.0})
+        )
+
+        # Load should fail due to checksum mismatch
+        fresh = AlertEngine()
+        result = fresh.load_baseline(baseline_file)
+        assert result is False
+        assert len(fresh._baseline_ports) == 0
+
+    def test_load_without_checksum_succeeds(self, tmp_path):
+        """load_baseline succeeds when no .sha256 file exists (legacy)."""
+        import json
+
+        baseline_file = str(tmp_path / "baseline.json")
+        (tmp_path / "baseline.json").write_text(
+            json.dumps({"ports": [22, 80], "timestamp": 0.0})
+        )
+        # No .sha256 file
+
+        engine = AlertEngine()
+        result = engine.load_baseline(baseline_file)
+        assert result is True
+        assert engine._baseline_ports == {22, 80}
+
+    def test_load_tampered_checksum_fails(self, tmp_path):
+        """load_baseline fails when .sha256 file is corrupted."""
+        engine = AlertEngine()
+        engine._baseline_ports = {22}
+        engine._baseline_stable = True
+        baseline_file = str(tmp_path / "baseline.json")
+
+        engine.save_baseline(baseline_file)
+
+        # Corrupt the checksum
+        (tmp_path / "baseline.json.sha256").write_text("deadbeef00")
+
+        fresh = AlertEngine()
+        result = fresh.load_baseline(baseline_file)
+        assert result is False
+
+    def test_save_overwrites_existing_checksum(self, tmp_path):
+        """Repeated saves update the checksum file."""
+        engine = AlertEngine()
+
+        engine._baseline_ports = {22}
+        engine._baseline_stable = True
+        engine.save_baseline(str(tmp_path / "baseline.json"))
+
+        engine._baseline_ports = {22, 80, 443}
+        engine.save_baseline(str(tmp_path / "baseline.json"))
+
+        # Should load successfully with updated checksum
+        fresh = AlertEngine()
+        result = fresh.load_baseline(str(tmp_path / "baseline.json"))
+        assert result is True
+        assert fresh._baseline_ports == {22, 80, 443}
+
+    def test_checksum_write_failure_does_not_crash(self, tmp_path):
+        """save_baseline doesn't crash if checksum write fails."""
+        engine = AlertEngine()
+        engine._baseline_ports = {22}
+        engine._baseline_stable = True
+
+        baseline_file = str(tmp_path / "baseline.json")
+
+        # Make checksum path unwritable by making a directory with same name
+        checksum_path = tmp_path / "baseline.json.sha256"
+        checksum_path.mkdir()  # Directory instead of file
+
+        # Should not raise
+        engine.save_baseline(baseline_file)
+        assert (tmp_path / "baseline.json").exists()

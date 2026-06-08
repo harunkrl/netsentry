@@ -11,7 +11,7 @@
 ![Qt 6](https://img.shields.io/badge/Qt-6.x-41cd52?logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![CI](https://github.com/harunkrl/kportwatch/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-75%25+-green)
+![Coverage](https://img.shields.io/badge/coverage-82%25-green)
 ![Release](https://github.com/harunkrl/kportwatch/actions/workflows/release.yml/badge.svg)
 
 </div>
@@ -157,6 +157,9 @@ kportwatch/
 │   └── parsers/                    # /proc parsers, GeoIP, rDNS
 ├── tui/                        # Terminal UI (Textual)
 │   ├── kportwatch_tui.py            # TUI app entry point
+│   ├── data/                        # External data files
+│   │   ├── map_loader.py                # World map loader (@lru_cache)
+│   │   └── worldmap.txt                 # Braille ASCII world map
 │   ├── screens/                     # Screens (main, map, tree, settings, help)
 │   ├── widgets/                     # Widgets (port table, connection log, traffic bar)
 │   ├── themes.py                    # 8 built-in themes
@@ -166,15 +169,22 @@ kportwatch/
 │       ├── config/                  # Config definitions
 │       └── ui/                      # QML UI (main.qml)
 ├── shared/                     # Shared utilities
-│   ├── config.py                    # TOML config loader + save
+│   ├── config/                     # Config package (decomposed)
+│   │   ├── __init__.py                 # load_config, get_config, AppConfig
+│   │   ├── rules.py                    # CustomRule class
+│   │   ├── parsers.py                  # TOML parsing helpers
+│   │   ├── persistence.py              # save_config_setting (fcntl lock)
+│   │   └── generation.py               # Example config generator
 │   ├── constants.py                 # Defaults and paths
 │   ├── models.py                    # Data models (SocketEntry, etc.)
 │   ├── network.py                   # is_private_ip, CIDR utilities
 │   └── fs_utils.py                  # Atomic file writes
 ├── systemd/                    # systemd service unit
-├── polkit/                     # Polkit policy (kill action)
-├── tests/                      # pytest test suite
-├── .github/workflows/          # CI (pytest, ruff, bandit, pip-audit)
+├── polkit/                     # Polkit policy (read + kill actions)
+├── scripts/                    # Build & maintenance scripts
+│   └── sync-version.py              # Version sync (pyproject.toml ↔ metadata.json)
+├── tests/                      # pytest test suite (976 tests, 82% coverage)
+├── .github/workflows/          # CI (pytest, ruff, ty, bandit, pip-audit, qmllint)
 ├── install.sh / uninstall.sh
 ├── pyproject.toml
 └── CHANGELOG.md
@@ -351,8 +361,10 @@ journalctl --user -u kportwatch -f
 | **System processes** | Shown as "unknown (system)" — root-owned `/proc/*/fd/` requires privilege escalation |
 | **Optional helper** | Polkit policy included for full PID visibility |
 | **Kill operations** | Only works for same-user processes by default |
-| **Data exposure** | JSON written to `$XDG_RUNTIME_DIR/` — contains port/PID info only (no secrets) |
-| **Command injection** | Widget uses hardcoded paths — no user input in shell commands |
+| **Update security** | GPG signature **mandatory** — unsigned releases are rejected outright |
+| **PID file** | Owner-only permissions (`0o600`) — no world-readable PID leakage |
+| **Command injection** | Widget uses **whitelist** of allowed commands — unknowns blocked with notification |
+| **Baseline integrity** | SHA-256 checksum on save, verified on load — tampering rebuilds baseline |
 | **GeoIP privacy** | Only public remote IPs are looked up; results cached locally; no tracking |
 
 ### Privilege Escalation (Optional)
@@ -385,6 +397,7 @@ sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 | Stdlib-only daemon | No external dependencies for the core daemon process |
 | TOML config file | Human-readable, type-safe, standard Python (tomllib) |
 | GeoIP with persistent cache | Offline capability, respects API rate limits (45 req/min) |
+| Config decomposition | 540-line monolith → 5 focused modules with identical public API |
 
 ---
 

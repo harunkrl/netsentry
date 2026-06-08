@@ -42,6 +42,9 @@ jobs:
           pip install pytest-cov
           pytest tests/ -v --tb=short --cov=backend --cov=tui --cov=shared --cov-report=term-missing --cov-fail-under=60
 
+      - name: Version consistency check
+        run: python scripts/sync-version.py
+
       - name: Verify imports
         run: |
           python -c "from shared import AlertLevel, DATA_FILE, MALICIOUS_PORTS"

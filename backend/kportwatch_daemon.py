@@ -203,13 +203,12 @@ def main() -> None:
     if not args.foreground:
         _daemonize()
 
-    # Prevent duplicate daemons and write PID file
+    # Prevent duplicate daemons and write PID file (owner-only permissions)
     try:
-        pid_fd = open(PID_FILE, "w")  # noqa: SIM115 — fd intentionally held open for lock
+        pid_fd = os.open(PID_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         fcntl.flock(pid_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        pid_fd.write(str(os.getpid()))
-        pid_fd.flush()
-        os.fsync(pid_fd.fileno())
+        os.write(pid_fd, str(os.getpid()).encode())
+        os.fsync(pid_fd)
     except BlockingIOError:
         logger.error("Daemon is already running!")
         sys.exit(1)

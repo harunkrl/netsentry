@@ -226,9 +226,8 @@ class UnixSocketServer:
                 with contextlib.suppress(OSError):
                     client.close()
             self.clients.clear()
-        if os.path.exists(SOCKET_PATH):
-            with contextlib.suppress(OSError):
-                os.unlink(SOCKET_PATH)
+        with contextlib.suppress(OSError):
+            os.unlink(SOCKET_PATH)
 
 
 def send_command(command: dict, timeout: float = 5.0) -> dict:

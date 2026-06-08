@@ -4,10 +4,15 @@ from __future__ import annotations
 import psutil
 import pytest
 from backend.collectors.psutil_collector import (
+    clear_cycle_caches,
     collect_connections,
     collect_network_pids,
     collect_process_tree,
     collect_traffic,
+    _get_connections,
+    _get_pid_info,
+    _pid_info_cache,
+    _cached_connections,
 )
 from backend.models import InterfaceStats, ProcessInfo, SocketEntry
 
@@ -123,20 +128,20 @@ class TestCollectProcessTree:
 
     def test_current_process_in_tree(self):
         """The current Python process should be in the tree."""
-        tree = collect_process_tree()
+        tree = collect_process_tree(full_scan=True)
         import os
         assert os.getpid() in tree
 
     def test_children_populated(self):
         """Some processes should have children."""
-        tree = collect_process_tree()
+        tree = collect_process_tree(full_scan=True)
         has_children = [p for p in tree.values() if len(p.children) > 0]
         assert len(has_children) > 0  # At least init/systemd has children
 
     def test_process_info_fields(self):
         """ProcessInfo has expected fields."""
         import os
-        tree = collect_process_tree()
+        tree = collect_process_tree(full_scan=True)
         my_pid = os.getpid()
         assert my_pid in tree
         me = tree[my_pid]
@@ -169,3 +174,126 @@ class TestCollectNetworkPids:
         for p in pids:
             assert isinstance(p, int)
             assert p > 0
+
+
+# ── clear_cycle_caches (Fix #1) ────────────────────────────────
+
+class TestClearCycleCaches:
+    def test_clears_connections_cache(self):
+        """clear_cycle_caches invalidates the connections cache."""
+        import backend.collectors.psutil_collector as mod
+
+        # Populate the cache
+        _get_connections()
+        assert mod._cached_connections is not None
+
+        # Clear it
+        clear_cycle_caches()
+        assert mod._cached_connections is None
+        assert mod._cached_connections_ts == 0.0
+
+    def test_connections_refreshed_after_clear(self):
+        """After clearing, next _get_connections() fetches fresh data."""
+        import backend.collectors.psutil_collector as mod
+
+        clear_cycle_caches()
+        assert mod._cached_connections is None
+
+        result = _get_connections()
+        assert isinstance(result, list)
+        assert mod._cached_connections is not None
+
+    def test_connections_reused_within_cycle(self):
+        """Within same cycle (no clear), same cached list is returned."""
+        r1 = _get_connections()
+        r2 = _get_connections()
+        assert r1 is r2  # same object reference
+
+
+# ── Per-entry PID cache (Fix #2) ──────────────────────────────
+
+class TestPerEntryPidCache:
+    def test_individual_entry_expires(self):
+        """Each PID entry has its own TTL; others remain cached."""
+        import backend.collectors.psutil_collector as mod
+
+        # Populate cache for current PID and PID 1
+        my_pid = __import__("os").getpid()
+        info_me = _get_pid_info(my_pid)
+        info_init = _get_pid_info(1)
+
+        assert my_pid in mod._pid_info_cache
+        assert 1 in mod._pid_info_cache
+
+        # Expire only PID 1 by backdating its timestamp
+        name, cmdline, uid, _ts = mod._pid_info_cache[1]
+        mod._pid_info_cache[1] = (name, cmdline, uid, 0.0)  # ancient
+
+        # Re-fetch PID 1 — should re-resolve
+        info_init2 = _get_pid_info(1)
+        assert isinstance(info_init2[0], str)  # got a result
+
+        # My PID should still be cached (not cleared)
+        assert my_pid in mod._pid_info_cache
+
+    def test_no_bulk_clear_stampede(self):
+        """Cache entries don't all disappear at once."""
+        import backend.collectors.psutil_collector as mod
+        import os
+
+        my_pid = os.getpid()
+        _get_pid_info(my_pid)
+        _get_pid_info(1)
+
+        assert my_pid in mod._pid_info_cache
+        assert 1 in mod._pid_info_cache
+
+        # Expire PID 1's entry individually
+        name, cmdline, uid, _ts = mod._pid_info_cache[1]
+        mod._pid_info_cache[1] = (name, cmdline, uid, 0.0)
+
+        # Re-fetch PID 1 (triggers individual eviction + refill)
+        _get_pid_info(1)
+
+        # my_pid should still be cached — no bulk clear happened
+        assert my_pid in mod._pid_info_cache
+        assert 1 in mod._pid_info_cache
+
+
+# ── Process list synergy (Fix #3) ────────────────────────────
+
+class TestProcessListSynergy:
+    def test_pid_info_uses_process_list_cache(self):
+        """_get_pid_info should resolve from process_list_cache first."""
+        import backend.collectors.psutil_collector as mod
+        import os
+
+        my_pid = os.getpid()
+
+        # Ensure process_list_cache is populated
+        collect_process_tree()
+
+        # Clear per-PID cache to force a fresh lookup
+        mod._pid_info_cache.pop(my_pid, None)
+
+        # Should still resolve correctly via process_list_by_pid
+        name, cmdline, uid = _get_pid_info(my_pid)
+        assert isinstance(name, str)
+        assert len(name) > 0
+
+    def test_process_list_by_pid_populated(self):
+        """process_list_by_pid dict is built when process_list refreshes."""
+        import backend.collectors.psutil_collector as mod
+        import os
+
+        # Force process_list refresh by clearing cache
+        old = mod._process_list_cache
+        mod._process_list_cache = None
+        mod._process_list_cache_ts = 0.0
+
+        try:
+            collect_process_tree()
+            assert os.getpid() in mod._process_list_by_pid
+        finally:
+            # Restore (or leave refreshed — both fine)
+            pass

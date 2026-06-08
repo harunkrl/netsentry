@@ -29,19 +29,15 @@ try:
 
     _HAS_PSUTIL = True
     from backend.collectors.psutil_collector import (
+        clear_cycle_caches as _psutil_clear_cycle_caches,
         collect_connections as _psutil_connections,
-    )
-    from backend.collectors.psutil_collector import (
         collect_network_pids as _psutil_network_pids,
-    )
-    from backend.collectors.psutil_collector import (
         collect_process_tree as _psutil_process_tree,
-    )
-    from backend.collectors.psutil_collector import (
         collect_traffic as _psutil_traffic,
     )
 except ImportError:
     _HAS_PSUTIL = False
+    _psutil_clear_cycle_caches = None
     _psutil_connections = None
     _psutil_network_pids = None
     _psutil_process_tree = None
@@ -69,6 +65,9 @@ class CollectedData:
 class DataCollector:
     """Collect network data from psutil or /proc, enrich, and return
     a :class:`CollectedData` snapshot each cycle.
+
+    Performance: process_iter() is cached for 5 seconds internally
+    by the psutil_collector module, so full tree collection is cheap.
     """
 
     def __init__(self, cfg) -> None:
@@ -82,7 +81,13 @@ class DataCollector:
     # ── Public API ────────────────────────────────────────────
 
     def collect(self) -> CollectedData:
-        """Run a full collection cycle and return structured results."""
+        """Run a full collection cycle and return structured results.
+
+        Calls clear_cycle_caches() at the start of each cycle to ensure
+        net_connections() is refreshed every tick regardless of poll_interval.
+        """
+        if _HAS_PSUTIL:
+            _psutil_clear_cycle_caches()
         entries, inode_map = self._collect_entries()
         process_tree = self._build_tree(inode_map)
         listening, established = classify_entries(entries)
@@ -127,7 +132,7 @@ class DataCollector:
         return entries, inode_map
 
     def _build_tree(self, inode_map: dict | None) -> dict:
-        """Build process tree, reusing inode_map if available."""
+        """Build process tree (uses cached process_iter internally)."""
         if _HAS_PSUTIL:
             network_pids = _psutil_network_pids()
             return _psutil_process_tree(network_pids)

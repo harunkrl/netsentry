@@ -6,6 +6,7 @@ connections with rDNS/GeoIP data, and collects interface traffic stats.
 Fully self-contained: owns its own ``_prev_traffic`` delta state.
 Only external dependency is the config object injected at construction.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,17 @@ try:
     _HAS_PSUTIL = True
     from backend.collectors.psutil_collector import (
         clear_cycle_caches as _psutil_clear_cycle_caches,
+    )
+    from backend.collectors.psutil_collector import (
         collect_connections as _psutil_connections,
+    )
+    from backend.collectors.psutil_collector import (
         collect_network_pids as _psutil_network_pids,
+    )
+    from backend.collectors.psutil_collector import (
         collect_process_tree as _psutil_process_tree,
+    )
+    from backend.collectors.psutil_collector import (
         collect_traffic as _psutil_traffic,
     )
 except ImportError:
@@ -150,9 +159,7 @@ class DataCollector:
             return
 
         unique_ips = {
-            e.remote_ip
-            for e in established
-            if e.remote_ip and not is_private_ip(e.remote_ip)
+            e.remote_ip for e in established if e.remote_ip and not is_private_ip(e.remote_ip)
         }
         if not unique_ips:
             return
@@ -179,12 +186,8 @@ class DataCollector:
                 prev_ts, prev_stats = self._prev_traffic[stats.interface]
                 elapsed = now_ts - prev_ts
                 if elapsed > 0:
-                    stats.rx_rate = max(
-                        0, (stats.rx_bytes - prev_stats.rx_bytes) / elapsed
-                    )
-                    stats.tx_rate = max(
-                        0, (stats.tx_bytes - prev_stats.tx_bytes) / elapsed
-                    )
+                    stats.rx_rate = max(0, (stats.rx_bytes - prev_stats.rx_bytes) / elapsed)
+                    stats.tx_rate = max(0, (stats.tx_bytes - prev_stats.tx_bytes) / elapsed)
             traffic[stats.interface] = stats
 
         # Store for next cycle

@@ -9,6 +9,7 @@ Only external dependency is the config object injected at construction.
 **Important:** This class does NOT modify the poll interval.  Interval
 decisions belong exclusively to the orchestrator (``DaemonController``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,9 +66,7 @@ class NotificationManager:
                 if (now_ts - t) < self._cfg.notification_rate_window
             ]
             if len(self._notification_timestamps) >= self._cfg.notification_rate_limit:
-                logger.debug(
-                    "Notification rate limited — skipping %s alert", a.level
-                )
+                logger.debug("Notification rate limited — skipping %s alert", a.level)
                 continue
 
             self._send_notification(a)
@@ -77,9 +76,7 @@ class NotificationManager:
         # Evict expired alert hashes (every cycle to prevent unbounded growth)
         now_ts = time.time()
         expired = [
-            k
-            for k, v in self._notified_alerts.items()
-            if (now_ts - v) > self._cfg.alert_ttl
+            k for k, v in self._notified_alerts.items() if (now_ts - v) > self._cfg.alert_ttl
         ]
         for k in expired:
             del self._notified_alerts[k]
@@ -89,15 +86,9 @@ class NotificationManager:
     def _send_notification(self, alert) -> None:
         """Send a single desktop notification via notify-send."""
         try:
-            icon = (
-                "dialog-error"
-                if alert.level == AlertLevel.CRITICAL
-                else "dialog-warning"
-            )
+            icon = "dialog-error" if alert.level == AlertLevel.CRITICAL else "dialog-warning"
             # Sanitize alert message: truncate and strip control characters
-            safe_msg = "".join(
-                c for c in alert.message[:200] if c.isprintable() or c in "\n\t"
-            )
+            safe_msg = "".join(c for c in alert.message[:200] if c.isprintable() or c in "\n\t")
             subprocess.Popen(
                 [
                     "notify-send",

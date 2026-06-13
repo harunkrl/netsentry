@@ -1,4 +1,5 @@
 """Tests for /proc/net/dev parser and InterfaceStats model."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +9,7 @@ from backend.models import InterfaceStats, Snapshot
 from backend.parsers.net_dev import parse_proc_net_dev
 
 # ── Parser tests ───────────────────────────────────────────────
+
 
 class TestParseProcNetDev:
     """Tests for parse_proc_net_dev()."""
@@ -101,6 +103,7 @@ class TestParseProcNetDev:
 
 # ── Model tests ────────────────────────────────────────────────
 
+
 class TestInterfaceStats:
     """Tests for InterfaceStats dataclass."""
 
@@ -121,10 +124,14 @@ class TestInterfaceStats:
         """Newly created InterfaceStats should have zero rates."""
         stats = InterfaceStats(
             interface="eth0",
-            rx_bytes=100, tx_bytes=200,
-            rx_packets=10, tx_packets=20,
-            rx_errors=0, tx_errors=0,
-            rx_drops=0, tx_drops=0,
+            rx_bytes=100,
+            tx_bytes=200,
+            rx_packets=10,
+            tx_packets=20,
+            rx_errors=0,
+            tx_errors=0,
+            rx_drops=0,
+            tx_drops=0,
         )
         assert stats.rx_rate == 0.0
         assert stats.tx_rate == 0.0
@@ -164,11 +171,16 @@ class TestSnapshotTraffic:
         """Full JSON round-trip: to_json → from_json should preserve all traffic data."""
         eth_stats = InterfaceStats(
             interface="eth0",
-            rx_bytes=500000000, tx_bytes=300000000,
-            rx_packets=800000, tx_packets=600000,
-            rx_errors=1, tx_errors=3,
-            rx_drops=2, tx_drops=4,
-            rx_rate=5000.0, tx_rate=3000.0,
+            rx_bytes=500000000,
+            tx_bytes=300000000,
+            rx_packets=800000,
+            tx_packets=600000,
+            rx_errors=1,
+            tx_errors=3,
+            rx_drops=2,
+            tx_drops=4,
+            rx_rate=5000.0,
+            tx_rate=3000.0,
         )
         sample_snapshot.traffic = {
             "wlan0": sample_interface_stats,
@@ -187,6 +199,7 @@ class TestSnapshotTraffic:
 
 # ── Delta computation tests ────────────────────────────────────
 
+
 class TestDeltaComputation:
     """Tests for traffic rate delta computation logic."""
 
@@ -195,22 +208,33 @@ class TestDeltaComputation:
         from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev: dict[str, tuple[float, InterfaceStats]] = {
-            "wlan0": (100.0, InterfaceStats(
-                interface="wlan0",
-                rx_bytes=1000000, tx_bytes=500000,
-                rx_packets=1000, tx_packets=500,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
-            )),
+            "wlan0": (
+                100.0,
+                InterfaceStats(
+                    interface="wlan0",
+                    rx_bytes=1000000,
+                    tx_bytes=500000,
+                    rx_packets=1000,
+                    tx_packets=500,
+                    rx_errors=0,
+                    tx_errors=0,
+                    rx_drops=0,
+                    tx_drops=0,
+                ),
+            ),
         }
 
         current = [
             InterfaceStats(
                 interface="wlan0",
-                rx_bytes=2000000, tx_bytes=600000,
-                rx_packets=2000, tx_packets=600,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
+                rx_bytes=2000000,
+                tx_bytes=600000,
+                rx_packets=2000,
+                tx_packets=600,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
             ),
         ]
 
@@ -228,10 +252,14 @@ class TestDeltaComputation:
         current = [
             InterfaceStats(
                 interface="eth0",
-                rx_bytes=1000, tx_bytes=2000,
-                rx_packets=10, tx_packets=20,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
+                rx_bytes=1000,
+                tx_bytes=2000,
+                rx_packets=10,
+                tx_packets=20,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
             ),
         ]
 
@@ -244,22 +272,33 @@ class TestDeltaComputation:
         from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev = {
-            "eth0": (100.0, InterfaceStats(
-                interface="eth0",
-                rx_bytes=1000, tx_bytes=2000,
-                rx_packets=10, tx_packets=20,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
-            )),
+            "eth0": (
+                100.0,
+                InterfaceStats(
+                    interface="eth0",
+                    rx_bytes=1000,
+                    tx_bytes=2000,
+                    rx_packets=10,
+                    tx_packets=20,
+                    rx_errors=0,
+                    tx_errors=0,
+                    rx_drops=0,
+                    tx_drops=0,
+                ),
+            ),
         }
 
         current = [
             InterfaceStats(
                 interface="eth0",
-                rx_bytes=2000, tx_bytes=3000,
-                rx_packets=20, tx_packets=30,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
+                rx_bytes=2000,
+                tx_bytes=3000,
+                rx_packets=20,
+                tx_packets=30,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
             ),
         ]
 
@@ -273,36 +312,58 @@ class TestDeltaComputation:
         from backend.kportwatch_daemon import compute_traffic_deltas
 
         prev = {
-            "wlan0": (100.0, InterfaceStats(
-                interface="wlan0",
-                rx_bytes=1000, tx_bytes=2000,
-                rx_packets=10, tx_packets=20,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
-            )),
-            "eth0": (100.0, InterfaceStats(
-                interface="eth0",
-                rx_bytes=5000, tx_bytes=6000,
-                rx_packets=50, tx_packets=60,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
-            )),
+            "wlan0": (
+                100.0,
+                InterfaceStats(
+                    interface="wlan0",
+                    rx_bytes=1000,
+                    tx_bytes=2000,
+                    rx_packets=10,
+                    tx_packets=20,
+                    rx_errors=0,
+                    tx_errors=0,
+                    rx_drops=0,
+                    tx_drops=0,
+                ),
+            ),
+            "eth0": (
+                100.0,
+                InterfaceStats(
+                    interface="eth0",
+                    rx_bytes=5000,
+                    tx_bytes=6000,
+                    rx_packets=50,
+                    tx_packets=60,
+                    rx_errors=0,
+                    tx_errors=0,
+                    rx_drops=0,
+                    tx_drops=0,
+                ),
+            ),
         }
 
         current = [
             InterfaceStats(
                 interface="wlan0",
-                rx_bytes=3000, tx_bytes=4000,
-                rx_packets=30, tx_packets=40,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
+                rx_bytes=3000,
+                tx_bytes=4000,
+                rx_packets=30,
+                tx_packets=40,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
             ),
             InterfaceStats(
                 interface="eth0",
-                rx_bytes=7000, tx_bytes=8000,
-                rx_packets=70, tx_packets=80,
-                rx_errors=0, tx_errors=0,
-                rx_drops=0, tx_drops=0,
+                rx_bytes=7000,
+                tx_bytes=8000,
+                rx_packets=70,
+                tx_packets=80,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
             ),
         ]
 

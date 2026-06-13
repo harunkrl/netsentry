@@ -1,4 +1,5 @@
 """KPortWatch — Config persistence (save_config_setting, save_tui_setting)."""
+
 from __future__ import annotations
 
 import fcntl

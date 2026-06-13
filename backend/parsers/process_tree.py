@@ -18,6 +18,7 @@ Usage::
 
 /proc/[pid]/status contains Uid line for UID extraction.
 """
+
 from __future__ import annotations
 
 import os
@@ -51,10 +52,10 @@ def _parse_stat(path: str) -> tuple[int, str, str, int] | None:
 
         pid_str = raw[:start_comm].strip()
         pid = int(pid_str)
-        name = raw[start_comm + 1:end_comm]
+        name = raw[start_comm + 1 : end_comm]
 
         # After ')': state ppid ...
-        rest = raw[end_comm + 2:].split()
+        rest = raw[end_comm + 2 :].split()
         if len(rest) < 2:
             return None
 
@@ -83,6 +84,7 @@ def _read_uid(pid: int) -> int:
 
 
 # ── Public API ─────────────────────────────────────────────────
+
 
 def build_process_tree(
     inode_map: dict[int, tuple[int, str, str]] | None = None,

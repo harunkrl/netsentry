@@ -4,6 +4,7 @@ Covers port table, connection log, status bar, traffic bar, and
 their key behaviours: filtering, sorting, memory limits, sparklines,
 and display formatting.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -36,23 +37,38 @@ from tui.widgets.traffic_bar import (
 
 # ── Fixtures ──────────────────────────────────────────────────
 
+
 @pytest.fixture
 def entry_tcp_listen() -> SocketEntry:
     return SocketEntry(
-        proto="tcp", local_ip="0.0.0.0", local_port=22,
-        remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-        state_code="0A", uid=0, inode=100,
-        process_name="sshd", pid=1,
+        proto="tcp",
+        local_ip="0.0.0.0",
+        local_port=22,
+        remote_ip="0.0.0.0",
+        remote_port=0,
+        state="LISTEN",
+        state_code="0A",
+        uid=0,
+        inode=100,
+        process_name="sshd",
+        pid=1,
     )
 
 
 @pytest.fixture
 def entry_tcp_established() -> SocketEntry:
     return SocketEntry(
-        proto="tcp", local_ip="192.168.1.10", local_port=443,
-        remote_ip="10.0.0.1", remote_port=54321, state="ESTABLISHED",
-        state_code="01", uid=1000, inode=200,
-        process_name="firefox", pid=42,
+        proto="tcp",
+        local_ip="192.168.1.10",
+        local_port=443,
+        remote_ip="10.0.0.1",
+        remote_port=54321,
+        state="ESTABLISHED",
+        state_code="01",
+        uid=1000,
+        inode=200,
+        process_name="firefox",
+        pid=42,
         cmdline="/usr/bin/firefox --new-window",
     )
 
@@ -60,18 +76,28 @@ def entry_tcp_established() -> SocketEntry:
 @pytest.fixture
 def entry_ipv6() -> SocketEntry:
     return SocketEntry(
-        proto="tcp6", local_ip="0000:0000:0000:0000:0000:0000:0000:0001",
-        local_port=8080, remote_ip="::", remote_port=0, state="LISTEN",
-        state_code="0A", uid=0, inode=300,
-        process_name="python3", pid=99,
+        proto="tcp6",
+        local_ip="0000:0000:0000:0000:0000:0000:0000:0001",
+        local_port=8080,
+        remote_ip="::",
+        remote_port=0,
+        state="LISTEN",
+        state_code="0A",
+        uid=0,
+        inode=300,
+        process_name="python3",
+        pid=99,
     )
 
 
 @pytest.fixture
 def alert_critical() -> Alert:
     return Alert(
-        level=AlertLevel.CRITICAL, port=4444, proto="tcp",
-        process_name="malware", pid=666,
+        level=AlertLevel.CRITICAL,
+        port=4444,
+        proto="tcp",
+        process_name="malware",
+        pid=666,
         message="Malicious port",
     )
 
@@ -79,13 +105,17 @@ def alert_critical() -> Alert:
 @pytest.fixture
 def alert_warning() -> Alert:
     return Alert(
-        level=AlertLevel.WARNING, port=8080, proto="tcp",
-        process_name="python3", pid=99,
+        level=AlertLevel.WARNING,
+        port=8080,
+        proto="tcp",
+        process_name="python3",
+        pid=99,
         message="Unusual port",
     )
 
 
 # ── IPv6 shortening ───────────────────────────────────────────
+
 
 class TestIPv6Shortening:
     def test_ipv4_unchanged(self):
@@ -121,6 +151,7 @@ class TestIPv6Shortening:
 
 # ── Smart address truncation ──────────────────────────────────
 
+
 class TestSmartTruncateAddr:
     def test_listen_format(self, entry_tcp_listen: SocketEntry):
         result = _smart_truncate_addr(entry_tcp_listen)
@@ -139,6 +170,7 @@ class TestSmartTruncateAddr:
 
 
 # ── Human bytes ───────────────────────────────────────────────
+
 
 class TestHumanBytes:
     def test_bytes(self):
@@ -162,18 +194,22 @@ class TestHumanBytes:
 
 # ── Mini sparkline ────────────────────────────────────────────
 
+
 class TestMiniSparkline:
     def test_empty_data(self):
         from collections import deque
+
         assert _mini_sparkline(deque(maxlen=20), "green") == ""
 
     def test_single_point(self):
         from collections import deque
+
         d = deque([5.0], maxlen=20)
         assert _mini_sparkline(d, "green") == ""
 
     def test_multiple_points(self):
         from collections import deque
+
         d = deque([1.0, 5.0, 10.0, 3.0], maxlen=20)
         result = _mini_sparkline(d, "cyan")
         assert "cyan" in result
@@ -183,12 +219,14 @@ class TestMiniSparkline:
 
     def test_all_zeros(self):
         from collections import deque
+
         d = deque([0.0, 0.0, 0.0], maxlen=20)
         result = _mini_sparkline(d, "green")
         assert "▁" in result
 
 
 # ── Connection Log ────────────────────────────────────────────
+
 
 class TestConnectionLog:
     def test_memory_bounds(self):
@@ -199,6 +237,7 @@ class TestConnectionLog:
     def test_seen_keys_max(self):
         """K5: _seen_keys should be bounded by _MAX_SEEN."""
         from tui.widgets.connection_log import _MAX_SEEN
+
         assert _MAX_SEEN == 10_000
 
     def test_filter_modes(self):
@@ -227,6 +266,7 @@ class TestConnectionLog:
 
 
 # ── Port Table ────────────────────────────────────────────────
+
 
 class TestPortTable:
     def test_row_colour_safe(self, entry_tcp_listen: SocketEntry):
@@ -266,6 +306,7 @@ class TestPortTable:
 
 # ── Status Bar ────────────────────────────────────────────────
 
+
 class TestStatusBar:
     def test_notification_state(self):
         bar = StatusBar()
@@ -284,6 +325,7 @@ class TestStatusBar:
 
 # ── Traffic Bar ───────────────────────────────────────────────
 
+
 class TestTrafficBar:
     def test_history_initialization(self):
         bar = TrafficBar()
@@ -293,11 +335,16 @@ class TestTrafficBar:
     def test_interface_stats_model(self):
         stats = InterfaceStats(
             interface="eth0",
-            rx_bytes=1000, tx_bytes=500,
-            rx_packets=10, tx_packets=5,
-            rx_errors=0, tx_errors=0,
-            rx_drops=0, tx_drops=0,
-            rx_rate=100.0, tx_rate=50.0,
+            rx_bytes=1000,
+            tx_bytes=500,
+            rx_packets=10,
+            tx_packets=5,
+            rx_errors=0,
+            tx_errors=0,
+            rx_drops=0,
+            tx_drops=0,
+            rx_rate=100.0,
+            tx_rate=50.0,
         )
         assert stats.rx_rate == 100.0
         assert stats.tx_rate == 50.0
@@ -306,6 +353,7 @@ class TestTrafficBar:
 
 
 # ── Theme System ──────────────────────────────────────────────
+
 
 class TestThemeSystem:
     def test_themes_exist(self):
@@ -353,8 +401,7 @@ class TestThemeSystem:
             assert level in ALERT_COLOURS
 
     def test_state_colours_dict_complete(self):
-        for state in ("ESTABLISHED", "LISTEN", "TIME_WAIT", "CLOSE_WAIT",
-                      "SYN_SENT", "CLOSING"):
+        for state in ("ESTABLISHED", "LISTEN", "TIME_WAIT", "CLOSE_WAIT", "SYN_SENT", "CLOSING"):
             assert state in STATE_COLOURS
 
     def test_light_theme_differs_from_dark(self):
@@ -384,6 +431,7 @@ class TestThemeSystem:
 
 
 # ── Advanced Filtering ────────────────────────────────────────
+
 
 class TestAdvancedFiltering:
     def test_proto_filter_default(self):
@@ -440,6 +488,7 @@ class TestAdvancedFiltering:
 
 # ── Port Scan Detection ───────────────────────────────────────
 
+
 class TestPortScanDetection:
     def test_detect_port_scan_empty(self):
         """Empty table returns no suspects."""
@@ -452,12 +501,21 @@ class TestPortScanDetection:
         table = PortTable()
         entries = []
         for port in [22, 80, 443, 8080, 3306, 5432]:
-            entries.append(SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=port,
-                remote_ip="10.0.0.1", remote_port=60000 + port,
-                state="ESTABLISHED", state_code="01", uid=0, inode=port,
-                process_name="scanner", pid=1,
-            ))
+            entries.append(
+                SocketEntry(
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=port,
+                    remote_ip="10.0.0.1",
+                    remote_port=60000 + port,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=0,
+                    inode=port,
+                    process_name="scanner",
+                    pid=1,
+                )
+            )
         table._all_entries = entries
         results = table.detect_port_scan(threshold=5)
         assert len(results) == 1
@@ -469,12 +527,21 @@ class TestPortScanDetection:
         table = PortTable()
         entries = []
         for port in [22, 80, 443]:
-            entries.append(SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=port,
-                remote_ip="10.0.0.1", remote_port=60000 + port,
-                state="ESTABLISHED", state_code="01", uid=0, inode=port,
-                process_name="scanner", pid=1,
-            ))
+            entries.append(
+                SocketEntry(
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=port,
+                    remote_ip="10.0.0.1",
+                    remote_port=60000 + port,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=0,
+                    inode=port,
+                    process_name="scanner",
+                    pid=1,
+                )
+            )
         table._all_entries = entries
         results = table.detect_port_scan(threshold=5)
         assert results == []
@@ -486,6 +553,7 @@ class TestPortScanDetection:
 
 
 # ── Connection Log Severity Filtering ────────────────────────
+
 
 class TestConnectionLogSeverity:
     def test_severity_filter_default(self):
@@ -514,9 +582,15 @@ class TestConnectionLogSeverity:
         """ALL filter passes everything."""
         log = ConnectionLog()
         entry = SocketEntry(
-            proto="tcp", local_ip="1.2.3.4", local_port=80,
-            remote_ip="5.6.7.8", remote_port=12345,
-            state="CLOSING", state_code="01", uid=0, inode=1,
+            proto="tcp",
+            local_ip="1.2.3.4",
+            local_port=80,
+            remote_ip="5.6.7.8",
+            remote_port=12345,
+            state="CLOSING",
+            state_code="01",
+            uid=0,
+            inode=1,
         )
         assert log._passes_severity_filter(entry) is True
 
@@ -525,14 +599,26 @@ class TestConnectionLogSeverity:
         log = ConnectionLog()
         log._severity_filter = "ERROR"
         error_entry = SocketEntry(
-            proto="tcp", local_ip="1.2.3.4", local_port=80,
-            remote_ip="5.6.7.8", remote_port=12345,
-            state="CLOSING", state_code="01", uid=0, inode=1,
+            proto="tcp",
+            local_ip="1.2.3.4",
+            local_port=80,
+            remote_ip="5.6.7.8",
+            remote_port=12345,
+            state="CLOSING",
+            state_code="01",
+            uid=0,
+            inode=1,
         )
         info_entry = SocketEntry(
-            proto="tcp", local_ip="1.2.3.4", local_port=80,
-            remote_ip="5.6.7.8", remote_port=12345,
-            state="ESTABLISHED", state_code="01", uid=0, inode=2,
+            proto="tcp",
+            local_ip="1.2.3.4",
+            local_port=80,
+            remote_ip="5.6.7.8",
+            remote_port=12345,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=0,
+            inode=2,
         )
         assert log._passes_severity_filter(error_entry) is True
         assert log._passes_severity_filter(info_entry) is False
@@ -542,14 +628,26 @@ class TestConnectionLogSeverity:
         log = ConnectionLog()
         log._severity_filter = "WARNING"
         warn_entry = SocketEntry(
-            proto="tcp", local_ip="1.2.3.4", local_port=80,
-            remote_ip="5.6.7.8", remote_port=12345,
-            state="TIME_WAIT", state_code="01", uid=0, inode=3,
+            proto="tcp",
+            local_ip="1.2.3.4",
+            local_port=80,
+            remote_ip="5.6.7.8",
+            remote_port=12345,
+            state="TIME_WAIT",
+            state_code="01",
+            uid=0,
+            inode=3,
         )
         info_entry = SocketEntry(
-            proto="tcp", local_ip="1.2.3.4", local_port=80,
-            remote_ip="5.6.7.8", remote_port=12345,
-            state="ESTABLISHED", state_code="01", uid=0, inode=4,
+            proto="tcp",
+            local_ip="1.2.3.4",
+            local_port=80,
+            remote_ip="5.6.7.8",
+            remote_port=12345,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=0,
+            inode=4,
         )
         assert log._passes_severity_filter(warn_entry) is True
         assert log._passes_severity_filter(info_entry) is False
@@ -564,15 +662,18 @@ class TestConnectionLogSeverity:
 
 # ── Settings Screen ───────────────────────────────────────────
 
+
 class TestSettingsScreen:
     def test_settings_screen_import(self):
         """Settings screen can be imported without error."""
         from tui.screens.settings_screen import SettingsScreen
+
         assert SettingsScreen is not None
 
     def test_available_themes(self):
         """AVAILABLE_THEMES has 3 entries matching theme display names."""
         from tui.screens.settings_screen import AVAILABLE_THEMES
+
         assert len(AVAILABLE_THEMES) == 4
         assert "Cyberpunk" in AVAILABLE_THEMES
         assert "Midnight" in AVAILABLE_THEMES
@@ -581,6 +682,7 @@ class TestSettingsScreen:
     def test_settings_screen_constructor(self):
         """Settings screen constructor accepts all new parameters."""
         from tui.screens.settings_screen import SettingsScreen
+
         screen = SettingsScreen(
             desktop_notifications=True,
             tui_notifications=True,

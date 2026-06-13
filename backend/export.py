@@ -11,6 +11,7 @@ Usage:
     kportwatch-export --last 100         # last 100 entries
     kportwatch-export --list-dates       # show available dates
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,25 +29,29 @@ def main() -> None:
         description="Export KPortWatch history data",
     )
     parser.add_argument(
-        "--date", "-d",
+        "--date",
+        "-d",
         type=str,
         default=None,
         help="Date to export (YYYY-MM-DD). Default: today",
     )
     parser.add_argument(
-        "--format", "-f",
+        "--format",
+        "-f",
         choices=["json", "csv"],
         default="json",
         help="Output format (default: json)",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=str,
         default=None,
         help="Output file path (default: stdout)",
     )
     parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         choices=["summary", "alert"],
         default=None,
         help="Filter by event type",

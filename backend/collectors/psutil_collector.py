@@ -16,6 +16,7 @@ Performance optimizations:
   - Per-PID info cache with individual TTLs (avoids bulk-clear stampede)
   - Cycle-based cache invalidation via clear_cycle_caches()
 """
+
 from __future__ import annotations
 
 import logging
@@ -67,8 +68,12 @@ def _state_label(conn) -> tuple[str, str]:
         label = "UNCONN"
     code = "00"
     for hex_val, name in {
-        "0A": "LISTEN", "06": "TIME_WAIT", "01": "ESTABLISHED",
-        "07": "UNCONN", "02": "SYN_SENT", "03": "SYN_RECV",
+        "0A": "LISTEN",
+        "06": "TIME_WAIT",
+        "01": "ESTABLISHED",
+        "07": "UNCONN",
+        "02": "SYN_SENT",
+        "03": "SYN_RECV",
     }.items():
         if label == name:
             code = hex_val
@@ -223,6 +228,7 @@ def _get_pid_info(pid: int) -> tuple[str | None, str | None, int]:
 
 # ── Connection collection ──────────────────────────────────────
 
+
 def collect_connections() -> list[SocketEntry]:
     """Collect all network connections using cached net_connections()."""
     entries: list[SocketEntry] = []
@@ -260,25 +266,28 @@ def collect_connections() -> list[SocketEntry]:
             if process_name is None:
                 pid = None
 
-        entries.append(SocketEntry(
-            proto=proto,
-            local_ip=local_ip,
-            local_port=local_port,
-            remote_ip=remote_ip,
-            remote_port=remote_port,
-            state=state,
-            state_code=state_code,
-            uid=uid,
-            inode=0,
-            pid=pid,
-            process_name=process_name,
-            cmdline=cmdline,
-        ))
+        entries.append(
+            SocketEntry(
+                proto=proto,
+                local_ip=local_ip,
+                local_port=local_port,
+                remote_ip=remote_ip,
+                remote_port=remote_port,
+                state=state,
+                state_code=state_code,
+                uid=uid,
+                inode=0,
+                pid=pid,
+                process_name=process_name,
+                cmdline=cmdline,
+            )
+        )
 
     return entries
 
 
 # ── Traffic stats collection ───────────────────────────────────
+
 
 def collect_traffic() -> list[InterfaceStats]:
     """Collect per-interface traffic stats using psutil.net_io_counters()."""
@@ -291,22 +300,25 @@ def collect_traffic() -> list[InterfaceStats]:
     for iface, stats in counters.items():
         if iface == "lo":
             continue
-        entries.append(InterfaceStats(
-            interface=iface,
-            rx_bytes=stats.bytes_recv,
-            tx_bytes=stats.bytes_sent,
-            rx_packets=stats.packets_recv,
-            tx_packets=stats.packets_sent,
-            rx_errors=stats.errin,
-            tx_errors=stats.errout,
-            rx_drops=stats.dropin,
-            tx_drops=stats.dropout,
-        ))
+        entries.append(
+            InterfaceStats(
+                interface=iface,
+                rx_bytes=stats.bytes_recv,
+                tx_bytes=stats.bytes_sent,
+                rx_packets=stats.packets_recv,
+                tx_packets=stats.packets_sent,
+                rx_errors=stats.errin,
+                tx_errors=stats.errout,
+                rx_drops=stats.dropin,
+                tx_drops=stats.dropout,
+            )
+        )
 
     return entries
 
 
 # ── Process tree collection (3-level cache) ────────────────────
+
 
 def collect_process_tree(
     network_pids: set[int] | None = None,
@@ -340,8 +352,7 @@ def collect_process_tree(
     # Check if process_list cache is still valid (doesn't trigger refresh)
     now = time.monotonic()
     process_list_fresh = (
-        _process_list_cache is not None
-        and (now - _process_list_cache_ts) < _PROCESS_LIST_CACHE_TTL
+        _process_list_cache is not None and (now - _process_list_cache_ts) < _PROCESS_LIST_CACHE_TTL
     )
 
     # If we have a cached tree and process list hasn't expired, reuse it

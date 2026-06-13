@@ -3,6 +3,7 @@
 Self-contained: owns its own ``_last_update_check`` timestamp.
 Only external dependency is the config object injected at construction.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,8 +41,6 @@ class UpdateChecker:
                 update_available=new_version is not None,
             )
             if new_version:
-                logger.info(
-                    "Update available: %s → %s", get_local_version(), new_version
-                )
+                logger.info("Update available: %s → %s", get_local_version(), new_version)
         except Exception:
             logger.debug("Update check failed", exc_info=True)

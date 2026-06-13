@@ -6,6 +6,7 @@ sockets with colour-coded rows, sortable columns, and search/filter.
 Uses diff-based updates to avoid flickering, scroll reset, and
 selection loss on every refresh cycle.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -97,7 +98,7 @@ def _shorten_ipv6(addr: str) -> str:
         return addr
 
     head = ":".join(parts[:best_start])
-    tail = ":".join(parts[best_start + best_len:])
+    tail = ":".join(parts[best_start + best_len :])
 
     if head and tail:
         return f"{head}::{tail}"
@@ -147,7 +148,13 @@ class PortTable(DataTable):
         # Show initial empty state before first data fetch
         self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
         self.add_row(
-            "[dim]Waiting for data...[/]", "", "", "", "", "", "",
+            "[dim]Waiting for data...[/]",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
             key="_empty",
         )
         self._prev_keys = {"_empty"}
@@ -159,7 +166,7 @@ class PortTable(DataTable):
         self._rebuild_table()
 
     def set_proto_filter(self, proto: str) -> None:
-        """Filter rows by protocol ('ALL', 'TCP', 'UDP', 'ICMP')."""
+        """Filter rows by protocol ('ALL', 'TCP', 'UDP')."""
         self.filter_proto = proto.upper().strip()
         self._rebuild_table()
 
@@ -228,7 +235,9 @@ class PortTable(DataTable):
 
             # Ensure columns exist
             if not self.columns:
-                self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
+                self.add_columns(
+                    "Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline"
+                )
 
             # Build filtered + sorted row list
             rows: list[tuple[str, SocketEntry]] = []
@@ -258,7 +267,12 @@ class PortTable(DataTable):
                 self._row_entries.clear()
                 self.add_row(
                     "[dim]No active connections — daemon running?[/]",
-                    "", "", "", "", "", "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                     key="_empty",
                 )
                 self._prev_keys = {"_empty"}
@@ -277,9 +291,7 @@ class PortTable(DataTable):
                     # Update existing row cells
                     try:
                         for col_idx, val in enumerate(cell_values):
-                            self.coordinate_to_cell_key(
-                                (self._find_row_index(row_key), col_idx)
-                            )
+                            self.coordinate_to_cell_key((self._find_row_index(row_key), col_idx))
                             # Use update_cell_at for efficiency
                             rk = self._row_key_for(row_key)
                             if rk is not None:
@@ -353,7 +365,7 @@ class PortTable(DataTable):
         """Build port→alert-level lookup from alert list."""
         alert_map: dict[int, str] = {}
         for a in alerts:
-            if hasattr(a, 'port') and hasattr(a, 'level'):
+            if hasattr(a, "port") and hasattr(a, "level"):
                 alert_map.setdefault(a.port, a.level)
         return alert_map
 
@@ -364,7 +376,8 @@ class PortTable(DataTable):
         proc_str = entry.process_name or "unknown"
         alert_level = alert_map.get(entry.local_port, "")
         cmdline_str = (
-            (entry.cmdline[:50] + "…") if entry.cmdline and len(entry.cmdline) > 50
+            (entry.cmdline[:50] + "…")
+            if entry.cmdline and len(entry.cmdline) > 50
             else (entry.cmdline or "—")
         )
         colour = self._full_style(entry, alert_level)
@@ -386,25 +399,37 @@ class PortTable(DataTable):
 
         # 2) Port range filter — check both local and remote ports
         local_in = self.filter_port_min <= entry.local_port <= self.filter_port_max
-        remote_in = (entry.remote_port is not None and
-                     self.filter_port_min <= entry.remote_port <= self.filter_port_max)
+        remote_in = (
+            entry.remote_port is not None
+            and self.filter_port_min <= entry.remote_port <= self.filter_port_max
+        )
         if not local_in and not remote_in:
             return False
 
         # 3) Text filter
         if not self.filter_text:
             return True
-        addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
-                    else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}")
+        addr = (
+            f"{entry.local_ip}:{entry.local_port}"
+            if entry.state == "LISTEN"
+            else f"{entry.local_ip}:{entry.local_port} → {entry.remote_ip}:{entry.remote_port}"
+        )
         pid_str = str(entry.pid) if entry.pid is not None else "—"
         proc_str = entry.process_name or "unknown"
         alert_level = alert_map.get(entry.local_port, "")
         alert_str = alert_level if alert_level else ""
 
-        searchable = " ".join([
-            proc_str, pid_str, entry.proto, addr,
-            entry.state, alert_str, entry.cmdline or "",
-        ]).lower()
+        searchable = " ".join(
+            [
+                proc_str,
+                pid_str,
+                entry.proto,
+                addr,
+                entry.state,
+                alert_str,
+                entry.cmdline or "",
+            ]
+        ).lower()
         return self.filter_text in searchable
 
     def _rebuild_table(self) -> None:
@@ -421,13 +446,20 @@ class PortTable(DataTable):
             self._row_entries.clear()
 
             if not self.columns:
-                self.add_columns("Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline")
+                self.add_columns(
+                    "Process", "PID", "Proto", "Address:Port", "State", "Alert", "Cmdline"
+                )
 
             # Empty state placeholder
             if not entries:
                 self.add_row(
                     "[dim]No active connections — daemon running?[/]",
-                    "", "", "", "", "", "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                     key="_empty",
                 )
                 self._prev_keys = {"_empty"}
@@ -475,7 +507,9 @@ class PortTable(DataTable):
         except Exception as e:
             log.error("Failed to rebuild table: %s", e, exc_info=True)
 
-    def _sort_rows(self, rows: list[tuple[str, SocketEntry]], alert_map: dict[int, str]) -> list[tuple[str, SocketEntry]]:
+    def _sort_rows(
+        self, rows: list[tuple[str, SocketEntry]], alert_map: dict[int, str]
+    ) -> list[tuple[str, SocketEntry]]:
         """Sort rows based on _sort_column."""
         col = self.sort_column
 
@@ -567,8 +601,9 @@ class PortTable(DataTable):
         if threshold is None:
             try:
                 from shared.config import get_config
+
                 cfg = get_config()
-                threshold = getattr(cfg, 'scan_threshold', 5)
+                threshold = getattr(cfg, "scan_threshold", 5)
             except Exception:
                 threshold = 5
 
@@ -576,19 +611,19 @@ class PortTable(DataTable):
         ip_ports: dict[str, set[int]] = {}
         for entry in self._all_entries:
             if entry.state != "LISTEN" and entry.remote_ip:
-                ip_ports.setdefault(entry.remote_ip, set()).add(
-                    entry.remote_port or 0
-                )
+                ip_ports.setdefault(entry.remote_ip, set()).add(entry.remote_port or 0)
 
         # Find IPs exceeding the threshold
         results: list[dict] = []
         for ip, ports in ip_ports.items():
             if len(ports) >= threshold:
-                results.append({
-                    "remote_ip": ip,
-                    "port_count": len(ports),
-                    "ports": sorted(ports),
-                })
+                results.append(
+                    {
+                        "remote_ip": ip,
+                        "port_count": len(ports),
+                        "ports": sorted(ports),
+                    }
+                )
 
         # Sort by port count descending
         results.sort(key=lambda x: x["port_count"], reverse=True)

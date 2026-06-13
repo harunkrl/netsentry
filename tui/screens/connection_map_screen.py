@@ -10,14 +10,15 @@ Keyboard shortcuts:
   s     — cycle sort column
   Esc   — close screen
 """
+
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import logging
 from collections import defaultdict
 
 from backend.models import SocketEntry
+from shared.network import is_private_ip
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -39,15 +40,6 @@ _SORT_LABELS = ["Country", "City", "IP", "Port", "Process", "Count"]
 _WORLD_MAP: list[str] = load_world_map()
 _MAP_ROWS = len(_WORLD_MAP)
 _MAP_COLS = len(_WORLD_MAP[0]) if _WORLD_MAP else 0
-
-
-def _is_private_ip(ip: str) -> bool:
-    """Check if an IP is loopback, link-local, or private (RFC 1918 / RFC 4193)."""
-    try:
-        addr = ipaddress.ip_address(ip)
-        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved
-    except ValueError:
-        return True  # unparseable → skip
 
 
 def _lat_lon_to_grid(lat: float, lon: float) -> tuple[int, int]:
@@ -131,6 +123,7 @@ def _render_map(
 
 
 # ── Screen ──────────────────────────────────────────────────────
+
 
 class ConnectionMapScreen(Screen):
     """Full-screen outbound connection map with ASCII world map and detail table."""
@@ -219,6 +212,7 @@ class ConnectionMapScreen(Screen):
     def on_mount(self) -> None:
         # Resolve data provider after widget is mounted (self.app is available)
         from tui.utils.provider import get_app_provider
+
         self.provider = get_app_provider(self.app)
 
         table = self.query_one("#geo-table", DataTable)
@@ -253,18 +247,20 @@ class ConnectionMapScreen(Screen):
 
         connections: list[dict] = []
         for e in established:
-            if not e.remote_ip or _is_private_ip(e.remote_ip):
+            if not e.remote_ip or is_private_ip(e.remote_ip):
                 continue
-            connections.append({
-                "country": e.remote_country or "Unknown",
-                "country_code": e.remote_country_code or "",
-                "city": e.remote_city or "",
-                "ip": e.remote_ip,
-                "port": e.remote_port,
-                "process": e.process_name or "",
-                "lat": e.remote_lat,
-                "lon": e.remote_lon,
-            })
+            connections.append(
+                {
+                    "country": e.remote_country or "Unknown",
+                    "country_code": e.remote_country_code or "",
+                    "city": e.remote_city or "",
+                    "ip": e.remote_ip,
+                    "port": e.remote_port,
+                    "process": e.process_name or "",
+                    "lat": e.remote_lat,
+                    "lon": e.remote_lon,
+                }
+            )
 
         self._connections = connections
         self._geo_stats = geo_stats
@@ -303,7 +299,8 @@ class ConnectionMapScreen(Screen):
         if self._filter_text:
             ft = self._filter_text
             filtered = [
-                c for c in connections
+                c
+                for c in connections
                 if ft in c["country"].lower()
                 or ft in c["city"].lower()
                 or ft in c["ip"].lower()

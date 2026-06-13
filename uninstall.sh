@@ -16,6 +16,21 @@ printf "║   KPortWatch Uninstaller v%%s   ║\n" "$KPW_VERSION"
 echo "╚════════════════════════════════════════════╝"
 echo ""
 
+# ── 0. Check if KPortWatch is installed ──────────────────────
+KPW_SERVICE="${HOME}/.config/systemd/user/kportwatch.service"
+KPW_PLASMOID="${HOME}/.local/share/plasma/plasmoids/com.kportwatch.plasmoid"
+KPW_POLKIT="/usr/share/polkit-1/actions/com.kportwatch.helper.policy"
+if [ ! -f "${KPW_SERVICE}" ] && [ ! -d "${KPW_PLASMOID}" ] && [ ! -f "${KPW_POLKIT}" ] \
+   && [ ! -d "${HOME}/.config/kportwatch" ] && [ ! -d "${HOME}/.local/share/kportwatch" ]; then
+    echo "ℹ️  KPortWatch does not appear to be installed (no service, widget,"
+    echo "    config, runtime data or Polkit policy found). Nothing to uninstall."
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Nothing to do. Exiting."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 0
+fi
+
 # ── 1. Stop and disable systemd service ──────────────────────
 echo "🛑 Stopping and disabling background daemon..."
 if systemctl --user is-active --quiet kportwatch.service; then
@@ -48,13 +63,12 @@ echo "   ✅ Symlinks removed"
 
 # ── 4. Remove Config and Runtime Data ────────────────────────
 echo "🧹 Cleaning up configuration and runtime data..."
-read -p "   Delete configuration files? (y/N) " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -r -p "   Delete configuration files? (y/N) " reply
+if [[ "${reply:-}" =~ ^[Yy]$ ]]; then
     rm -rf "${HOME}/.config/kportwatch"
-    echo "   Config deleted"
+    echo "   ✅ Config deleted"
 else
-    echo "   Config preserved at ~/.config/kportwatch"
+    echo "   ℹ️  Config preserved at ~/.config/kportwatch"
 fi
 
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
@@ -68,28 +82,33 @@ echo "   ✅ Config, cache and runtime files deleted"
 # ── 5. Remove Polkit policy ──────────────────────────────────
 echo "🔒 Removing Polkit policy..."
 POLKIT_FILE="/usr/share/polkit-1/actions/com.kportwatch.helper.policy"
-if [ -f "${POLKIT_FILE}" ]; then
-    if rm "${POLKIT_FILE}" 2>/dev/null || sudo rm "${POLKIT_FILE}" 2>/dev/null; then
+if [ ! -f "${POLKIT_FILE}" ]; then
+    echo "   ✅ Polkit policy not installed"
+else
+    # Warn before interactive sudo so the password prompt isn't a surprise.
+    # (sudo writes its prompt to /dev/tty, which can get visually lost after the
+    # echo above and make the script appear to hang.)
+    if ! sudo -n true 2>/dev/null; then
+        echo "   🔐 Removing the system-wide Polkit policy requires your password:"
+    fi
+    if sudo rm "${POLKIT_FILE}"; then
         echo "   ✅ Polkit policy removed"
     else
         echo "   ⚠️  Could not remove Polkit policy (needs root)"
         echo "      Run manually: sudo rm ${POLKIT_FILE}"
     fi
-else
-    echo "   ✅ Polkit policy not installed"
 fi
 
 # ── 6. Restart Plasma ────────────────────────────────────────
-read -p "   Restart KDE Plasma panel now? (y/N) " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -r -p "   Restart KDE Plasma panel now? (y/N) " reply
+if [[ "${reply:-}" =~ ^[Yy]$ ]]; then
     echo "Restarting KDE Plasma panel..."
-if systemctl --user is-active --quiet plasma-plasmashell.service; then
-    systemctl restart --user plasma-plasmashell.service
-    echo "   ✅ Plasma restarted"
-else
-    echo "   Plasma restart skipped — changes will apply on next login"
-fi
+    if systemctl --user is-active --quiet plasma-plasmashell.service; then
+        systemctl restart --user plasma-plasmashell.service
+        echo "   ✅ Plasma restarted"
+    else
+        echo "   Plasma restart skipped — changes will apply on next login"
+    fi
 fi
 
 echo ""

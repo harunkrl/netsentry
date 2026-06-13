@@ -1,4 +1,5 @@
 """Tests for backend.writers.unix_socket — Unix domain socket server."""
+
 from __future__ import annotations
 
 import contextlib
@@ -13,6 +14,7 @@ from backend.writers.unix_socket import UnixSocketServer, send_command
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def socket_path(tmp_path: Path) -> str:
     """Return a unique socket path inside tmp_path."""
@@ -24,6 +26,7 @@ def server(socket_path: str) -> UnixSocketServer:
     """Return a started UnixSocketServer bound to socket_path."""
     # Patch SOCKET_PATH so server uses our temp path
     import backend.writers.unix_socket as us_mod
+
     original = us_mod.SOCKET_PATH
     us_mod.SOCKET_PATH = socket_path
     srv = UnixSocketServer()
@@ -37,6 +40,7 @@ def server(socket_path: str) -> UnixSocketServer:
 def client_sock(server: UnixSocketServer) -> socket.socket:
     """Return a connected broadcast client socket, auto-closed after test."""
     import backend.writers.unix_socket as us_mod
+
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.connect(us_mod.SOCKET_PATH)
     time.sleep(0.5)  # wait for accept loop to probe and register as broadcast client
@@ -46,6 +50,7 @@ def client_sock(server: UnixSocketServer) -> socket.socket:
 
 
 # ── Server lifecycle tests ────────────────────────────────────────
+
 
 class TestServerLifecycle:
     def test_start_creates_socket_file(self, server: UnixSocketServer, socket_path: str):
@@ -74,6 +79,7 @@ class TestServerLifecycle:
         assert os.path.exists(socket_path)
 
         import backend.writers.unix_socket as us_mod
+
         original = us_mod.SOCKET_PATH
         us_mod.SOCKET_PATH = socket_path
         srv = UnixSocketServer()
@@ -89,12 +95,15 @@ class TestServerLifecycle:
 
 # ── Client connection tests ───────────────────────────────────────
 
+
 class TestClientConnection:
     def test_client_connects(self, client_sock: socket.socket):
         """Client socket should be connected."""
         assert client_sock.fileno() != -1
 
-    def test_connected_client_registered(self, server: UnixSocketServer, client_sock: socket.socket):
+    def test_connected_client_registered(
+        self, server: UnixSocketServer, client_sock: socket.socket
+    ):
         """Server should have the client in its clients list."""
         time.sleep(0.5)
         assert len(server.clients) >= 1
@@ -102,6 +111,7 @@ class TestClientConnection:
     def test_multiple_clients(self, server: UnixSocketServer, socket_path: str):
         """Multiple clients should all be registered."""
         import backend.writers.unix_socket as us_mod
+
         clients = []
         for _ in range(3):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -115,8 +125,11 @@ class TestClientConnection:
 
 # ── Broadcast tests ───────────────────────────────────────────────
 
+
 class TestBroadcast:
-    def test_broadcast_sends_data_to_client(self, server: UnixSocketServer, client_sock: socket.socket):
+    def test_broadcast_sends_data_to_client(
+        self, server: UnixSocketServer, client_sock: socket.socket
+    ):
         payload = '{"test": true}'
         server.broadcast(payload)
         time.sleep(0.1)
@@ -131,6 +144,7 @@ class TestBroadcast:
 
     def test_broadcast_to_multiple_clients(self, server: UnixSocketServer, socket_path: str):
         import backend.writers.unix_socket as us_mod
+
         clients = []
         for _ in range(3):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -154,6 +168,7 @@ class TestBroadcast:
     def test_dead_client_cleaned_up(self, server: UnixSocketServer, socket_path: str):
         """A disconnected client should be removed on next broadcast."""
         import backend.writers.unix_socket as us_mod
+
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect(us_mod.SOCKET_PATH)
         time.sleep(0.5)
@@ -171,10 +186,12 @@ class TestBroadcast:
 
 # ── Command request/response tests ───────────────────────────────
 
+
 class TestCommandHandling:
     def test_command_handler_called(self, server: UnixSocketServer, socket_path: str):
         """Command handler receives and processes commands."""
         import backend.writers.unix_socket as us_mod
+
         received = []
 
         def handler(cmd):
@@ -186,7 +203,7 @@ class TestCommandHandling:
         # Send command directly via socket
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect(us_mod.SOCKET_PATH)
-        s.sendall(json.dumps({"command": "test"}).encode() + b'\n')
+        s.sendall(json.dumps({"command": "test"}).encode() + b"\n")
         time.sleep(0.2)
 
         resp_data = s.recv(4096).decode().strip()
@@ -199,9 +216,10 @@ class TestCommandHandling:
     def test_command_response_without_handler(self, server: UnixSocketServer, socket_path: str):
         """Without a handler, commands get an error response."""
         import backend.writers.unix_socket as us_mod
+
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect(us_mod.SOCKET_PATH)
-        s.sendall(json.dumps({"command": "test"}).encode() + b'\n')
+        s.sendall(json.dumps({"command": "test"}).encode() + b"\n")
         time.sleep(0.2)
 
         resp_data = s.recv(4096).decode().strip()
@@ -221,7 +239,7 @@ class TestCommandHandling:
 
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect(us_mod.SOCKET_PATH)
-        s.sendall(json.dumps({"command": "fail"}).encode() + b'\n')
+        s.sendall(json.dumps({"command": "fail"}).encode() + b"\n")
         time.sleep(0.2)
 
         resp_data = s.recv(4096).decode().strip()
@@ -244,6 +262,7 @@ class TestSendCommand:
     def test_send_command_no_server_raises(self, tmp_path: Path):
         """send_command raises ConnectionError if server is not running."""
         import backend.writers.unix_socket as us_mod
+
         original = us_mod.SOCKET_PATH
         us_mod.SOCKET_PATH = str(tmp_path / "nonexistent.sock")
         try:

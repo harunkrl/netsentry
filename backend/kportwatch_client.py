@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """KPortWatch Client — Streams JSON data from the Unix socket to stdout."""
+
 import contextlib
 import json
 import socket
@@ -18,7 +19,7 @@ def main():
         s.connect(SOCKET_PATH)
         # Switch to blocking reads with no timeout for streaming
         s.settimeout(None)
-        f = s.makefile('r', encoding='utf-8')
+        f = s.makefile("r", encoding="utf-8")
         for line in f:
             print(line.strip(), flush=True)
     except KeyboardInterrupt:

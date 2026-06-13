@@ -1,4 +1,5 @@
 """Tests for backend.risk_score — Port risk scoring."""
+
 from __future__ import annotations
 
 from backend.models import SocketEntry
@@ -6,16 +7,26 @@ from backend.risk_score import calculate_risk_score, score_entries
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
+
 def _make_entry(port: int, cmdline: str = "/usr/bin/app", **kwargs) -> SocketEntry:
     return SocketEntry(
-        proto="tcp", local_ip="0.0.0.0", local_port=port,
-        remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-        state_code="0A", uid=0, inode=99999,
-        process_name="test", cmdline=cmdline, **kwargs,
+        proto="tcp",
+        local_ip="0.0.0.0",
+        local_port=port,
+        remote_ip="0.0.0.0",
+        remote_port=0,
+        state="LISTEN",
+        state_code="0A",
+        uid=0,
+        inode=99999,
+        process_name="test",
+        cmdline=cmdline,
+        **kwargs,
     )
 
 
 # ── Risk score tests ──────────────────────────────────────────────
+
 
 class TestRiskScore:
     def test_malicious_port_gets_high_score(self):
@@ -79,12 +90,13 @@ class TestRiskScore:
 
 # ── score_entries tests ────────────────────────────────────────────
 
+
 class TestScoreEntries:
     def test_sorted_by_risk_descending(self):
         entries = [
-            _make_entry(port=22, cmdline="/sshd"),      # safe
-            _make_entry(port=4444, cmdline="/evil"),      # malicious
-            _make_entry(port=500, cmdline=""),            # privileged + no cmdline
+            _make_entry(port=22, cmdline="/sshd"),  # safe
+            _make_entry(port=4444, cmdline="/evil"),  # malicious
+            _make_entry(port=500, cmdline=""),  # privileged + no cmdline
         ]
         scored = score_entries(entries, baseline_ports={22, 500})
         scores = [s["score"] for _, s in scored]

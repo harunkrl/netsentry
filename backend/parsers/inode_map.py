@@ -5,6 +5,7 @@ If the link target is 'socket:[<inode>]', record the mapping.
 
 Returns: {inode: (pid, process_name, cmdline)}
 """
+
 from __future__ import annotations
 
 import contextlib

@@ -3,61 +3,87 @@
 Tests cover pure functions (_is_private_ip, _lat_lon_to_grid, _render_map,
 _get_base_grid) and Textual headless tests for ConnectionMapScreen.
 """
+
 from __future__ import annotations
 
-import asyncio
 import time
-from dataclasses import asdict
 from unittest.mock import Mock, patch
 
 import pytest
-from backend.models import AlertLevel, InterfaceStats, Snapshot, SocketEntry
+from backend.models import Snapshot, SocketEntry
 from textual.app import App
 from textual.widgets import DataTable, Input, Static
-
 from tui.screens.connection_map_screen import (
-    ConnectionMapScreen,
-    _get_base_grid,
-    _is_private_ip,
-    _lat_lon_to_grid,
-    _render_map,
+    _MAP_COLS,
+    _MAP_ROWS,
     _SORT_COLUMNS,
     _SORT_LABELS,
-    _WORLD_MAP,
-    _MAP_ROWS,
-    _MAP_COLS,
+    ConnectionMapScreen,
+    _get_base_grid,
+    _lat_lon_to_grid,
+    _render_map,
 )
 
-
 # ── Fixtures ───────────────────────────────────────────────────
+
 
 @pytest.fixture
 def geo_established_entries() -> list[SocketEntry]:
     """Multiple established connections with different GeoIP data."""
     return [
         SocketEntry(
-            proto="tcp", local_ip="192.168.1.10", local_port=44532,
-            remote_ip="142.250.80.14", remote_port=443,
-            state="ESTABLISHED", state_code="01", uid=1000, inode=67890,
-            pid=1234, process_name="firefox",
-            remote_country="United States", remote_country_code="US",
-            remote_city="Mountain View", remote_lat=37.386, remote_lon=-122.084,
+            proto="tcp",
+            local_ip="192.168.1.10",
+            local_port=44532,
+            remote_ip="142.250.80.14",
+            remote_port=443,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=67890,
+            pid=1234,
+            process_name="firefox",
+            remote_country="United States",
+            remote_country_code="US",
+            remote_city="Mountain View",
+            remote_lat=37.386,
+            remote_lon=-122.084,
         ),
         SocketEntry(
-            proto="tcp", local_ip="192.168.1.10", local_port=54321,
-            remote_ip="93.184.216.34", remote_port=80,
-            state="ESTABLISHED", state_code="01", uid=1000, inode=67891,
-            pid=1234, process_name="firefox",
-            remote_country="United Kingdom", remote_country_code="GB",
-            remote_city="London", remote_lat=51.507, remote_lon=-0.128,
+            proto="tcp",
+            local_ip="192.168.1.10",
+            local_port=54321,
+            remote_ip="93.184.216.34",
+            remote_port=80,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=67891,
+            pid=1234,
+            process_name="firefox",
+            remote_country="United Kingdom",
+            remote_country_code="GB",
+            remote_city="London",
+            remote_lat=51.507,
+            remote_lon=-0.128,
         ),
         SocketEntry(
-            proto="tcp", local_ip="192.168.1.10", local_port=54322,
-            remote_ip="103.224.182.210", remote_port=443,
-            state="ESTABLISHED", state_code="01", uid=1000, inode=67892,
-            pid=5678, process_name="thunderbird",
-            remote_country="Australia", remote_country_code="AU",
-            remote_city="Sydney", remote_lat=-33.868, remote_lon=151.209,
+            proto="tcp",
+            local_ip="192.168.1.10",
+            local_port=54322,
+            remote_ip="103.224.182.210",
+            remote_port=443,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=67892,
+            pid=5678,
+            process_name="thunderbird",
+            remote_country="Australia",
+            remote_country_code="AU",
+            remote_city="Sydney",
+            remote_lat=-33.868,
+            remote_lon=151.209,
         ),
     ]
 
@@ -105,43 +131,6 @@ def _make_geo_app(provider: Mock) -> App:
 # ══════════════════════════════════════════════════════════════
 
 
-class TestIsPrivateIp:
-    """Tests for _is_private_ip()."""
-
-    def test_loopback(self):
-        assert _is_private_ip("127.0.0.1") is True
-
-    def test_private_class_a(self):
-        assert _is_private_ip("10.0.0.1") is True
-
-    def test_private_class_b(self):
-        assert _is_private_ip("172.16.0.1") is True
-
-    def test_private_class_c(self):
-        assert _is_private_ip("192.168.1.1") is True
-
-    def test_link_local(self):
-        assert _is_private_ip("169.254.0.1") is True
-
-    def test_public_ip(self):
-        assert _is_private_ip("142.250.80.14") is False
-
-    def test_another_public_ip(self):
-        assert _is_private_ip("8.8.8.8") is False
-
-    def test_invalid_ip(self):
-        assert _is_private_ip("not-an-ip") is True
-
-    def test_empty_string(self):
-        assert _is_private_ip("") is True
-
-    def test_ipv6_loopback(self):
-        assert _is_private_ip("::1") is True
-
-    def test_ipv6_link_local(self):
-        assert _is_private_ip("fe80::1") is True
-
-
 class TestLatLonToGrid:
     """Tests for _lat_lon_to_grid()."""
 
@@ -165,17 +154,17 @@ class TestLatLonToGrid:
 
     def test_clamping_above_max(self):
         """lat=100 should clamp to row 0."""
-        row, col = _lat_lon_to_grid(100, 0)
+        row, _col = _lat_lon_to_grid(100, 0)
         assert row == 0
 
     def test_clamping_below_min(self):
         """lat=-100 should clamp to last row."""
-        row, col = _lat_lon_to_grid(-100, 0)
+        row, _col = _lat_lon_to_grid(-100, 0)
         assert row == _MAP_ROWS - 1
 
     def test_lon_clamping(self):
         """lon=200 should clamp to last col."""
-        row, col = _lat_lon_to_grid(0, 200)
+        _row, col = _lat_lon_to_grid(0, 200)
         assert col == _MAP_COLS - 1
 
     def test_san_francisco(self):
@@ -292,8 +281,8 @@ class TestRenderMap:
         """Multiple connections at different locations."""
         connections = [
             {"lat": 37.386, "lon": -122.084},  # US
-            {"lat": 51.507, "lon": -0.128},      # UK
-            {"lat": -33.868, "lon": 151.209},    # AU
+            {"lat": 51.507, "lon": -0.128},  # UK
+            {"lat": -33.868, "lon": 151.209},  # AU
         ]
         result = _render_map(connections)
         # Should have markers in output
@@ -444,14 +433,26 @@ class TestConnectionMapScreenDataFlow:
         snapshot = Snapshot(
             established=[
                 SocketEntry(
-                    proto="tcp", local_ip="192.168.1.10", local_port=44532,
-                    remote_ip="127.0.0.1", remote_port=8080,
-                    state="ESTABLISHED", state_code="01", uid=1000, inode=1,
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=44532,
+                    remote_ip="127.0.0.1",
+                    remote_port=8080,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=1000,
+                    inode=1,
                 ),
                 SocketEntry(
-                    proto="tcp", local_ip="192.168.1.10", local_port=44533,
-                    remote_ip="192.168.1.1", remote_port=443,
-                    state="ESTABLISHED", state_code="01", uid=1000, inode=2,
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=44533,
+                    remote_ip="192.168.1.1",
+                    remote_port=443,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=1000,
+                    inode=2,
                 ),
             ],
         )
@@ -705,7 +706,7 @@ class TestConnectionMapScreenActions:
             app.push_screen(screen)
             await pilot.pause()
 
-            with patch.object(app, 'pop_screen') as mock_pop:
+            with patch.object(app, "pop_screen") as mock_pop:
                 screen.action_close()
                 mock_pop.assert_called_once()
 
@@ -726,7 +727,7 @@ class TestConnectionMapScreenActions:
             await pilot.pause()
 
             # With an empty table and no cursor row, copy should notify
-            with patch.object(app, 'notify') as mock_notify:
+            with patch.object(app, "notify") as mock_notify:
                 screen.action_copy_row()
                 mock_notify.assert_called_once()
 
@@ -775,9 +776,15 @@ class TestConnectionMapScreenEdgeCases:
         snapshot = Snapshot(
             established=[
                 SocketEntry(
-                    proto="tcp", local_ip="0.0.0.0", local_port=22,
-                    remote_ip="", remote_port=0,
-                    state="LISTEN", state_code="0A", uid=0, inode=1,
+                    proto="tcp",
+                    local_ip="0.0.0.0",
+                    local_port=22,
+                    remote_ip="",
+                    remote_port=0,
+                    state="LISTEN",
+                    state_code="0A",
+                    uid=0,
+                    inode=1,
                 ),
             ],
         )
@@ -800,20 +807,40 @@ class TestConnectionMapScreenEdgeCases:
         snapshot = Snapshot(
             established=[
                 SocketEntry(
-                    proto="tcp", local_ip="192.168.1.10", local_port=40001,
-                    remote_ip="142.250.80.14", remote_port=443,
-                    state="ESTABLISHED", state_code="01", uid=1000, inode=1,
-                    pid=1234, process_name="firefox",
-                    remote_country="United States", remote_country_code="US",
-                    remote_city="Mountain View", remote_lat=37.386, remote_lon=-122.084,
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=40001,
+                    remote_ip="142.250.80.14",
+                    remote_port=443,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=1000,
+                    inode=1,
+                    pid=1234,
+                    process_name="firefox",
+                    remote_country="United States",
+                    remote_country_code="US",
+                    remote_city="Mountain View",
+                    remote_lat=37.386,
+                    remote_lon=-122.084,
                 ),
                 SocketEntry(
-                    proto="tcp", local_ip="192.168.1.10", local_port=40002,
-                    remote_ip="142.250.80.14", remote_port=80,
-                    state="ESTABLISHED", state_code="01", uid=1000, inode=2,
-                    pid=1234, process_name="firefox",
-                    remote_country="United States", remote_country_code="US",
-                    remote_city="Mountain View", remote_lat=37.386, remote_lon=-122.084,
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=40002,
+                    remote_ip="142.250.80.14",
+                    remote_port=80,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=1000,
+                    inode=2,
+                    pid=1234,
+                    process_name="firefox",
+                    remote_country="United States",
+                    remote_country_code="US",
+                    remote_city="Mountain View",
+                    remote_lat=37.386,
+                    remote_lon=-122.084,
                 ),
             ],
             geo_stats={"countries_count": 1},
@@ -838,13 +865,23 @@ class TestConnectionMapScreenEdgeCases:
         """4+ connections to same IP show bold red count."""
         entries = []
         for port in [443, 80, 8080, 22, 53]:
-            entries.append(SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=40000 + port,
-                remote_ip="142.250.80.14", remote_port=port,
-                state="ESTABLISHED", state_code="01", uid=1000, inode=port,
-                pid=1234, process_name="firefox",
-                remote_country="United States", remote_country_code="US",
-            ))
+            entries.append(
+                SocketEntry(
+                    proto="tcp",
+                    local_ip="192.168.1.10",
+                    local_port=40000 + port,
+                    remote_ip="142.250.80.14",
+                    remote_port=port,
+                    state="ESTABLISHED",
+                    state_code="01",
+                    uid=1000,
+                    inode=port,
+                    pid=1234,
+                    process_name="firefox",
+                    remote_country="United States",
+                    remote_country_code="US",
+                )
+            )
         snapshot = Snapshot(established=entries, geo_stats={"countries_count": 1})
         provider = Mock()
         provider.fetch.return_value = snapshot

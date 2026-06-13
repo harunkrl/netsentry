@@ -3,6 +3,7 @@
 Writes to a temporary file then atomically renames, preventing
 partial reads by consumers (widget / TUI).
 """
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from shared.fs_utils import atomic_write
 from backend.models import Snapshot
 
 _dirs_created = set()
+
 
 def write_snapshot(snapshot_data: Snapshot | str, path: str = DATA_FILE) -> None:
     """Atomically write a Snapshot to a JSON file."""

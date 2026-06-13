@@ -1,4 +1,3 @@
-
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
 
@@ -22,21 +21,25 @@ class TestApp(App):
         n2.add_leaf("Leaf 2.1", data=21)
 
         tree.root.expand()
+
         # Restore
         def restore(node):
             if getattr(node, "data", None) in self.expanded_pids:
                 node.expand()
             for child in getattr(node, "children", []):
                 restore(child)
+
         restore(tree.root)
 
     def save_state(self, tree):
         self.expanded_pids.clear()
+
         def collect(node):
             if node.is_expanded and getattr(node, "data", None) is not None:
                 self.expanded_pids.add(node.data)
             for child in getattr(node, "children", []):
                 collect(child)
+
         collect(tree.root)
 
     async def simulate_user(self) -> None:
@@ -50,6 +53,7 @@ class TestApp(App):
         self.build_tree(tree)
         print("After rebuild:", tree.root.children[0].is_expanded)
         self.exit()
+
 
 if __name__ == "__main__":
     app = TestApp()

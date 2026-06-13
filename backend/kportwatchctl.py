@@ -7,6 +7,7 @@ Subcommands:
     stop      Stop the daemon
     reload    Reload config (SIGHUP)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,9 @@ def _find_daemon_pids() -> list[int]:
     try:
         result = subprocess.run(
             ["pgrep", "-f", "backend.kportwatch_daemon"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         if result.returncode == 0:
             return [int(p) for p in result.stdout.strip().split() if p.isdigit()]

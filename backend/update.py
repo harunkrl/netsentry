@@ -18,6 +18,7 @@ CLI::
     kportwatch-update --check      # check only
     kportwatch-update --apply      # check and apply
 """
+
 from __future__ import annotations
 
 import json
@@ -38,6 +39,7 @@ _TAGS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/tags"
 
 
 # ── Version comparison ────────────────────────────────────────
+
 
 def parse_version(version_str: str) -> tuple[int, ...]:
     """Parse a version string like 'v2.1.0' or '2.1.0' into a tuple of ints.
@@ -102,6 +104,7 @@ def check_for_update() -> str | None:
 
 # ── Update state file ─────────────────────────────────────────
 
+
 def write_update_state(
     current: str,
     latest: str | None = None,
@@ -137,6 +140,7 @@ def read_update_state(path: str = UPDATE_STATE_FILE) -> dict | None:
 
 
 # ── Update performer ──────────────────────────────────────────
+
 
 def perform_update(restart_daemon: bool = True) -> bool:
     """Perform the update: git pull + pip install + optional daemon restart.
@@ -264,7 +268,8 @@ def _verify_tag(tag: str, project_dir: str) -> bool:
 
         logger.error(
             "SECURITY: Tag %s signature verification failed: %s — aborting update",
-            tag, stderr,
+            tag,
+            stderr,
         )
         return False
 
@@ -289,6 +294,7 @@ def _restart_daemon() -> None:
 
 # ── CLI entry point ───────────────────────────────────────────
 
+
 def main() -> None:
     """CLI entry point for ``kportwatch-update``."""
     import argparse
@@ -297,15 +303,19 @@ def main() -> None:
         description="KPortWatch — Check for and apply updates",
     )
     parser.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Only check for updates (don't apply)",
     )
     parser.add_argument(
-        "--apply", action="store_true",
+        "--apply",
+        action="store_true",
         help="Check and apply update if available",
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Enable verbose output",
     )
     args = parser.parse_args()

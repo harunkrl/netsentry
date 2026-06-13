@@ -113,9 +113,9 @@ KPortWatch is a **hybrid architecture** network security monitor designed for Ar
 - 📡 Parses `/proc/net/{tcp,udp}{,6}` directly — zero dependencies, fast
 - 🔗 Maps socket inodes to PIDs via `/proc/[pid]/fd/` scanning
 - 🧠 Baseline learning — learns your normal ports during first 5 minutes
-- 🔔 **Native Desktop Notifications** for Warning and Critical alerts via `notify-send`
+- 🔔 **Desktop notifications** for Warning and Critical alerts (sent by the daemon via `notify-send`)
 - 🌍 **Asynchronous rDNS + GeoIP resolution** with built-in caching
-- 🗺️ **GeoIP lookup** via ip-api.com with persistent offline cache (`~/.local/share/kportwatch/geoip-cache.json`)
+- 🗺️ **GeoIP lookup** via ipwho.is with persistent offline cache (`~/.local/share/kportwatch/geoip-cache.json`)
 - 📊 **Network traffic statistics** — per-interface RX/TX rates from `/proc/net/dev`
 - 🌳 **Process tree builder** — parent-child relationships with network activity flags
 - 🚀 **Unix Domain Socket** streaming via `kportwatch-client` for zero-latency UI updates
@@ -295,12 +295,13 @@ cat /tmp/kportwatch-example.toml
 | Section | Key Settings |
 |---------|-------------|
 | `[polling]` | `interval`, `alert_interval`, `idle_interval`, `idle_threshold_secs` |
+| `[security]` | `scan_threshold` — connection burst count that triggers a port-scan alert |
 | `[alerts]` | `baseline_duration`, `burst_threshold`, `malicious_ports`, `known_safe_ports` |
 | `[dns]` | `cache_size`, `max_pending` |
 | `[geoip]` | `enabled`, `api_url`, `cache_file`, `cache_max_entries`, `cache_ttl_days`, `batch_size`, `timeout` |
 | `[notifications]` | `enabled`, `min_level`, `alert_ttl`, `rate_limit`, `rate_window` |
 | `[update]` | `enabled`, `check_interval`, `auto_apply` |
-| `[tui]` | `notifications_enabled` — persist TUI notification toggle |
+| `[tui]` | `notifications_enabled`, `color_theme` (cyberpunk, kpw-light, nord) |
 | `[whitelist]` | `ports` — never alert on these |
 | `[blacklist]` | `ports`, `ips` — always CRITICAL |
 | `[[custom_rules]]` | `match`, `level`, `message` — user-defined alert rules |
@@ -373,14 +374,26 @@ For full system-wide PID visibility, choose one:
 
 ```bash
 # Option A: sudoers rule
+# (Run ss without a password for the KPortWatch daemon.)
 echo "YOUR_USER ALL=(root) NOPASSWD: /usr/bin/ss -tulnp" | sudo tee /etc/sudoers.d/kportwatch
 
-# Option B: file capabilities on a helper binary
-sudo setcap cap_net_admin+ep /usr/local/bin/kportwatch-helper
-
-# Option C: Polkit policy (included)
+# Option B: Polkit policy (included, recommended)
+# The Polkit policy is installed automatically by install.sh. To install it
+# manually instead, copy it to the system actions directory:
 sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 ```
+
+The included Polkit policy (`polkit/com.kportwatch.helper.policy`) routes both
+the read (`getports`) and kill (`kill`) actions through `~/.local/bin/kportwatchctl`.
+Permissions:
+
+| Action | Polkit rule | Effect |
+|--------|-------------|--------|
+| `com.kportwatch.helper.getports` | `auth_self_keep` | Authentication **cached** for a short window after the first prompt |
+| `com.kportwatch.helper.kill` | `auth_admin_keep` | Admin authentication **cached** for a short window after the first prompt |
+
+> Note: the `_keep` suffix means the authentication is remembered briefly, so you
+> are not re-prompted on every single call within that window.
 
 ---
 
@@ -396,7 +409,7 @@ sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 | Adaptive polling intervals | Minimizes CPU when idle, maximizes responsiveness on alerts |
 | Stdlib-only daemon | No external dependencies for the core daemon process |
 | TOML config file | Human-readable, type-safe, standard Python (tomllib) |
-| GeoIP with persistent cache | Offline capability, respects API rate limits (45 req/min) |
+| GeoIP with persistent cache | Offline capability, respects API rate limits (~10,000 req/day) |
 | Config decomposition | 540-line monolith → 5 focused modules with identical public API |
 
 ---
@@ -406,7 +419,7 @@ sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 - Non-root users can only resolve PIDs for their own processes
 - UDP "connections" are stateless — shown as UNCONN in the table
 - `TIME_WAIT`, `CLOSE_WAIT` etc. are grouped under "established" (active)
-- GeoIP accuracy depends on ip-api.com database — some IPs may return approximate locations
+- GeoIP accuracy depends on ipwho.is database — some IPs may return approximate locations
 - ASCII world map resolution is coarse (80×20) — small countries may overlap
 - The `executable` DataEngine is deprecated in future Plasma versions (6.7+)
 
@@ -421,7 +434,7 @@ sudo cp polkit/com.kportwatch.helper.policy /usr/share/polkit-1/actions/
 | Backend | Python 3.11+ (requires psutil >=5.9) |
 | Config | TOML (Python 3.11+ tomllib) |
 | IPC | JSON file via atomic rename + Unix domain socket |
-| GeoIP | ip-api.com (free tier) + persistent JSON cache |
+| GeoIP | ipwho.is (free tier, HTTPS) + persistent JSON cache |
 | Desktop | KDE Plasma 6.6, Qt 6, Wayland |
 
 ---

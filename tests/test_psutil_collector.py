@@ -1,22 +1,22 @@
 """Tests for backend.collectors.psutil_collector — psutil-based data collection."""
+
 from __future__ import annotations
 
 import psutil
 import pytest
 from backend.collectors.psutil_collector import (
+    _get_connections,
+    _get_pid_info,
     clear_cycle_caches,
     collect_connections,
     collect_network_pids,
     collect_process_tree,
     collect_traffic,
-    _get_connections,
-    _get_pid_info,
-    _pid_info_cache,
-    _cached_connections,
 )
 from backend.models import InterfaceStats, ProcessInfo, SocketEntry
 
 # ── collect_connections ────────────────────────────────────────
+
 
 class TestCollectConnections:
     def test_returns_list_of_socket_entries(self):
@@ -66,6 +66,7 @@ class TestCollectConnections:
 
 
 # ── collect_traffic ────────────────────────────────────────────
+
 
 class TestCollectTraffic:
     def test_returns_list_of_interface_stats(self):
@@ -117,6 +118,7 @@ class TestCollectTraffic:
 
 # ── collect_process_tree ───────────────────────────────────────
 
+
 class TestCollectProcessTree:
     def test_returns_dict_of_process_info(self):
         """collect_process_tree returns Dict[int, ProcessInfo]."""
@@ -130,6 +132,7 @@ class TestCollectProcessTree:
         """The current Python process should be in the tree."""
         tree = collect_process_tree(full_scan=True)
         import os
+
         assert os.getpid() in tree
 
     def test_children_populated(self):
@@ -141,6 +144,7 @@ class TestCollectProcessTree:
     def test_process_info_fields(self):
         """ProcessInfo has expected fields."""
         import os
+
         tree = collect_process_tree(full_scan=True)
         my_pid = os.getpid()
         assert my_pid in tree
@@ -166,6 +170,7 @@ class TestCollectProcessTree:
 
 # ── collect_network_pids ───────────────────────────────────────
 
+
 class TestCollectNetworkPids:
     def test_returns_set_of_ints(self):
         """collect_network_pids returns a set of integers."""
@@ -177,6 +182,7 @@ class TestCollectNetworkPids:
 
 
 # ── clear_cycle_caches (Fix #1) ────────────────────────────────
+
 
 class TestClearCycleCaches:
     def test_clears_connections_cache(self):
@@ -212,6 +218,7 @@ class TestClearCycleCaches:
 
 # ── Per-entry PID cache (Fix #2) ──────────────────────────────
 
+
 class TestPerEntryPidCache:
     def test_individual_entry_expires(self):
         """Each PID entry has its own TTL; others remain cached."""
@@ -219,8 +226,8 @@ class TestPerEntryPidCache:
 
         # Populate cache for current PID and PID 1
         my_pid = __import__("os").getpid()
-        info_me = _get_pid_info(my_pid)
-        info_init = _get_pid_info(1)
+        _get_pid_info(my_pid)
+        _get_pid_info(1)
 
         assert my_pid in mod._pid_info_cache
         assert 1 in mod._pid_info_cache
@@ -238,8 +245,9 @@ class TestPerEntryPidCache:
 
     def test_no_bulk_clear_stampede(self):
         """Cache entries don't all disappear at once."""
-        import backend.collectors.psutil_collector as mod
         import os
+
+        import backend.collectors.psutil_collector as mod
 
         my_pid = os.getpid()
         _get_pid_info(my_pid)
@@ -262,11 +270,13 @@ class TestPerEntryPidCache:
 
 # ── Process list synergy (Fix #3) ────────────────────────────
 
+
 class TestProcessListSynergy:
     def test_pid_info_uses_process_list_cache(self):
         """_get_pid_info should resolve from process_list_cache first."""
-        import backend.collectors.psutil_collector as mod
         import os
+
+        import backend.collectors.psutil_collector as mod
 
         my_pid = os.getpid()
 
@@ -277,17 +287,17 @@ class TestProcessListSynergy:
         mod._pid_info_cache.pop(my_pid, None)
 
         # Should still resolve correctly via process_list_by_pid
-        name, cmdline, uid = _get_pid_info(my_pid)
+        name, _cmdline, _uid = _get_pid_info(my_pid)
         assert isinstance(name, str)
         assert len(name) > 0
 
     def test_process_list_by_pid_populated(self):
         """process_list_by_pid dict is built when process_list refreshes."""
-        import backend.collectors.psutil_collector as mod
         import os
 
+        import backend.collectors.psutil_collector as mod
+
         # Force process_list refresh by clearing cache
-        old = mod._process_list_cache
         mod._process_list_cache = None
         mod._process_list_cache_ts = 0.0
 

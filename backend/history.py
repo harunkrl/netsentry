@@ -22,6 +22,7 @@ Usage::
     recorder.record_summary(snapshot)
     recorder.record_alert(alert)
 """
+
 from __future__ import annotations
 
 import json
@@ -85,6 +86,7 @@ class HistoryRecorder:
         if self._fh is None or self._fh.closed:
             self._get_file_path()
         return self._fh
+
     def _append(self, data: dict) -> None:
         """Append a JSON line to today's file using persistent handle."""
         self._get_file_path()
@@ -102,26 +104,30 @@ class HistoryRecorder:
 
     def record_summary(self, snapshot) -> None:
         """Record a lightweight cycle summary from a Snapshot."""
-        self._append({
-            "type": "summary",
-            "ts": snapshot.timestamp,
-            "listening": snapshot.summary.get("total_listening", 0),
-            "established": snapshot.summary.get("total_established", 0),
-            "alerts": snapshot.summary.get("alert_count", 0),
-        })
+        self._append(
+            {
+                "type": "summary",
+                "ts": snapshot.timestamp,
+                "listening": snapshot.summary.get("total_listening", 0),
+                "established": snapshot.summary.get("total_established", 0),
+                "alerts": snapshot.summary.get("alert_count", 0),
+            }
+        )
 
     def record_alert(self, alert) -> None:
         """Record a single alert event."""
-        self._append({
-            "type": "alert",
-            "ts": alert.timestamp,
-            "level": str(alert.level),
-            "port": alert.port,
-            "proto": alert.proto,
-            "process": alert.process_name,
-            "pid": alert.pid,
-            "message": alert.message,
-        })
+        self._append(
+            {
+                "type": "alert",
+                "ts": alert.timestamp,
+                "level": str(alert.level),
+                "port": alert.port,
+                "proto": alert.proto,
+                "process": alert.process_name,
+                "pid": alert.pid,
+                "message": alert.message,
+            }
+        )
 
 
 def read_history(
@@ -201,6 +207,7 @@ def export_history_csv(
         entries = entries[-last_n:]
 
     import csv
+
     # Collect all keys across entries for header
     all_keys: list[str] = []
     seen = set()

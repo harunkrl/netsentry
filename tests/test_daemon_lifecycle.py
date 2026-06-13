@@ -3,6 +3,7 @@
 Tests DaemonController's lifecycle methods using mocked subprocess calls
 so they run without a real systemd installation.
 """
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _write_pid(pid_file: Path, pid: int) -> None:
     """Simulate a running daemon by writing a PID file."""
@@ -33,8 +35,10 @@ def _read_pid(pid_file: Path) -> int | None:
 # Mocked subprocess.run that simulates systemctl behaviours
 # ---------------------------------------------------------------------------
 
+
 def _make_mock_run(pid_file: Path):
     """Return a mock ``subprocess.run`` that fakes systemctl responses."""
+
     def mock_run(cmd, **kwargs):
         result = MagicMock()
         result.stdout = ""
@@ -74,7 +78,9 @@ def _make_mock_run(pid_file: Path):
         elif "status" in cmd:
             if pid_file.exists():
                 result.returncode = 0
-                result.stdout = f"Active: active (running) since ...\n  Main PID: {_read_pid(pid_file)}"
+                result.stdout = (
+                    f"Active: active (running) since ...\n  Main PID: {_read_pid(pid_file)}"
+                )
             else:
                 result.returncode = 3
                 result.stdout = "Active: inactive (dead)"
@@ -91,6 +97,7 @@ def _make_mock_run(pid_file: Path):
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def tmp_env(tmp_path: Path, monkeypatch):
     """Set up a temporary environment with isolated paths."""
@@ -105,6 +112,7 @@ def tmp_env(tmp_path: Path, monkeypatch):
 # Tests — Lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestDaemonLifecycle:
     """End-to-end daemon lifecycle tests with mocked systemctl."""
 
@@ -116,7 +124,8 @@ class TestDaemonLifecycle:
             # Simulate: systemctl --user start kportwatch
             result = subprocess.run(
                 ["systemctl", "--user", "start", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert result.returncode == 0
             assert pid_file.exists()
@@ -132,7 +141,8 @@ class TestDaemonLifecycle:
 
             result = subprocess.run(
                 ["systemctl", "--user", "stop", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert result.returncode == 0
             assert not pid_file.exists()
@@ -146,11 +156,13 @@ class TestDaemonLifecycle:
             # 1. Start
             subprocess.run(
                 ["systemctl", "--user", "start", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             r = subprocess.run(
                 ["systemctl", "--user", "is-active", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert r.returncode == 0
             assert "active" in r.stdout
@@ -159,11 +171,13 @@ class TestDaemonLifecycle:
             # 2. Stop
             subprocess.run(
                 ["systemctl", "--user", "stop", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             r = subprocess.run(
                 ["systemctl", "--user", "is-active", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert r.returncode == 3
             assert not pid_file.exists()
@@ -171,11 +185,13 @@ class TestDaemonLifecycle:
             # 3. Restart (= start again)
             subprocess.run(
                 ["systemctl", "--user", "restart", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             r = subprocess.run(
                 ["systemctl", "--user", "is-active", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert r.returncode == 0
             assert pid_file.exists()
@@ -190,7 +206,8 @@ class TestDaemonLifecycle:
         with patch("subprocess.run", side_effect=mock_run):
             subprocess.run(
                 ["systemctl", "--user", "restart", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert pid_file.exists()
             new_pid = int(pid_file.read_text().strip())
@@ -205,7 +222,8 @@ class TestDaemonLifecycle:
             # Stopped
             r = subprocess.run(
                 ["systemctl", "--user", "status", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert r.returncode == 3
             assert "inactive" in r.stdout
@@ -213,13 +231,15 @@ class TestDaemonLifecycle:
             # Start
             subprocess.run(
                 ["systemctl", "--user", "start", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
 
             # Running
             r = subprocess.run(
                 ["systemctl", "--user", "status", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert r.returncode == 0
             assert "active (running)" in r.stdout
@@ -233,6 +253,7 @@ class TestDaemonLifecycle:
             # Stop when already stopped
             result = subprocess.run(
                 ["systemctl", "--user", "stop", "kportwatch"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             assert result.returncode == 0

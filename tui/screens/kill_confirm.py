@@ -7,6 +7,7 @@ K8: Handles PermissionError and ProcessLookupError gracefully.
 K12: Escape key binding to close the modal.
 K11: Kill operations run in background threads to avoid blocking.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -59,7 +60,7 @@ class KillConfirmScreen(ModalScreen[tuple[bool, str] | None]):
     def __init__(
         self,
         entry: SocketEntry,
-        provider,   # DataProvider — avoid circular import
+        provider,  # DataProvider — avoid circular import
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
@@ -129,6 +130,7 @@ class KillConfirmScreen(ModalScreen[tuple[bool, str] | None]):
 
         Handles PermissionError and ProcessLookupError gracefully (K8).
         """
+
         def _kill() -> tuple[bool, str]:
             try:
                 os.kill(self.entry.pid, sig.SIGKILL)
@@ -136,7 +138,10 @@ class KillConfirmScreen(ModalScreen[tuple[bool, str] | None]):
             except ProcessLookupError:
                 return False, f"Process {self.entry.pid} not found — may have already terminated"
             except PermissionError:
-                return False, f"Permission denied — cannot kill PID {self.entry.pid}. Try running with elevated privileges."
+                return (
+                    False,
+                    f"Permission denied — cannot kill PID {self.entry.pid}. Try running with elevated privileges.",
+                )
             except OSError as e:
                 return False, f"Failed to kill PID {self.entry.pid}: {e}"
 

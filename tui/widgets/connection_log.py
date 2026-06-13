@@ -9,6 +9,7 @@ preserving scrollback history.
 Memory is bounded: ``max_lines`` limits the RichLog buffer and
 ``_seen_keys`` is capped at ``_MAX_SEEN`` entries (LRU-style).
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -20,17 +21,17 @@ from textual.widgets import RichLog
 # Map states → (rich style name, display label)
 _STATE_COLOURS: dict[str, tuple[str, str]] = {
     "ESTABLISHED": ("bold green", "ESTABLISHED"),
-    "LISTEN":      ("bold cyan",   "LISTEN"),
-    "TIME_WAIT":   ("dim",         "TIME_WAIT"),
-    "CLOSE_WAIT":  ("dim red",     "CLOSE_WAIT"),
-    "SYN_SENT":    ("cyan",        "SYN_SENT"),
-    "SYN_RECV":    ("cyan",        "SYN_RECV"),
-    "FIN_WAIT1":   ("dim yellow",  "FIN_WAIT1"),
-    "FIN_WAIT2":   ("dim yellow",  "FIN_WAIT2"),
-    "CLOSING":     ("dim red",     "CLOSING"),
-    "LAST_ACK":    ("dim red",     "LAST_ACK"),
-    "CLOSE":       ("dim",         "CLOSE"),
-    "UNCONN":      ("dim",         "UNCONN"),
+    "LISTEN": ("bold cyan", "LISTEN"),
+    "TIME_WAIT": ("dim", "TIME_WAIT"),
+    "CLOSE_WAIT": ("dim red", "CLOSE_WAIT"),
+    "SYN_SENT": ("cyan", "SYN_SENT"),
+    "SYN_RECV": ("cyan", "SYN_RECV"),
+    "FIN_WAIT1": ("dim yellow", "FIN_WAIT1"),
+    "FIN_WAIT2": ("dim yellow", "FIN_WAIT2"),
+    "CLOSING": ("dim red", "CLOSING"),
+    "LAST_ACK": ("dim red", "LAST_ACK"),
+    "CLOSE": ("dim", "CLOSE"),
+    "UNCONN": ("dim", "UNCONN"),
 }
 
 # Quick-filter modes (cycled with Ctrl+F)
@@ -131,8 +132,14 @@ class ConnectionLog(RichLog):
 
     def _severity_for_state(self, state: str) -> str:
         """Map a TCP state to a severity level."""
-        warning_states = {"SYN_SENT", "SYN_RECV", "FIN_WAIT1", "FIN_WAIT2",
-                          "TIME_WAIT", "CLOSE_WAIT"}
+        warning_states = {
+            "SYN_SENT",
+            "SYN_RECV",
+            "FIN_WAIT1",
+            "FIN_WAIT2",
+            "TIME_WAIT",
+            "CLOSE_WAIT",
+        }
         error_states = {"CLOSING", "LAST_ACK", "CLOSE"}
         if state in error_states:
             return "ERROR"
@@ -191,13 +198,15 @@ class ConnectionLog(RichLog):
         proto = (e.proto or "").lower()
         remote = (e.remote_hostname or e.remote_ip or "").lower()
         local_ip = (e.local_ip or "").lower()
-        return (ft in proc
-                or ft in state
-                or ft in proto
-                or ft in remote
-                or ft in local_ip
-                or ft in str(e.local_port)
-                or ft in str(e.remote_port))
+        return (
+            ft in proc
+            or ft in state
+            or ft in proto
+            or ft in remote
+            or ft in local_ip
+            or ft in str(e.local_port)
+            or ft in str(e.remote_port)
+        )
 
     def update_data(self, entries: list[SocketEntry], *, is_first_call: bool = False) -> None:
         """Incrementally log new and closed connections.
@@ -243,8 +252,11 @@ class ConnectionLog(RichLog):
                 self._plain_lines.append(header)
                 # Write all filtered entries
                 for e in entries:
-                    if (self._passes_text_filter(e) and self._passes_severity_filter(e)
-                            and self._should_show_entry(e)):
+                    if (
+                        self._passes_text_filter(e)
+                        and self._passes_severity_filter(e)
+                        and self._should_show_entry(e)
+                    ):
                         self._write_entry(e)
             self._seen_keys = current_keys
             self._trim_seen()
@@ -292,12 +304,7 @@ class ConnectionLog(RichLog):
         isp = e.remote_isp or e.remote_org or ""
         isp_tag = f" [{isp}]" if isp else ""
 
-        plain = (
-            f"  {label:>14}  "
-            f"{e.local_ip}:{e.local_port} → "
-            f"{remote}{isp_tag}  "
-            f"({proc})"
-        )
+        plain = f"  {label:>14}  {e.local_ip}:{e.local_port} → {remote}{isp_tag}  ({proc})"
         self._plain_lines.append(plain)
         self.write(
             f"  [{style}]{label:>14}[/]  "

@@ -4,6 +4,7 @@ Consolidates patterns used across backend and TUI modules:
   - read_file_safe: safe /proc file reads
   - atomic_write: write-to-tmp + rename for crash safety
 """
+
 from __future__ import annotations
 
 import contextlib

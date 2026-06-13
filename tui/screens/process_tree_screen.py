@@ -9,6 +9,7 @@ Keyboard shortcuts:
   /     — filter by process name/cmdline
   Esc   — close screen
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -93,6 +94,7 @@ class ProcessTreeScreen(Screen):
     def on_mount(self) -> None:
         # Resolve data provider after widget is mounted (self.app is available)
         from tui.utils.provider import get_app_provider
+
         self.provider = get_app_provider(self.app)
 
         self.refresh_data()
@@ -101,7 +103,7 @@ class ProcessTreeScreen(Screen):
 
     def on_unmount(self) -> None:
         """Stop the refresh interval when screen is closed."""
-        if hasattr(self, '_refresh_handle') and self._refresh_handle:
+        if hasattr(self, "_refresh_handle") and self._refresh_handle:
             self._refresh_handle.stop()
 
     # ── Data refresh ──────────────────────────────────────────
@@ -161,10 +163,7 @@ class ProcessTreeScreen(Screen):
         Triggers a full tree rebuild when this changes.
         """
         try:
-            items = tuple(
-                (pid, tuple(sorted(p.children)))
-                for pid, p in sorted(processes.items())
-            )
+            items = tuple((pid, tuple(sorted(p.children))) for pid, p in sorted(processes.items()))
             return hash(items)
         except Exception:
             return hash(time.time())
@@ -189,22 +188,18 @@ class ProcessTreeScreen(Screen):
     def _make_node_label(info: ProcessInfo) -> str:
         """Build the display label for a process node."""
         state_colors = {
-            "S": "dim",    # sleeping — dim
-            "R": "bold",   # running — bold
-            "Z": "red",    # zombie — red
-            "T": "yellow", # stopped — yellow
-            "D": "yellow", # disk sleep — yellow
+            "S": "dim",  # sleeping — dim
+            "R": "bold",  # running — bold
+            "Z": "red",  # zombie — red
+            "T": "yellow",  # stopped — yellow
+            "D": "yellow",  # disk sleep — yellow
         }
         state_style = state_colors.get(info.state, "")
 
         net_marker = "[green]*[/] " if info.has_network else "  "
         cmdline_short = (info.cmdline[:40] + "…") if len(info.cmdline) > 40 else info.cmdline
 
-        label = (
-            f"{net_marker}"
-            f"[{state_style}]{info.name}[/] "
-            f"[dim](PID {info.pid})[/]"
-        )
+        label = f"{net_marker}[{state_style}]{info.name}[/] [dim](PID {info.pid})[/]"
         if cmdline_short and cmdline_short != info.name:
             label += f" [dim]{cmdline_short}[/]"
         return label
@@ -264,6 +259,7 @@ class ProcessTreeScreen(Screen):
 
             # Restore cursor to prevent view jumping to top
             if focused_pid is not None:
+
                 def _find_and_focus(node):
                     if getattr(node, "data", None) == focused_pid:
                         import contextlib
@@ -271,7 +267,8 @@ class ProcessTreeScreen(Screen):
                         with contextlib.suppress(Exception):
                             tree.cursor_line = node.line
                         return True
-                    return any(_find_and_focus(child) for child in getattr(node, 'children', []))
+                    return any(_find_and_focus(child) for child in getattr(node, "children", []))
+
                 _find_and_focus(tree.root)
 
             # Update info bar
@@ -408,7 +405,7 @@ class ProcessTreeScreen(Screen):
         """Recursively collect data (PID) of expanded nodes into result set."""
         if not node.is_root and node.is_expanded and node.data is not None:
             result.add(node.data)
-        for child in getattr(node, 'children', []):
+        for child in getattr(node, "children", []):
             self._collect_expanded_into(child, result)
 
     def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
@@ -436,7 +433,7 @@ class ProcessTreeScreen(Screen):
         """Recursively expand nodes matching saved PIDs."""
         if not node.is_root and node.data is not None and node.data in self._expanded_pids:
             node.expand()
-        for child in getattr(node, 'children', []):
+        for child in getattr(node, "children", []):
             self._expand_matching(child)
 
 
@@ -509,6 +506,7 @@ class ProcessKillConfirm(ModalScreen[bool]):
     # ── Async kill workers (non-blocking) ─────────────────────
     async def _do_kill_sigterm(self) -> None:
         """Run SIGTERM in a thread to avoid blocking the TUI."""
+
         def _kill() -> tuple[bool, str]:
             try:
                 os.kill(self._pid, signal.SIGTERM)
@@ -526,6 +524,7 @@ class ProcessKillConfirm(ModalScreen[bool]):
 
     async def _do_kill_sigkill(self) -> None:
         """Run SIGKILL in a thread to avoid blocking the TUI."""
+
         def _kill() -> tuple[bool, str]:
             try:
                 os.kill(self._pid, signal.SIGKILL)
@@ -544,5 +543,6 @@ class ProcessKillConfirm(ModalScreen[bool]):
     def _safe_dismiss(self, result: bool) -> None:
         """Dismiss the modal, guarding against the screen already being popped."""
         import contextlib
+
         with contextlib.suppress(Exception):
             self.dismiss(result)

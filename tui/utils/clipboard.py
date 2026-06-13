@@ -3,6 +3,7 @@
 Wraps clipboard operations with consistent error handling for
 Wayland/SSH/headless environments where clipboard may not work.
 """
+
 from __future__ import annotations
 
 import contextlib

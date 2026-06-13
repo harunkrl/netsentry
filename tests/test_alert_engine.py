@@ -1,4 +1,5 @@
 """KPortWatch — Tests for backend.alert_engine."""
+
 import time
 
 import pytest
@@ -8,6 +9,7 @@ from shared import MALICIOUS_PORTS, AlertLevel
 from shared.config import CustomRule
 
 # ── Helpers ────────────────────────────────────────────────────
+
 
 def _make_entry(
     port: int,
@@ -58,6 +60,7 @@ def _run_cycles(engine, entries_list, start_time):
 
 # ── Rule 1: Malicious port → CRITICAL ──────────────────────────
 
+
 class TestRule1MaliciousPort:
     def test_malicious_port_triggers_critical(self):
         """Port 4444 (Metasploit) should produce a CRITICAL alert."""
@@ -96,6 +99,7 @@ class TestRule1MaliciousPort:
 
 # ── Rule 2: Unknown privileged port → WARNING ──────────────────
 
+
 class TestRule2UnknownPrivilegedPort:
     def test_unknown_privileged_port_warning(self):
         """Port 999 (< 1024, not known-safe, not baseline) → WARNING."""
@@ -131,6 +135,7 @@ class TestRule2UnknownPrivilegedPort:
 
 
 # ── Rule 3: New port after baseline → INFO ─────────────────────
+
 
 class TestRule3NewPortAfterBaseline:
     def test_new_port_info_alert(self):
@@ -168,6 +173,7 @@ class TestRule3NewPortAfterBaseline:
 
 
 # ── Rule 4: Process with no cmdline → WARNING ──────────────────
+
 
 class TestRule4NoCmdline:
     def test_no_cmdline_triggers_warning(self):
@@ -220,6 +226,7 @@ class TestRule4NoCmdline:
 
 
 # ── Rule 5: 3+ new ports in one cycle → WARNING burst ──────────
+
 
 class TestRule5Burst:
     def test_burst_three_new_ports(self):
@@ -291,6 +298,7 @@ class TestRule5Burst:
 
 
 # ── Baseline learning lifecycle ────────────────────────────────
+
 
 class TestBaselineLearning:
     def test_not_stable_initially(self):
@@ -368,6 +376,7 @@ class TestBaselineLearning:
 
 # ── Known-safe ports don't trigger alerts ──────────────────────
 
+
 class TestKnownSafePorts:
     def test_known_safe_port_no_alert(self):
         """Known-safe ports (e.g. 22, 80, 443) should not trigger privileged-port alerts."""
@@ -390,6 +399,7 @@ class TestKnownSafePorts:
 
 
 # ── Rule 0: Whitelist — port skipped entirely ────────────────────
+
 
 class TestWhitelist:
     def test_whitelisted_port_no_alerts(self):
@@ -423,6 +433,7 @@ class TestWhitelist:
 
 # ── Rule 0b: Blacklist — always CRITICAL ──────────────────────────
 
+
 class TestBlacklist:
     def test_blacklisted_port_triggers_critical(self):
         """Blacklisted port should always trigger CRITICAL."""
@@ -448,11 +459,18 @@ class TestBlacklist:
         engine._baseline_start = time.time() - 1000
 
         entry = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80,
-            remote_ip="10.0.0.5", remote_port=12345,
-            state="ESTABLISHED", state_code="01",
-            uid=1000, inode=50000, pid=1,
-            process_name="test", cmdline="/test",
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="10.0.0.5",
+            remote_port=12345,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=50000,
+            pid=1,
+            process_name="test",
+            cmdline="/test",
         )
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(time, "time", lambda: 1700000000.0)
@@ -469,11 +487,18 @@ class TestBlacklist:
         engine._baseline_start = time.time() - 1000
 
         entry = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80,
-            remote_ip="192.168.1.5", remote_port=12345,
-            state="ESTABLISHED", state_code="01",
-            uid=1000, inode=50000, pid=1,
-            process_name="test", cmdline="/test",
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="192.168.1.5",
+            remote_port=12345,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=50000,
+            pid=1,
+            process_name="test",
+            cmdline="/test",
         )
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(time, "time", lambda: 1700000000.0)
@@ -484,6 +509,7 @@ class TestBlacklist:
 
 
 # ── Rule 6: Custom rules ──────────────────────────────────────────
+
 
 class TestCustomRules:
     def _stable_engine(self, **kwargs) -> AlertEngine:
@@ -579,6 +605,7 @@ class TestCustomRules:
 
 # ── CustomRule.matches unit tests ──────────────────────────────────
 
+
 class TestCustomRuleMatches:
     def test_port_match(self):
         entry = _make_entry(port=8080)
@@ -597,10 +624,15 @@ class TestCustomRuleMatches:
 
     def test_remote_ip_match(self):
         entry = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80,
-            remote_ip="192.168.1.5", remote_port=443,
-            state="ESTABLISHED", state_code="01",
-            uid=1000, inode=50000,
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="192.168.1.5",
+            remote_port=443,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=1000,
+            inode=50000,
         )
         rule = CustomRule(remote_ip="192.168.1.*")
         assert rule.matches(entry) is True
@@ -684,6 +716,7 @@ class TestBaselineIntegrity:
 
         # Tamper with the baseline file
         import json
+
         (tmp_path / "baseline.json").write_text(
             json.dumps({"ports": [22, 80, 4444], "timestamp": 0.0})
         )
@@ -699,9 +732,7 @@ class TestBaselineIntegrity:
         import json
 
         baseline_file = str(tmp_path / "baseline.json")
-        (tmp_path / "baseline.json").write_text(
-            json.dumps({"ports": [22, 80], "timestamp": 0.0})
-        )
+        (tmp_path / "baseline.json").write_text(json.dumps({"ports": [22, 80], "timestamp": 0.0}))
         # No .sha256 file
 
         engine = AlertEngine()

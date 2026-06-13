@@ -1,4 +1,5 @@
 """KPortWatch — Tests for backend.models (SocketEntry, Alert, Snapshot)."""
+
 import json
 import time
 
@@ -7,6 +8,7 @@ from backend.models import Alert, InterfaceStats, Snapshot, SocketEntry
 from shared import AlertLevel
 
 # ── SocketEntry ────────────────────────────────────────────────
+
 
 class TestSocketEntry:
     def test_creation(self):
@@ -90,9 +92,15 @@ class TestSocketEntry:
     def test_geo_fields_default_to_none(self):
         """GeoIP fields default to None when not provided."""
         entry = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80,
-            remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-            state_code="0A", uid=0, inode=12345,
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="0.0.0.0",
+            remote_port=0,
+            state="LISTEN",
+            state_code="0A",
+            uid=0,
+            inode=12345,
         )
         assert entry.remote_country is None
         assert entry.remote_country_code is None
@@ -103,9 +111,15 @@ class TestSocketEntry:
     def test_geo_fields_from_dict(self):
         """GeoIP fields are correctly deserialized from dict."""
         d = {
-            "proto": "tcp", "local_ip": "192.168.1.10", "local_port": 54321,
-            "remote_ip": "8.8.8.8", "remote_port": 443, "state": "ESTABLISHED",
-            "state_code": "01", "uid": 1000, "inode": 99999,
+            "proto": "tcp",
+            "local_ip": "192.168.1.10",
+            "local_port": 54321,
+            "remote_ip": "8.8.8.8",
+            "remote_port": 443,
+            "state": "ESTABLISHED",
+            "state_code": "01",
+            "uid": 1000,
+            "inode": 99999,
             "remote_country": "United States",
             "remote_country_code": "US",
             "remote_city": "Mountain View",
@@ -122,6 +136,7 @@ class TestSocketEntry:
     def test_geo_fields_in_to_dict(self, sample_geo_entry):
         """GeoIP fields are included in asdict() serialization."""
         from dataclasses import asdict
+
         d = asdict(sample_geo_entry)
         assert d["remote_country"] == "United States"
         assert d["remote_country_code"] == "US"
@@ -131,6 +146,7 @@ class TestSocketEntry:
 
 
 # ── Alert ──────────────────────────────────────────────────────
+
 
 class TestAlert:
     def test_creation(self):
@@ -196,6 +212,7 @@ class TestAlert:
 
 
 # ── Snapshot ───────────────────────────────────────────────────
+
 
 class TestSnapshot:
     def test_creation_defaults(self):
@@ -282,14 +299,23 @@ class TestSnapshot:
     def test_snapshot_with_multiple_entries(self):
         """Snapshot correctly handles multiple entries in each list."""
         entries = [
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=p,
-                        remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-                        state_code="0A", uid=0, inode=10000 + p)
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=p,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=10000 + p,
+            )
             for p in [22, 80, 443]
         ]
         alerts = [
-            Alert(level="INFO", port=22, proto="tcp", process_name="sshd",
-                  pid=1, message="New port"),
+            Alert(
+                level="INFO", port=22, proto="tcp", process_name="sshd", pid=1, message="New port"
+            ),
         ]
         snap = Snapshot(
             timestamp=1700000000.0,
@@ -315,22 +341,26 @@ class TestSnapshot:
 
     def test_geo_stats_to_dict(self):
         """geo_stats is included in to_dict()."""
-        snap = Snapshot(geo_stats={
-            "countries_count": 2,
-            "unique_ips_per_country": {"US": 3, "DE": 1},
-            "top_countries": [("US", 3), ("DE", 1)],
-        })
+        snap = Snapshot(
+            geo_stats={
+                "countries_count": 2,
+                "unique_ips_per_country": {"US": 3, "DE": 1},
+                "top_countries": [("US", 3), ("DE", 1)],
+            }
+        )
         d = snap.to_dict()
         assert d["geo_stats"]["countries_count"] == 2
         assert d["geo_stats"]["unique_ips_per_country"]["US"] == 3
 
     def test_geo_stats_from_dict_roundtrip(self):
         """geo_stats survives to_dict → from_dict roundtrip."""
-        snap = Snapshot(geo_stats={
-            "countries_count": 1,
-            "unique_ips_per_country": {"TR": 5},
-            "top_countries": [("TR", 5)],
-        })
+        snap = Snapshot(
+            geo_stats={
+                "countries_count": 1,
+                "unique_ips_per_country": {"TR": 5},
+                "top_countries": [("TR", 5)],
+            }
+        )
         d = snap.to_dict()
         restored = Snapshot.from_dict(d)
         assert restored.geo_stats["countries_count"] == 1
@@ -350,6 +380,7 @@ class TestSnapshot:
 
 # ── Widget payload ────────────────────────────────────────────
 
+
 class TestWidgetPayload:
     """Tests for Snapshot.to_widget_dict() — the lightweight widget payload."""
 
@@ -357,8 +388,13 @@ class TestWidgetPayload:
         """Widget payload contains exactly the keys the widget needs."""
         d = sample_snapshot.to_widget_dict()
         assert set(d.keys()) == {
-            "timestamp", "poll_interval_ms",
-            "listening", "established", "alerts", "summary", "traffic",
+            "timestamp",
+            "poll_interval_ms",
+            "listening",
+            "established",
+            "alerts",
+            "summary",
+            "traffic",
         }
 
     def test_widget_dict_omits_processes(self, sample_snapshot):
@@ -399,6 +435,7 @@ class TestWidgetPayload:
     def test_widget_dict_smaller_than_full(self, sample_snapshot):
         """Widget payload should be smaller than the full snapshot."""
         import json
+
         full = len(json.dumps(sample_snapshot.to_dict()))
         widget = len(json.dumps(sample_snapshot.to_widget_dict()))
         assert widget < full
@@ -420,11 +457,16 @@ class TestWidgetPayload:
             traffic={
                 "wlan0": InterfaceStats(
                     interface="wlan0",
-                    rx_bytes=1000, tx_bytes=500,
-                    rx_packets=10, tx_packets=5,
-                    rx_errors=0, tx_errors=0,
-                    rx_drops=0, tx_drops=0,
-                    rx_rate=100.0, tx_rate=50.0,
+                    rx_bytes=1000,
+                    tx_bytes=500,
+                    rx_packets=10,
+                    tx_packets=5,
+                    rx_errors=0,
+                    tx_errors=0,
+                    rx_drops=0,
+                    tx_drops=0,
+                    rx_rate=100.0,
+                    tx_rate=50.0,
                 ),
             },
         )

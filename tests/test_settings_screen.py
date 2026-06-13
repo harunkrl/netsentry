@@ -3,24 +3,24 @@
 Tests SettingRow, SelectableRow, SettingsScreen save/sync, SIGHUP signaling,
 ConfirmRestart, and _find_project_root.
 """
+
 from __future__ import annotations
 
 import os
 import signal
-from unittest.mock import Mock, patch, mock_open, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from textual.app import App
 from textual.widgets import Button, Label, Switch
-
 from tui.screens.settings_screen import (
     SelectableRow,
     SettingRow,
     SettingsScreen,
 )
 
-
 # ── Fixtures ───────────────────────────────────────────────────
+
 
 @pytest.fixture
 def settings_screen():
@@ -54,8 +54,11 @@ class TestSettingRow:
     async def test_compose_creates_switch(self):
         """SettingRow composes with a Switch widget."""
         row = SettingRow(
-            key="test_key", section="test", title="Test Title",
-            description="Test description", value=True,
+            key="test_key",
+            section="test",
+            title="Test Title",
+            description="Test description",
+            value=True,
         )
         app = App()
         async with app.run_test() as pilot:
@@ -68,7 +71,11 @@ class TestSettingRow:
     async def test_compose_false_value(self):
         """SettingRow with value=False creates an off switch."""
         row = SettingRow(
-            key="my_key", section="s", title="T", description="D", value=False,
+            key="my_key",
+            section="s",
+            title="T",
+            description="D",
+            value=False,
         )
         app = App()
         async with app.run_test() as pilot:
@@ -81,7 +88,11 @@ class TestSettingRow:
     async def test_switch_property(self):
         """switch property returns the correct widget."""
         row = SettingRow(
-            key="abc", section="s", title="T", description="D", value=True,
+            key="abc",
+            section="s",
+            title="T",
+            description="D",
+            value=True,
         )
         app = App()
         async with app.run_test() as pilot:
@@ -93,7 +104,11 @@ class TestSettingRow:
     async def test_action_toggle(self):
         """action_toggle flips the switch value."""
         row = SettingRow(
-            key="xyz", section="s", title="T", description="D", value=True,
+            key="xyz",
+            section="s",
+            title="T",
+            description="D",
+            value=True,
         )
         app = App()
         async with app.run_test() as pilot:
@@ -108,7 +123,11 @@ class TestSettingRow:
     async def test_action_toggle_off_to_on(self):
         """action_toggle turns switch on when off."""
         row = SettingRow(
-            key="xyz", section="s", title="T", description="D", value=False,
+            key="xyz",
+            section="s",
+            title="T",
+            description="D",
+            value=False,
         )
         app = App()
         async with app.run_test() as pilot:
@@ -132,8 +151,12 @@ class TestSelectableRow:
     async def test_compose_shows_value(self):
         """SelectableRow shows current value."""
         row = SelectableRow(
-            key="theme", section="tui", title="Theme", description="Pick one",
-            value="Cyberpunk", options=["Cyberpunk", "Midnight", "Hacker"],
+            key="theme",
+            section="tui",
+            title="Theme",
+            description="Pick one",
+            value="Cyberpunk",
+            options=["Cyberpunk", "Midnight", "Hacker"],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -146,8 +169,12 @@ class TestSelectableRow:
     async def test_action_cycle_advances(self):
         """action_cycle advances to the next option."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="a", options=["a", "b", "c"],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="a",
+            options=["a", "b", "c"],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -162,8 +189,12 @@ class TestSelectableRow:
     async def test_action_cycle_wraps(self):
         """action_cycle wraps from last to first."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="c", options=["a", "b", "c"],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="c",
+            options=["a", "b", "c"],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -177,8 +208,12 @@ class TestSelectableRow:
     async def test_action_cycle_posts_message(self):
         """action_cycle posts ValueChanged message."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="a", options=["a", "b", "c"],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="a",
+            options=["a", "b", "c"],
         )
         app = App()
         messages = []
@@ -188,9 +223,11 @@ class TestSelectableRow:
             await pilot.pause()
             # Patch post_message to capture the message
             original_post = row.post_message
+
             def capture(msg):
                 messages.append(msg)
                 return original_post(msg)
+
             row.post_message = capture
             row.action_cycle()
             await pilot.pause()
@@ -204,8 +241,12 @@ class TestSelectableRow:
     async def test_action_cycle_unknown_value(self):
         """action_cycle with value not in options starts from first."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="unknown", options=["a", "b", "c"],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="unknown",
+            options=["a", "b", "c"],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -219,8 +260,12 @@ class TestSelectableRow:
     async def test_action_cycle_empty_options(self):
         """action_cycle with empty options does nothing."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="a", options=[],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="a",
+            options=[],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -234,8 +279,12 @@ class TestSelectableRow:
     async def test_cycle_updates_label(self):
         """action_cycle updates the displayed label."""
         row = SelectableRow(
-            key="x", section="s", title="T", description="D",
-            value="a", options=["a", "b", "c"],
+            key="x",
+            section="s",
+            title="T",
+            description="D",
+            value="a",
+            options=["a", "b", "c"],
         )
         app = App()
         async with app.run_test() as pilot:
@@ -349,8 +398,10 @@ class TestSettingsScreenSaveSync:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("tui.screens.settings_screen.save_config_setting") as mock_save, \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("tui.screens.settings_screen.save_config_setting") as mock_save,
+                patch.object(app, "notify") as mock_notify,
+            ):
                 settings_screen._save_and_sync("notifications", "enabled", True)
                 mock_save.assert_called_once_with("notifications", "enabled", True)
                 mock_notify.assert_called()
@@ -363,13 +414,16 @@ class TestSettingsScreenSaveSync:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("tui.screens.settings_screen.save_config_setting",
-                       side_effect=PermissionError("denied")), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch(
+                    "tui.screens.settings_screen.save_config_setting",
+                    side_effect=PermissionError("denied"),
+                ),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 settings_screen._save_and_sync("notifications", "enabled", True)
                 # Should notify error
-                error_calls = [c for c in mock_notify.call_args_list
-                               if "Failed" in str(c)]
+                error_calls = [c for c in mock_notify.call_args_list if "Failed" in str(c)]
                 assert len(error_calls) > 0
 
     @pytest.mark.asyncio
@@ -380,8 +434,10 @@ class TestSettingsScreenSaveSync:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("tui.screens.settings_screen.save_config_setting"), \
-                 patch("shared.config.load_config") as mock_load:
+            with (
+                patch("tui.screens.settings_screen.save_config_setting"),
+                patch("shared.config.load_config") as mock_load,
+            ):
                 settings_screen._save_and_sync("notifications", "enabled", True)
                 mock_load.assert_called_once()
 
@@ -393,8 +449,10 @@ class TestSettingsScreenSaveSync:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("tui.screens.settings_screen.save_config_setting"), \
-                 patch.object(settings_screen, "_signal_daemon_reload") as mock_signal:
+            with (
+                patch("tui.screens.settings_screen.save_config_setting"),
+                patch.object(settings_screen, "_signal_daemon_reload") as mock_signal,
+            ):
                 settings_screen._save_and_sync("notifications", "enabled", True)
                 mock_signal.assert_called_once()
 
@@ -406,8 +464,10 @@ class TestSettingsScreenSaveSync:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("tui.screens.settings_screen.save_config_setting"), \
-                 patch.object(settings_screen, "_signal_daemon_reload") as mock_signal:
+            with (
+                patch("tui.screens.settings_screen.save_config_setting"),
+                patch.object(settings_screen, "_signal_daemon_reload") as mock_signal,
+            ):
                 settings_screen._save_and_sync("tui", "tui_notifications_enabled", True)
                 mock_signal.assert_not_called()
 
@@ -431,8 +491,7 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("os.kill") as mock_kill:
+            with patch("shared.constants.PID_FILE", str(pid_file)), patch("os.kill") as mock_kill:
                 settings_screen._signal_daemon_reload()
                 mock_kill.assert_called_once_with(os.getpid(), signal.SIGHUP)
 
@@ -447,8 +506,10 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("subprocess.run") as mock_run:
+            with (
+                patch("shared.constants.PID_FILE", str(pid_file)),
+                patch("subprocess.run") as mock_run,
+            ):
                 mock_run.return_value = Mock(returncode=1, stdout="")
                 settings_screen._signal_daemon_reload()
                 mock_run.assert_called_once()
@@ -461,8 +522,10 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(tmp_path / "nonexistent")), \
-                 patch("subprocess.run") as mock_run:
+            with (
+                patch("shared.constants.PID_FILE", str(tmp_path / "nonexistent")),
+                patch("subprocess.run") as mock_run,
+            ):
                 mock_run.return_value = Mock(returncode=1, stdout="")
                 settings_screen._signal_daemon_reload()
                 mock_run.assert_called_once()
@@ -478,9 +541,11 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("subprocess.run") as mock_run, \
-                 patch("os.kill") as mock_kill:
+            with (
+                patch("shared.constants.PID_FILE", str(pid_file)),
+                patch("subprocess.run") as mock_run,
+                patch("os.kill") as mock_kill,
+            ):
                 mock_run.return_value = Mock(returncode=0, stdout="99999\n")
                 settings_screen._signal_daemon_reload()
                 mock_kill.assert_called_once_with(99999, signal.SIGHUP)
@@ -496,9 +561,11 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("subprocess.run") as mock_run, \
-                 patch("os.kill") as mock_kill:
+            with (
+                patch("shared.constants.PID_FILE", str(pid_file)),
+                patch("subprocess.run") as mock_run,
+                patch("os.kill") as mock_kill,
+            ):
                 mock_run.return_value = Mock(returncode=0, stdout="not-a-pid\n")
                 settings_screen._signal_daemon_reload()
                 mock_kill.assert_not_called()
@@ -514,8 +581,10 @@ class TestSignalDaemonReload:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("os.kill", side_effect=ProcessLookupError):
+            with (
+                patch("shared.constants.PID_FILE", str(pid_file)),
+                patch("os.kill", side_effect=ProcessLookupError),
+            ):
                 # Should not raise
                 settings_screen._signal_daemon_reload()
 
@@ -531,8 +600,11 @@ class TestSignalDaemonReload:
             await pilot.pause()
 
             import subprocess
-            with patch("shared.constants.PID_FILE", str(pid_file)), \
-                 patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 3)):
+
+            with (
+                patch("shared.constants.PID_FILE", str(pid_file)),
+                patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 3)),
+            ):
                 # Should not raise
                 settings_screen._signal_daemon_reload()
 
@@ -560,7 +632,9 @@ class TestSwitchChangedHandler:
                 settings_screen.on_switch_changed(event)
                 assert settings_screen._desktop_notifications is False
                 mock_save.assert_called_once_with(
-                    section="notifications", key="enabled", value=False,
+                    section="notifications",
+                    key="enabled",
+                    value=False,
                 )
 
     @pytest.mark.asyncio
@@ -642,7 +716,9 @@ class TestSelectableValueChanged:
             with patch.object(settings_screen, "_save_and_sync") as mock_save:
                 settings_screen.on_selectable_row_value_changed(event)
                 assert settings_screen._scan_threshold == 10
-                mock_save.assert_called_once_with(section="security", key="scan_threshold", value=10)
+                mock_save.assert_called_once_with(
+                    section="security", key="scan_threshold", value=10
+                )
 
     @pytest.mark.asyncio
     async def test_theme_change(self, settings_screen):
@@ -653,8 +729,10 @@ class TestSelectableValueChanged:
             await pilot.pause()
 
             event = SelectableRow.ValueChanged("theme", "tui", "Midnight")
-            with patch.object(settings_screen, "_save_and_sync") as mock_save, \
-                 patch("tui.themes.apply_theme_by_name"):
+            with (
+                patch.object(settings_screen, "_save_and_sync"),
+                patch("tui.themes.apply_theme_by_name"),
+            ):
                 settings_screen.on_selectable_row_value_changed(event)
                 assert settings_screen._current_theme == "Midnight"
 
@@ -762,10 +840,12 @@ class TestRestartDaemon:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("subprocess.run") as mock_run, \
-                 patch.object(settings_screen, "_set_restart_button_state"), \
-                 patch.object(settings_screen, "_find_project_root", return_value="/tmp"), \
-                 patch.object(app, "notify"):
+            with (
+                patch("subprocess.run") as mock_run,
+                patch.object(settings_screen, "_set_restart_button_state"),
+                patch.object(settings_screen, "_find_project_root", return_value="/tmp"),
+                patch.object(app, "notify"),
+            ):
                 mock_run.return_value = Mock(returncode=0, stderr="")
                 worker = settings_screen._restart_daemon()
                 await worker.wait()
@@ -778,10 +858,12 @@ class TestRestartDaemon:
             app.push_screen(settings_screen)
             await pilot.pause()
 
-            with patch("subprocess.run") as mock_run, \
-                 patch.object(settings_screen, "_set_restart_button_state"), \
-                 patch.object(settings_screen, "_find_project_root", return_value="/tmp"), \
-                 patch.object(app, "notify"):
+            with (
+                patch("subprocess.run") as mock_run,
+                patch.object(settings_screen, "_set_restart_button_state"),
+                patch.object(settings_screen, "_find_project_root", return_value="/tmp"),
+                patch.object(app, "notify"),
+            ):
                 mock_run.return_value = Mock(returncode=1, stderr="daemon not running")
                 worker = settings_screen._restart_daemon()
                 await worker.wait()
@@ -795,9 +877,12 @@ class TestRestartDaemon:
             await pilot.pause()
 
             import subprocess
-            with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 15)), \
-                 patch.object(settings_screen, "_set_restart_button_state"), \
-                 patch.object(settings_screen, "_find_project_root", return_value="/tmp"), \
-                 patch.object(app, "notify"):
+
+            with (
+                patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 15)),
+                patch.object(settings_screen, "_set_restart_button_state"),
+                patch.object(settings_screen, "_find_project_root", return_value="/tmp"),
+                patch.object(app, "notify"),
+            ):
                 worker = settings_screen._restart_daemon()
                 await worker.wait()

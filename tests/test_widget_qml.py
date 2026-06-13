@@ -1,4 +1,5 @@
 """Tests for widget/contents/ui/main.qml — structural and security checks."""
+
 from __future__ import annotations
 
 import re
@@ -98,7 +99,7 @@ class TestWidgetQmlStructure:
     def test_timer_interval_reasonable(self):
         """Data refresh timers should be between 500ms and 30s."""
         content = MAIN_QML.read_text()
-        intervals = re.findall(r'interval:\s*(\d+)', content)
+        intervals = re.findall(r"interval:\s*(\d+)", content)
         for val_str in intervals:
             val = int(val_str)
             # Skip UI animation timers (< 100ms is fine for animations)
@@ -115,7 +116,7 @@ class TestWidgetQmlStructure:
     def test_no_hardcoded_ips(self):
         """No hardcoded IP addresses in widget code."""
         content = MAIN_QML.read_text()
-        ip_pattern = re.findall(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', content)
+        ip_pattern = re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", content)
         # Filter out obvious non-IP patterns like version numbers
         for ip in ip_pattern:
             parts = ip.split(".")

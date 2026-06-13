@@ -3,6 +3,7 @@
 Auto-generated keyboard shortcut reference. Bindings are read
 from the app's BINDINGS list to avoid stale/duplicate entries.
 """
+
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.screen import Screen
@@ -45,7 +46,7 @@ HELP_MD = f"""
 |-----|--------|
 | `/` | Open search bar (filters focused panel) |
 | `Ctrl+F` | Cycle connection log filter (all → new → warning → critical) |
-| `Ctrl+P` | Cycle protocol filter (ALL → TCP → UDP → ICMP) |
+| `Ctrl+P` | Cycle protocol filter (ALL → TCP → UDP) |
 | `Esc` | Clear filter / Close dialog |
 
 ## Severity Filter
@@ -70,6 +71,7 @@ Available themes via **Settings → Appearance**:
 - **Sort toggle**: Click header repeatedly for asc → desc → none
 - **Port range filter**: Available via the search bar (e.g., `port:80-443`)
 """
+
 
 class HelpScreen(Screen):
     """Help screen displaying keyboard shortcuts."""

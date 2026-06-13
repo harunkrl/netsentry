@@ -1,4 +1,5 @@
 """Tests for tui/kportwatch_tui.py - TUI app entry point."""
+
 from __future__ import annotations
 
 from unittest.mock import Mock, patch
@@ -10,6 +11,7 @@ from tui.kportwatch_tui import KPortWatchTUI
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_config():
@@ -34,6 +36,7 @@ def mock_data_provider():
 # =============================================================================
 # KPortWatchTUI Tests
 # =============================================================================
+
 
 class TestKPortWatchTUI:
     """Tests for KPortWatchTUI application."""
@@ -90,6 +93,7 @@ class TestKPortWatchTUI:
                             # App should have pushed MainScreen
                             # Check that the current screen has the expected widgets
                             from tui.screens.main_screen import MainScreen
+
                             assert isinstance(app.screen, MainScreen)
 
     @pytest.mark.asyncio
@@ -125,7 +129,9 @@ class TestKPortWatchTUI:
             with patch("tui.kportwatch_tui.DataProvider"):
                 with patch("tui.kportwatch_tui.register_kpw_themes"):
                     with patch("tui.kportwatch_tui.apply_theme"):
-                        with patch("tui.kportwatch_tui.current_theme_key", return_value="cyberpunk"):
+                        with patch(
+                            "tui.kportwatch_tui.current_theme_key", return_value="cyberpunk"
+                        ):
                             app = KPortWatchTUI()
                             async with app.run_test() as pilot:
                                 await pilot.pause()
@@ -166,8 +172,13 @@ class TestKPortWatchTUI:
                 with patch("tui.kportwatch_tui.register_kpw_themes"):
                     with patch("tui.kportwatch_tui.apply_theme"):
                         with patch("tui.kportwatch_tui.get_config", return_value=mock_config):
-                            with patch("tui.kportwatch_tui.current_theme_key", return_value="cyberpunk"):
-                                with patch("tui.kportwatch_tui.key_to_display_name", return_value="Cyberpunk"):
+                            with patch(
+                                "tui.kportwatch_tui.current_theme_key", return_value="cyberpunk"
+                            ):
+                                with patch(
+                                    "tui.kportwatch_tui.key_to_display_name",
+                                    return_value="Cyberpunk",
+                                ):
                                     # Don't mock SettingsScreen - it's imported lazily
                                     # Just verify the method exists and doesn't crash
                                     app = KPortWatchTUI()

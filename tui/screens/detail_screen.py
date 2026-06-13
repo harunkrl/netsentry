@@ -7,6 +7,7 @@ K3 fix: Replaces raw dict (Pretty) with a structured key-value layout.
 D3: Added ``c`` binding to copy connection info to clipboard.
 D8: Only Escape closes the screen (not any key).
 """
+
 from __future__ import annotations
 
 import time
@@ -102,6 +103,7 @@ class DetailScreen(Screen):
         if not geo_country and entry.remote_ip:
             try:
                 from backend.parsers.geoip import get_geoip
+
                 geo = get_geoip(entry.remote_ip)
                 if geo:
                     geo_country = geo.get("country", "")
@@ -114,7 +116,9 @@ class DetailScreen(Screen):
                 pass
 
         if any([geo_country, geo_city, geo_org]):
-            self.app.call_from_thread(self._render_geo, geo_country, geo_city, geo_org, geo_code, geo_lat, geo_lon)
+            self.app.call_from_thread(
+                self._render_geo, geo_country, geo_city, geo_org, geo_code, geo_lat, geo_lon
+            )
 
     def _render_geo(self, country, city, org, code, lat, lon):
         container = self.query_one("#geo-container")
@@ -147,12 +151,14 @@ class DetailScreen(Screen):
             yield Static("[bold cyan]CONNECTION DETAILS[/]")
             yield Rule()
 
-            yield from self._make_kv_rows([
-                ("Process", proc),
-                ("PID", pid),
-                ("Cmdline", cmdline),
-                ("User ID", str(entry.uid)),
-            ])
+            yield from self._make_kv_rows(
+                [
+                    ("Process", proc),
+                    ("PID", pid),
+                    ("Cmdline", cmdline),
+                    ("User ID", str(entry.uid)),
+                ]
+            )
 
             yield Static("")
             yield Static("[bold cyan]NETWORK[/]")
@@ -162,13 +168,15 @@ class DetailScreen(Screen):
             if entry.remote_hostname:
                 remote_display += f"  ({entry.remote_hostname})"
 
-            yield from self._make_kv_rows([
-                ("Protocol", entry.proto.upper()),
-                ("Local", f"{entry.local_ip}:{entry.local_port}"),
-                ("Remote", remote_display),
-                ("State", entry.state),
-                ("Inode", str(entry.inode)),
-            ])
+            yield from self._make_kv_rows(
+                [
+                    ("Protocol", entry.proto.upper()),
+                    ("Local", f"{entry.local_ip}:{entry.local_port}"),
+                    ("Remote", remote_display),
+                    ("State", entry.state),
+                    ("Inode", str(entry.inode)),
+                ]
+            )
 
             # Connection duration (first-seen timestamp)
             first_seen = getattr(entry, "first_seen", None)
@@ -178,10 +186,12 @@ class DetailScreen(Screen):
                 yield Static("")
                 yield Static("[bold cyan]DURATION[/]")
                 yield Rule()
-                yield from self._make_kv_rows([
-                    ("First Seen", f"{_format_time(first_seen)}"),
-                    ("Duration", f"[bold]{dur}[/]"),
-                ])
+                yield from self._make_kv_rows(
+                    [
+                        ("First Seen", f"{_format_time(first_seen)}"),
+                        ("Duration", f"[bold]{dur}[/]"),
+                    ]
+                )
 
             # Placeholder for asynchronously loaded geo information
             yield Vertical(id="geo-container")
@@ -222,9 +232,7 @@ class DetailScreen(Screen):
     def _make_kv_rows(pairs: list[tuple[str, str]]) -> ComposeResult:
         """Yield Static widgets for key-value pairs."""
         for key, value in pairs:
-            yield Static(
-                f"  [bold cyan]{key:<14}[/]  {value}"
-            )
+            yield Static(f"  [bold cyan]{key:<14}[/]  {value}")
 
     def action_copy_info(self) -> None:
         """Copy connection details to the clipboard."""

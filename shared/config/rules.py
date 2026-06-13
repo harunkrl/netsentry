@@ -1,8 +1,8 @@
 """KPortWatch — Custom alert rule dataclass."""
+
 from __future__ import annotations
 
 from fnmatch import fnmatch
-
 
 __all__ = ["CustomRule"]
 
@@ -13,8 +13,15 @@ class CustomRule:
     Match conditions use AND logic — all must be True for the rule to trigger.
     """
 
-    __slots__ = ("port", "port_pattern", "remote_ip", "process_name", "proto",
-                 "level", "message")
+    __slots__ = (
+        "level",
+        "message",
+        "port",
+        "port_pattern",
+        "process_name",
+        "proto",
+        "remote_ip",
+    )
 
     def __init__(
         self,
@@ -37,6 +44,7 @@ class CustomRule:
     def matches(self, entry) -> bool:
         """Check if a SocketEntry matches all conditions."""
         from backend.models import SocketEntry
+
         if not isinstance(entry, SocketEntry):
             return False
         if self.port is not None and entry.local_port != self.port:

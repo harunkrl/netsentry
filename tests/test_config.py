@@ -1,4 +1,5 @@
 """Tests for shared.config — TOML configuration loader."""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ from shared.config import (
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def config_dir(tmp_path: Path) -> Path:
     return tmp_path / "kportwatch-config"
@@ -30,12 +32,14 @@ def config_file(config_dir: Path) -> Path:
 def _reset_singleton():
     """Reset config singleton between tests."""
     import shared.config as cfg_mod
+
     cfg_mod._current_config = None
     yield
     cfg_mod._current_config = None
 
 
 # ── Default values tests ──────────────────────────────────────────
+
 
 class TestDefaults:
     def test_load_without_file_uses_defaults(self, tmp_path: Path):
@@ -58,6 +62,7 @@ class TestDefaults:
 
 
 # ── TOML loading tests ────────────────────────────────────────────
+
 
 class TestTomlLoading:
     def test_polling_override(self, config_file: Path):
@@ -144,19 +149,20 @@ interval = 3.0
 
 # ── Validation tests ──────────────────────────────────────────────
 
+
 class TestValidation:
     def test_negative_interval_ignored(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = -1.0\n')
+        config_file.write_text("[polling]\ninterval = -1.0\n")
         cfg = load_config(str(config_file))
         assert cfg.poll_interval == 2.0  # default
 
     def test_zero_interval_ignored(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 0\n')
+        config_file.write_text("[polling]\ninterval = 0\n")
         cfg = load_config(str(config_file))
         assert cfg.poll_interval == 2.0  # default
 
     def test_invalid_burst_threshold_ignored(self, config_file: Path):
-        config_file.write_text('[alerts]\nburst_threshold = -1\n')
+        config_file.write_text("[alerts]\nburst_threshold = -1\n")
         cfg = load_config(str(config_file))
         assert cfg.burst_threshold == 3  # default
 
@@ -171,7 +177,7 @@ class TestValidation:
         assert cfg.malicious_ports == frozenset({4444})
 
     def test_empty_malicious_ports_list(self, config_file: Path):
-        config_file.write_text('[alerts]\nmalicious_ports = []\n')
+        config_file.write_text("[alerts]\nmalicious_ports = []\n")
         cfg = load_config(str(config_file))
         assert cfg.malicious_ports == frozenset()
 
@@ -188,9 +194,10 @@ class TestValidation:
 
 # ── CLI override tests ────────────────────────────────────────────
 
+
 class TestCLIOverrides:
     def test_interval_override(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 5.0\n')
+        config_file.write_text("[polling]\ninterval = 5.0\n")
         cfg = load_config(str(config_file))
         assert cfg.poll_interval == 5.0
 
@@ -201,7 +208,7 @@ class TestCLIOverrides:
         assert cfg.poll_interval == 1.0  # CLI wins
 
     def test_cli_with_no_interval_keeps_config(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 5.0\n')
+        config_file.write_text("[polling]\ninterval = 5.0\n")
         cfg = load_config(str(config_file))
 
         class Args:
@@ -211,7 +218,74 @@ class TestCLIOverrides:
         assert cfg.poll_interval == 5.0  # config value preserved
 
 
+# ── Security & TUI theme config (previously dead config — round-trip) ──
+
+
+class TestSecurityAndThemeConfig:
+    """Regression tests: scan_threshold and color_theme must round-trip
+    through TOML. Previously these were saved by the UI but never loaded
+    back into AppConfig (silently always defaulting)."""
+
+    def test_scan_threshold_defaults(self, config_file: Path):
+        config_file.write_text("[polling]\ninterval = 2.0\n")
+        cfg = load_config(str(config_file))
+        assert cfg.scan_threshold == 5  # DEFAULT_SCAN_THRESHOLD
+
+    def test_scan_threshold_override(self, config_file: Path):
+        config_file.write_text("[security]\nscan_threshold = 12\n")
+        cfg = load_config(str(config_file))
+        assert cfg.scan_threshold == 12
+
+    def test_scan_threshold_invalid_ignored(self, config_file: Path):
+        config_file.write_text("[security]\nscan_threshold = -3\n")
+        cfg = load_config(str(config_file))
+        assert cfg.scan_threshold == 5  # default (negative rejected)
+
+    def test_scan_threshold_non_int_ignored(self, config_file: Path):
+        config_file.write_text('[security]\nscan_threshold = "lots"\n')
+        cfg = load_config(str(config_file))
+        assert cfg.scan_threshold == 5  # default
+
+    def test_color_theme_defaults(self, config_file: Path):
+        config_file.write_text("[polling]\ninterval = 2.0\n")
+        cfg = load_config(str(config_file))
+        assert cfg.color_theme == "cyberpunk"  # DEFAULT_THEME
+
+    def test_color_theme_override(self, config_file: Path):
+        config_file.write_text('[tui]\ncolor_theme = "nord"\n')
+        cfg = load_config(str(config_file))
+        assert cfg.color_theme == "nord"
+
+    def test_color_theme_empty_string_ignored(self, config_file: Path):
+        config_file.write_text('[tui]\ncolor_theme = ""\n')
+        cfg = load_config(str(config_file))
+        assert cfg.color_theme == "cyberpunk"  # default (empty rejected)
+
+    def test_color_theme_whitespace_trimmed(self, config_file: Path):
+        config_file.write_text('[tui]\ncolor_theme = "  nord  "\n')
+        cfg = load_config(str(config_file))
+        assert cfg.color_theme == "nord"  # trimmed
+
+    def test_full_round_trip(self, config_file: Path):
+        """Write both, read both back — the exact scenario that was broken."""
+        config_file.write_text('[security]\nscan_threshold = 9\n[tui]\ncolor_theme = "nord"\n')
+        cfg = load_config(str(config_file))
+        assert cfg.scan_threshold == 9
+        assert cfg.color_theme == "nord"
+
+    def test_example_config_includes_theme(self, tmp_path: Path):
+        """Generated example config should document color_theme."""
+        path = str(tmp_path / "example-config.toml")
+        generate_example_config(path)
+        import tomllib
+
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        assert data["tui"]["color_theme"] == "cyberpunk"
+
+
 # ── Example config generation ─────────────────────────────────────
+
 
 class TestExampleConfig:
     def test_generate_creates_file(self, tmp_path: Path):
@@ -224,6 +298,7 @@ class TestExampleConfig:
         generate_example_config(path)
 
         import tomllib
+
         with open(path, "rb") as f:
             data = tomllib.load(f)
         assert "polling" in data
@@ -242,6 +317,7 @@ class TestExampleConfig:
         generate_example_config(path)
 
         import tomllib
+
         with open(path, "rb") as f:
             data = tomllib.load(f)
         assert "geoip" in data
@@ -251,20 +327,22 @@ class TestExampleConfig:
 
 # ── Reload / SIGHUP simulation ────────────────────────────────────
 
+
 class TestReload:
     def test_reload_picks_up_changes(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 3.0\n')
+        config_file.write_text("[polling]\ninterval = 3.0\n")
         cfg1 = load_config(str(config_file))
         assert cfg1.poll_interval == 3.0
 
         # Simulate config file change
-        config_file.write_text('[polling]\ninterval = 7.0\n')
+        config_file.write_text("[polling]\ninterval = 7.0\n")
         cfg2 = load_config(str(config_file))
         assert cfg2.poll_interval == 7.0
         assert get_config() is cfg2  # singleton updated
 
 
 # ── Custom rules loading ───────────────────────────────────────────
+
 
 class TestCustomRulesLoading:
     def test_custom_rules_parsed(self, config_file: Path):
@@ -287,7 +365,7 @@ message = "Reverse shell"
         assert cfg.custom_rules[1].remote_ip == "10.*"
 
     def test_custom_rules_empty_when_not_defined(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 2.0\n')
+        config_file.write_text("[polling]\ninterval = 2.0\n")
         cfg = load_config(str(config_file))
         assert cfg.custom_rules == []
 
@@ -304,6 +382,7 @@ message = "Bad level"
 
 
 # ── Whitelist / Blacklist loading ──────────────────────────────────
+
 
 class TestWhitelistBlacklist:
     def test_whitelist_ports(self, config_file: Path):
@@ -331,7 +410,7 @@ ips = ["10.0.0.*", "192.168.100.*"]
         assert cfg.ip_blacklist == ["10.0.0.*", "192.168.100.*"]
 
     def test_defaults_empty(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 2.0\n')
+        config_file.write_text("[polling]\ninterval = 2.0\n")
         cfg = load_config(str(config_file))
         assert cfg.port_whitelist == frozenset()
         assert cfg.port_blacklist == frozenset()
@@ -339,6 +418,7 @@ ips = ["10.0.0.*", "192.168.100.*"]
 
 
 # ── Rate limiting config ───────────────────────────────────────────
+
 
 class TestRateLimiting:
     def test_rate_limit_from_config(self, config_file: Path):
@@ -352,13 +432,14 @@ rate_window = 30.0
         assert cfg.notification_rate_window == 30.0
 
     def test_rate_limit_defaults(self, config_file: Path):
-        config_file.write_text('[polling]\ninterval = 2.0\n')
+        config_file.write_text("[polling]\ninterval = 2.0\n")
         cfg = load_config(str(config_file))
         assert cfg.notification_rate_limit == 10
         assert cfg.notification_rate_window == 60.0
 
 
 # ── Heartbeat config ───────────────────────────────────────────────
+
 
 class TestHeartbeat:
     def test_default_heartbeat_derived_from_data_file(self, config_file: Path):
@@ -383,6 +464,7 @@ heartbeat_file = "/var/run/kportwatch-heartbeat.json"
 
 
 # ── GeoIP config ────────────────────────────────────────────────────
+
 
 class TestGeoIPConfig:
     def test_geoip_defaults(self, tmp_path: Path):

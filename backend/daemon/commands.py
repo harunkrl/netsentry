@@ -4,6 +4,7 @@ Handles commands arriving over the Unix domain socket (e.g. kill requests).
 Fully self-contained: owns its own rate-limiting state and UID authorization
 logic.  No shared mutable state with the orchestrator.
 """
+
 from __future__ import annotations
 
 import logging
@@ -64,9 +65,7 @@ class CommandHandler:
 
         # Rate limiting — max N kill commands per 60 s
         now_ts = time.time()
-        self._kill_timestamps[:] = [
-            t for t in self._kill_timestamps if (now_ts - t) < 60.0
-        ]
+        self._kill_timestamps[:] = [t for t in self._kill_timestamps if (now_ts - t) < 60.0]
         if len(self._kill_timestamps) >= self._MAX_KILL_RATE:
             logger.warning("Kill rate limit exceeded for PID %d", pid)
             return {
@@ -118,9 +117,7 @@ class CommandHandler:
                 os.kill(pid, 0)
                 time.sleep(0.1)
             except ProcessLookupError:
-                logger.info(
-                    "Process %d terminated gracefully after SIGTERM", pid
-                )
+                logger.info("Process %d terminated gracefully after SIGTERM", pid)
                 return {
                     "status": "ok",
                     "message": f"Process {pid} terminated (SIGTERM)",

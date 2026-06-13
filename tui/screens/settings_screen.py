@@ -8,6 +8,7 @@ K2: Fixed text truncation — descriptions use word-wrap with sufficient width.
 K9: Restart daemon runs in background thread — TUI no longer freezes.
 K10: Uses standard ``.hidden`` CSS class consistently.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -204,6 +205,7 @@ class SelectableRow(Container):
 
     class ValueChanged(Message):
         """Message sent when a selectable row's value changes."""
+
         def __init__(self, key: str, section: str, value: str):
             super().__init__()
             self.key = key
@@ -345,9 +347,7 @@ class SettingsScreen(ModalScreen[None]):
                             key="burst_threshold",
                             section="alerts",
                             title="Burst Alert Threshold",
-                            description=(
-                                "Number of rapid connections to trigger a burst alert."
-                            ),
+                            description=("Number of rapid connections to trigger a burst alert."),
                             value=str(self._burst_threshold),
                             options=["3", "5", "10", "20"],
                         )
@@ -358,9 +358,7 @@ class SettingsScreen(ModalScreen[None]):
                             key="scan_threshold",
                             section="security",
                             title="Port Scan Detection",
-                            description=(
-                                "Unique ports from one IP to flag as port scan."
-                            ),
+                            description=("Unique ports from one IP to flag as port scan."),
                             value=str(self._scan_threshold),
                             options=["3", "5", "10", "15", "20"],
                         )
@@ -380,8 +378,16 @@ class SettingsScreen(ModalScreen[None]):
                         )
 
             yield Horizontal(
-                Static("[dim]Tab: navigate  |  Enter/Space: toggle  |  Esc: close[/]", id="settings-footer-text"),
-                Button("Restart Daemon", variant="warning", id="btn-restart-daemon", classes="settings-action-btn"),
+                Static(
+                    "[dim]Tab: navigate  |  Enter/Space: toggle  |  Esc: close[/]",
+                    id="settings-footer-text",
+                ),
+                Button(
+                    "Restart Daemon",
+                    variant="warning",
+                    id="btn-restart-daemon",
+                    classes="settings-action-btn",
+                ),
                 id="settings-footer",
             )
 
@@ -416,6 +422,7 @@ class SettingsScreen(ModalScreen[None]):
             # Update status bar
             try:
                 from tui.widgets.status_bar import StatusBar
+
                 bar = app.query_one(StatusBar)
                 bar.set_notification_state(event.value)
             except Exception:
@@ -441,6 +448,7 @@ class SettingsScreen(ModalScreen[None]):
         # Reload config singleton so subsequent get_config() calls are fresh
         try:
             from shared.config import load_config
+
             load_config()
         except Exception:
             pass
@@ -477,9 +485,12 @@ class SettingsScreen(ModalScreen[None]):
         if not sent:
             try:
                 import subprocess
+
                 result = subprocess.run(
                     ["pgrep", "-f", "backend.kportwatch_daemon"],
-                    capture_output=True, text=True, timeout=3,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
                 )
                 if result.returncode == 0:
                     for line in result.stdout.strip().split("\n"):
@@ -558,22 +569,26 @@ class SettingsScreen(ModalScreen[None]):
                 self.app.call_from_thread(
                     self.app.notify, "Daemon restarted successfully", "information"
                 )
-                self.app.call_from_thread(self._set_restart_button_state, "✓ Restarted", disabled=False)
+                self.app.call_from_thread(
+                    self._set_restart_button_state, "✓ Restarted", disabled=False
+                )
             else:
                 self.app.call_from_thread(
                     self.app.notify, f"Restart failed: {result.stderr.strip()}", "error"
                 )
-                self.app.call_from_thread(self._set_restart_button_state, "Restart Daemon", disabled=False)
+                self.app.call_from_thread(
+                    self._set_restart_button_state, "Restart Daemon", disabled=False
+                )
         except subprocess.TimeoutExpired:
+            self.app.call_from_thread(self.app.notify, "Restart timed out", "error")
             self.app.call_from_thread(
-                self.app.notify, "Restart timed out", "error"
+                self._set_restart_button_state, "Restart Daemon", disabled=False
             )
-            self.app.call_from_thread(self._set_restart_button_state, "Restart Daemon", disabled=False)
         except Exception as e:
+            self.app.call_from_thread(self.app.notify, f"Error: {e}", "error")
             self.app.call_from_thread(
-                self.app.notify, f"Error: {e}", "error"
+                self._set_restart_button_state, "Restart Daemon", disabled=False
             )
-            self.app.call_from_thread(self._set_restart_button_state, "Restart Daemon", disabled=False)
 
     def _set_restart_button_state(self, label: str, *, disabled: bool) -> None:
         """Update the restart button label and disabled state (must run on main thread)."""
@@ -587,6 +602,7 @@ class SettingsScreen(ModalScreen[None]):
     @staticmethod
     def _find_project_root() -> str:
         import os
+
         d = os.path.dirname(os.path.abspath(__file__))
         while d != "/":
             if os.path.isfile(os.path.join(d, "pyproject.toml")):
@@ -600,6 +616,7 @@ class SettingsScreen(ModalScreen[None]):
             self._current_theme = event.value
             try:
                 from tui.themes import apply_theme_by_name
+
                 apply_theme_by_name(self.app, event.value)
             except Exception:
                 pass

@@ -101,16 +101,25 @@ echo "   ✅ Systemd service installed and started"
 echo "🔒 Installing Polkit policy (for kill action)..."
 POLKIT_DIR="/usr/share/polkit-1/actions"
 POLKIT_FILE="${POLKIT_DIR}/com.kportwatch.helper.policy"
-if [ -w "${POLKIT_DIR}" ] 2>/dev/null || command -v sudo &>/dev/null; then
-    if cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/" 2>/dev/null \
-       || sudo cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/" 2>/dev/null; then
-        echo "   ✅ Polkit policy installed"
-    else
-        echo "   ⚠️  Polkit policy install skipped (needs root)"
-        echo "      Run manually: sudo cp polkit/com.kportwatch.helper.policy ${POLKIT_DIR}/"
-    fi
+if cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/" 2>/dev/null; then
+    echo "   ✅ Polkit policy installed"
 else
-    echo "   ⚠️  Polkit policy install skipped (no sudo available)"
+    # Needs root — warn before interactive sudo so the password prompt isn't a surprise.
+    # (sudo writes its prompt to /dev/tty, which can get visually lost after the echo
+    # above and make the script appear to hang.)
+    if command -v sudo &>/dev/null; then
+        if ! sudo -n true 2>/dev/null; then
+            echo "   🔐 Installing the system-wide Polkit policy requires your password:"
+        fi
+        if sudo cp "${SCRIPT_DIR}/polkit/com.kportwatch.helper.policy" "${POLKIT_DIR}/"; then
+            echo "   ✅ Polkit policy installed"
+        else
+            echo "   ⚠️  Polkit policy install skipped (needs root)"
+            echo "      Run manually: sudo cp polkit/com.kportwatch.helper.policy ${POLKIT_DIR}/"
+        fi
+    else
+        echo "   ⚠️  Polkit policy install skipped (no sudo available)"
+    fi
 fi
 
 # ── 8. Restart Plasma (optional) ─────────────────────────────

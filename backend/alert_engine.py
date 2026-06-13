@@ -9,6 +9,7 @@ Built-in alert rules:
   5. N+ new ports in one cycle            → WARNING
   6. Custom user rules (from config)      → user-defined level
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -16,8 +17,6 @@ import json
 import logging
 import time
 from pathlib import Path
-
-log = logging.getLogger(__name__)
 
 from shared import (
     BASELINE_FILE,
@@ -30,6 +29,8 @@ from shared.config import CustomRule
 from shared.fs_utils import atomic_write
 
 from backend.models import Alert, SocketEntry
+
+log = logging.getLogger(__name__)
 
 
 class AlertEngine:
@@ -107,10 +108,13 @@ class AlertEngine:
     def save_baseline(self, path: str | None = None) -> None:
         """Persist the baseline port set to disk with SHA-256 checksum."""
         path = path or BASELINE_FILE
-        payload = json.dumps({
-            "ports": sorted(self._baseline_ports),
-            "timestamp": time.time(),
-        }, indent=2)
+        payload = json.dumps(
+            {
+                "ports": sorted(self._baseline_ports),
+                "timestamp": time.time(),
+            },
+            indent=2,
+        )
         atomic_write(path, payload)
 
         # Write integrity checksum
@@ -190,110 +194,127 @@ class AlertEngine:
 
             # Rule 0: Blacklisted port → always CRITICAL
             if port in self.port_blacklist:
-                alerts.append(Alert(
-                    level=AlertLevel.CRITICAL,
-                    port=port,
-                    proto=entry.proto,
-                    process_name=entry.process_name,
-                    pid=entry.pid,
-                    message=f"Blacklisted port {port} detected ({entry.process_name or 'unknown'})",
-                    timestamp=now,
-                ))
+                alerts.append(
+                    Alert(
+                        level=AlertLevel.CRITICAL,
+                        port=port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=f"Blacklisted port {port} detected ({entry.process_name or 'unknown'})",
+                        timestamp=now,
+                    )
+                )
                 continue
 
             # Rule 0b: Blacklisted IP → always CRITICAL
             if entry.remote_ip and self.ip_blacklist:
                 from fnmatch import fnmatch
+
                 for pattern in self.ip_blacklist:
                     if fnmatch(entry.remote_ip, pattern):
-                        alerts.append(Alert(
-                            level=AlertLevel.CRITICAL,
-                            port=port,
-                            proto=entry.proto,
-                            process_name=entry.process_name,
-                            pid=entry.pid,
-                            message=f"Blacklisted IP {entry.remote_ip} connected on port {port}",
-                            timestamp=now,
-                        ))
+                        alerts.append(
+                            Alert(
+                                level=AlertLevel.CRITICAL,
+                                port=port,
+                                proto=entry.proto,
+                                process_name=entry.process_name,
+                                pid=entry.pid,
+                                message=f"Blacklisted IP {entry.remote_ip} connected on port {port}",
+                                timestamp=now,
+                            )
+                        )
                         break
 
             # Rule 1: Malicious port
             if port in self.malicious_ports:
-                alerts.append(Alert(
-                    level=AlertLevel.CRITICAL,
-                    port=port,
-                    proto=entry.proto,
-                    process_name=entry.process_name,
-                    pid=entry.pid,
-                    message=f"Known malicious port {port} detected ({entry.process_name or 'unknown'})",
-                    timestamp=now,
-                ))
+                alerts.append(
+                    Alert(
+                        level=AlertLevel.CRITICAL,
+                        port=port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=f"Known malicious port {port} detected ({entry.process_name or 'unknown'})",
+                        timestamp=now,
+                    )
+                )
                 continue  # no need for further rules
 
             # Rule 4: Process with no cmdline
             if entry.cmdline is None or entry.cmdline == "":
-                alerts.append(Alert(
-                    level=AlertLevel.WARNING,
-                    port=port,
-                    proto=entry.proto,
-                    process_name=entry.process_name,
-                    pid=entry.pid,
-                    message=f"Process on port {port} has no cmdline ({entry.process_name or 'unknown'}, pid={entry.pid})",
-                    timestamp=now,
-                ))
+                alerts.append(
+                    Alert(
+                        level=AlertLevel.WARNING,
+                        port=port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=f"Process on port {port} has no cmdline ({entry.process_name or 'unknown'}, pid={entry.pid})",
+                        timestamp=now,
+                    )
+                )
 
             # Rule 2: Privileged port not known-safe and not in baseline
             if port <= self.privileged_port_max and not is_known_safe and not is_baseline:
-                alerts.append(Alert(
-                    level=AlertLevel.WARNING,
-                    port=port,
-                    proto=entry.proto,
-                    process_name=entry.process_name,
-                    pid=entry.pid,
-                    message=f"Unknown privileged port {port} detected",
-                    timestamp=now,
-                ))
+                alerts.append(
+                    Alert(
+                        level=AlertLevel.WARNING,
+                        port=port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=f"Unknown privileged port {port} detected",
+                        timestamp=now,
+                    )
+                )
                 continue
 
             # Rule 3: New listening port not in baseline
             if self._baseline_stable and not is_baseline:
                 new_ports.append(entry)
-                alerts.append(Alert(
-                    level=AlertLevel.INFO,
-                    port=port,
-                    proto=entry.proto,
-                    process_name=entry.process_name,
-                    pid=entry.pid,
-                    message=f"New listening port {port} not in baseline",
-                    timestamp=now,
-                ))
+                alerts.append(
+                    Alert(
+                        level=AlertLevel.INFO,
+                        port=port,
+                        proto=entry.proto,
+                        process_name=entry.process_name,
+                        pid=entry.pid,
+                        message=f"New listening port {port} not in baseline",
+                        timestamp=now,
+                    )
+                )
 
         # Rule 5: Burst — N+ new ports in one cycle
         if self._baseline_stable and len(new_ports) >= self.burst_threshold:
             port_list = ", ".join(str(e.local_port) for e in new_ports[:10])
-            alerts.append(Alert(
-                level=AlertLevel.WARNING,
-                port=0,
-                proto="*",
-                process_name=None,
-                pid=None,
-                message=f"Burst: {len(new_ports)} new ports in one cycle ({port_list})",
-                timestamp=now,
-            ))
+            alerts.append(
+                Alert(
+                    level=AlertLevel.WARNING,
+                    port=0,
+                    proto="*",
+                    process_name=None,
+                    pid=None,
+                    message=f"Burst: {len(new_ports)} new ports in one cycle ({port_list})",
+                    timestamp=now,
+                )
+            )
 
         # Rule 6: Custom user rules
         for rule in self.custom_rules:
             for entry in entries:
                 if rule.matches(entry):
                     level = AlertLevel(rule.level)
-                    alerts.append(Alert(
-                        level=level,
-                        port=entry.local_port,
-                        proto=entry.proto,
-                        process_name=entry.process_name,
-                        pid=entry.pid,
-                        message=rule.message,
-                        timestamp=now,
-                    ))
+                    alerts.append(
+                        Alert(
+                            level=level,
+                            port=entry.local_port,
+                            proto=entry.proto,
+                            process_name=entry.process_name,
+                            pid=entry.pid,
+                            message=rule.message,
+                            timestamp=now,
+                        )
+                    )
 
         return alerts

@@ -8,6 +8,7 @@ O14: Sparkline history for RX/TX rates (last 20 samples).
 O10: Interface IP address display.
 O15: IEC binary prefixes (KiB/MiB/GiB).
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -25,11 +26,13 @@ def _get_interface_ip(iface: str) -> str:
         import fcntl
         import socket
         import struct
+
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             result = fcntl.ioctl(
-                s.fileno(), 0x8915,  # SIOCGIFADDR
-                struct.pack('256s', iface.encode()[:15]),
+                s.fileno(),
+                0x8915,  # SIOCGIFADDR
+                struct.pack("256s", iface.encode()[:15]),
             )
             return socket.inet_ntoa(result[20:24])
         finally:
@@ -68,7 +71,7 @@ def _mini_sparkline(data: deque[float], color: str) -> str:
         idx = min(int((v / max_val) * (len(blocks) - 1)), len(blocks) - 1)
         chars.append(blocks[idx])
 
-    return f"[{color}]{'' . join(chars)}[/]"
+    return f"[{color}]{''.join(chars)}[/]"
 
 
 class TrafficBar(Static):

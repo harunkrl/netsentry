@@ -6,6 +6,7 @@ Line format (whitespace-separated):
 IPv4 addresses are 8-hex-char, big-endian (e.g. 0100007F → 127.0.0.1).
 IPv6 addresses are 32-hex-char, stored as 4 x 32-bit words in little-endian.
 """
+
 from __future__ import annotations
 
 import ipaddress
@@ -22,6 +23,7 @@ from backend.models import SocketEntry
 
 # ── Internal helpers ───────────────────────────────────────────
 
+
 def _parse_hex_ip(hex_str: str) -> str:
     """Convert hex IP from /proc/net to dotted-decimal or IPv6 string.
 
@@ -36,7 +38,7 @@ def _parse_hex_ip(hex_str: str) -> str:
         return str(addr)
     if len(hex_str) == 32:
         # IPv6 — 4 groups of 8 hex chars, each group is a 32-bit LE word
-        words = [hex_str[i:i+8] for i in range(0, 32, 8)]
+        words = [hex_str[i : i + 8] for i in range(0, 32, 8)]
         # Swap bytes in each 32-bit word (little-endian → network byte order)
         decoded_words = []
         for w in words:
@@ -73,6 +75,7 @@ def _decode_state(state_hex: str, proto: str) -> str:
 
 
 # ── Public API ─────────────────────────────────────────────────
+
 
 def parse_proc_net(path: str, proto: str) -> list[SocketEntry]:
     """Parse a single /proc/net/ file into a list of SocketEntry.
@@ -121,17 +124,19 @@ def parse_proc_net(path: str, proto: str) -> list[SocketEntry]:
         remote_port = _parse_hex_port(remote_port_hex)
         state = _decode_state(state_hex, proto)
 
-        entries.append(SocketEntry(
-            proto=proto,
-            local_ip=local_ip,
-            local_port=local_port,
-            remote_ip=remote_ip,
-            remote_port=remote_port,
-            state=state,
-            state_code=state_hex,
-            uid=uid,
-            inode=inode,
-        ))
+        entries.append(
+            SocketEntry(
+                proto=proto,
+                local_ip=local_ip,
+                local_port=local_port,
+                remote_ip=remote_ip,
+                remote_port=remote_port,
+                state=state,
+                state_code=state_hex,
+                uid=uid,
+                inode=inode,
+            )
+        )
 
     return entries
 

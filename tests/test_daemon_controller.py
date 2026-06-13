@@ -7,6 +7,7 @@ Tests are organised by the component they target:
   - SnapshotBuilder (risk scores, snapshot assembly, publishing)
   - NotificationManager (desktop notifications)
 """
+
 from __future__ import annotations
 
 import os
@@ -15,14 +16,13 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
+from backend.daemon.collector import DataCollector
 from backend.daemon.commands import CommandHandler
-from backend.daemon.collector import CollectedData, DataCollector
+from backend.daemon.controller import DaemonController
 from backend.daemon.notifications import NotificationManager
 from backend.daemon.snapshot import SnapshotBuilder
-from backend.daemon.controller import DaemonController
 from backend.models import Alert, AlertLevel, InterfaceStats, SocketEntry
 from shared.config import AppConfig
-
 
 # ── Shared Fixtures ───────────────────────────────────────────────
 
@@ -184,13 +184,17 @@ class TestAdaptiveInterval:
 
         assert interval == controller.cfg.poll_interval
 
-    def test_alert_interval_when_alerts_present(self, controller, sample_listening_entries, sample_alert):
+    def test_alert_interval_when_alerts_present(
+        self, controller, sample_listening_entries, sample_alert
+    ):
         """Test that alert_poll_interval is used when alerts are present."""
         interval = controller._adaptive_interval(sample_listening_entries, [sample_alert])
 
         assert interval == controller.cfg.alert_poll_interval
 
-    def test_idle_interval_when_no_changes_for_threshold(self, controller, sample_listening_entries):
+    def test_idle_interval_when_no_changes_for_threshold(
+        self, controller, sample_listening_entries
+    ):
         """Test that idle_poll_interval is used when idle threshold exceeded."""
         controller._last_snapshot_hash = hash(
             frozenset((e.local_port, e.proto, e.state) for e in sample_listening_entries)
@@ -210,7 +214,9 @@ class TestAdaptiveInterval:
 
         controller._adaptive_interval(sample_listening_entries, [])
 
-        new_hash = hash(frozenset((e.local_port, e.proto, e.state) for e in sample_listening_entries))
+        new_hash = hash(
+            frozenset((e.local_port, e.proto, e.state) for e in sample_listening_entries)
+        )
         assert controller._last_snapshot_hash == new_hash
         assert controller._last_snapshot_hash != hash(
             frozenset((e.local_port, e.proto, e.state) for e in initial_entries)
@@ -235,8 +241,22 @@ class TestAdaptiveInterval:
     def test_multiple_alerts_still_uses_alert_interval(self, controller, sample_listening_entries):
         """Test that multiple alerts still use alert_poll_interval."""
         alerts = [
-            Alert(level=AlertLevel.WARNING, port=8000, proto="tcp", process_name="app1", pid=1000, message="Alert 1"),
-            Alert(level=AlertLevel.CRITICAL, port=9000, proto="tcp", process_name="app2", pid=2000, message="Alert 2"),
+            Alert(
+                level=AlertLevel.WARNING,
+                port=8000,
+                proto="tcp",
+                process_name="app1",
+                pid=1000,
+                message="Alert 1",
+            ),
+            Alert(
+                level=AlertLevel.CRITICAL,
+                port=9000,
+                proto="tcp",
+                process_name="app2",
+                pid=2000,
+                message="Alert 2",
+            ),
         ]
 
         interval = controller._adaptive_interval(sample_listening_entries, alerts)
@@ -268,12 +288,30 @@ class TestAdaptiveInterval:
     def test_state_change_included_in_hash(self, controller):
         """Test that socket state is included in hash calculation."""
         entry1 = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80, remote_ip="0.0.0.0", remote_port=0,
-            state="LISTEN", state_code="0A", uid=0, inode=100, pid=1, process_name="nginx",
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="0.0.0.0",
+            remote_port=0,
+            state="LISTEN",
+            state_code="0A",
+            uid=0,
+            inode=100,
+            pid=1,
+            process_name="nginx",
         )
         entry2 = SocketEntry(
-            proto="tcp", local_ip="0.0.0.0", local_port=80, remote_ip="0.0.0.0", remote_port=0,
-            state="ESTABLISHED", state_code="01", uid=0, inode=101, pid=1, process_name="nginx",
+            proto="tcp",
+            local_ip="0.0.0.0",
+            local_port=80,
+            remote_ip="0.0.0.0",
+            remote_port=0,
+            state="ESTABLISHED",
+            state_code="01",
+            uid=0,
+            inode=101,
+            pid=1,
+            process_name="nginx",
         )
 
         controller._last_snapshot_hash = hash(
@@ -450,7 +488,9 @@ class TestIntegration:
         mock_stat_result.st_uid = test_uid
         monkeypatch.setattr(os, "stat", lambda path: mock_stat_result)
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "SIGTERM"}):
+        with patch.object(
+            CommandHandler, "_kill_process", return_value={"status": "ok", "message": "SIGTERM"}
+        ):
             result = handler.handle_command({"command": "kill", "pid": test_pid})
 
         assert result["status"] == "ok"
@@ -459,9 +499,30 @@ class TestIntegration:
         """Test notification flow with multiple alert types."""
         nm = NotificationManager(mock_config)
         alerts = [
-            Alert(level=AlertLevel.INFO, port=8000, proto="tcp", process_name="app1", pid=1000, message="Info"),
-            Alert(level=AlertLevel.WARNING, port=9000, proto="tcp", process_name="app2", pid=2000, message="Warning"),
-            Alert(level=AlertLevel.CRITICAL, port=4444, proto="tcp", process_name="app3", pid=3000, message="Critical"),
+            Alert(
+                level=AlertLevel.INFO,
+                port=8000,
+                proto="tcp",
+                process_name="app1",
+                pid=1000,
+                message="Info",
+            ),
+            Alert(
+                level=AlertLevel.WARNING,
+                port=9000,
+                proto="tcp",
+                process_name="app2",
+                pid=2000,
+                message="Warning",
+            ),
+            Alert(
+                level=AlertLevel.CRITICAL,
+                port=4444,
+                proto="tcp",
+                process_name="app3",
+                pid=3000,
+                message="Critical",
+            ),
         ]
 
         with patch("subprocess.Popen") as mock_popen:
@@ -507,7 +568,11 @@ class TestHandleSocketCommand:
         mock_stat_result.st_uid = test_uid
         monkeypatch.setattr(os, "stat", lambda path: mock_stat_result)
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "Process killed"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={"status": "ok", "message": "Process killed"},
+        ):
             result = command_handler.handle_command({"command": "kill", "pid": test_pid})
 
         assert result["status"] == "ok"
@@ -548,7 +613,14 @@ class TestHandleSocketCommand:
         test_pid = 99999
         monkeypatch.setattr(os, "stat", Mock(side_effect=FileNotFoundError))
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": f"Process {test_pid} not found (already gone)"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={
+                "status": "ok",
+                "message": f"Process {test_pid} not found (already gone)",
+            },
+        ):
             result = command_handler.handle_command({"command": "kill", "pid": test_pid})
 
         assert result["status"] == "ok"
@@ -560,7 +632,11 @@ class TestHandleSocketCommand:
         mock_stat_result.st_uid = test_uid
         monkeypatch.setattr(os, "stat", lambda path: mock_stat_result)
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "Process killed"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={"status": "ok", "message": "Process killed"},
+        ):
             for _ in range(5):
                 result = command_handler.handle_command({"command": "kill", "pid": test_pid})
                 assert result["status"] == "ok"
@@ -576,7 +652,11 @@ class TestHandleSocketCommand:
         mock_stat_result.st_uid = test_uid
         monkeypatch.setattr(os, "stat", lambda path: mock_stat_result)
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "Process killed"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={"status": "ok", "message": "Process killed"},
+        ):
             with patch("time.time", return_value=0.0):
                 for _ in range(5):
                     result = command_handler.handle_command({"command": "kill", "pid": test_pid})
@@ -604,7 +684,11 @@ class TestHandleSocketCommand:
         mock_stat_result.st_uid = test_uid
         monkeypatch.setattr(os, "stat", lambda path: mock_stat_result)
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "Process killed"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={"status": "ok", "message": "Process killed"},
+        ):
             command_handler.handle_command({"command": "kill", "pid": test_pid})
 
         assert len(command_handler._kill_timestamps) == initial_len + 1
@@ -619,7 +703,11 @@ class TestHandleSocketCommand:
 
         command_handler._kill_timestamps.extend([0.0, 0.5, 1.0])
 
-        with patch.object(CommandHandler, "_kill_process", return_value={"status": "ok", "message": "Process killed"}):
+        with patch.object(
+            CommandHandler,
+            "_kill_process",
+            return_value={"status": "ok", "message": "Process killed"},
+        ):
             with patch("time.time", return_value=61.0):
                 result = command_handler.handle_command({"command": "kill", "pid": test_pid})
 
@@ -656,7 +744,9 @@ class TestKillProcess:
 
     def test_kill_process_permission_denied(self, monkeypatch):
         test_pid = 12345
-        monkeypatch.setattr(os, "kill", Mock(side_effect=PermissionError("Operation not permitted")))
+        monkeypatch.setattr(
+            os, "kill", Mock(side_effect=PermissionError("Operation not permitted"))
+        )
         result = CommandHandler._kill_process(test_pid)
         assert result["status"] == "error"
         assert "Permission denied" in result["message"]
@@ -674,11 +764,7 @@ class TestKillProcess:
 
         def mock_kill(pid, sig):
             kill_sequence.append((pid, sig))
-            if sig == signal.SIGTERM:
-                return None
-            elif sig == signal.SIGKILL:
-                return None
-            elif sig == 0:
+            if sig == signal.SIGTERM or sig == signal.SIGKILL or sig == 0:
                 return None
             raise ProcessLookupError()
 
@@ -699,9 +785,7 @@ class TestKillProcess:
 
         def mock_kill(pid, sig):
             kill_calls.append((pid, sig))
-            if sig == signal.SIGTERM:
-                return None
-            elif sig == 0:
+            if sig == signal.SIGTERM or sig == 0:
                 return None
             elif sig == signal.SIGKILL:
                 raise PermissionError("Operation not permitted")
@@ -776,8 +860,12 @@ class TestNotificationManager:
 
     def test_info_alert_no_notification(self, nm):
         info_alert = Alert(
-            level=AlertLevel.INFO, port=9000, proto="tcp", process_name="app",
-            pid=1000, message="New listening port 9000",
+            level=AlertLevel.INFO,
+            port=9000,
+            proto="tcp",
+            process_name="app",
+            pid=1000,
+            message="New listening port 9000",
         )
         with patch("subprocess.Popen") as mock_popen:
             nm.handle([info_alert])
@@ -845,8 +933,12 @@ class TestNotificationManager:
 
     def test_notification_truncates_message(self, nm):
         long_alert = Alert(
-            level=AlertLevel.WARNING, port=8080, proto="tcp", process_name="test",
-            pid=1000, message="A" * 300,
+            level=AlertLevel.WARNING,
+            port=8080,
+            proto="tcp",
+            process_name="test",
+            pid=1000,
+            message="A" * 300,
         )
         with patch("subprocess.Popen") as mock_popen:
             nm.handle([long_alert])
@@ -858,8 +950,12 @@ class TestNotificationManager:
 
     def test_notification_sanitizes_message(self, nm):
         dirty_alert = Alert(
-            level=AlertLevel.WARNING, port=8080, proto="tcp", process_name="test",
-            pid=1000, message="Test\x00\x01\x02message with control chars",
+            level=AlertLevel.WARNING,
+            port=8080,
+            proto="tcp",
+            process_name="test",
+            pid=1000,
+            message="Test\x00\x01\x02message with control chars",
         )
         with patch("subprocess.Popen") as mock_popen:
             nm.handle([dirty_alert])
@@ -923,16 +1019,25 @@ class TestDataCollector:
     def test_collect_entries_without_psutil(self, collector, monkeypatch):
         sample_entries = [
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=22, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=0, inode=12345,
-                pid=None, process_name=None,
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=22,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=12345,
+                pid=None,
+                process_name=None,
             )
         ]
 
         with patch("backend.daemon.collector.parse_all_proc", return_value=sample_entries):
-            with patch("backend.daemon.collector.build_inode_to_pid_map", return_value={
-                12345: (1, "sshd", "/usr/sbin/sshd -D")
-            }):
+            with patch(
+                "backend.daemon.collector.build_inode_to_pid_map",
+                return_value={12345: (1, "sshd", "/usr/sbin/sshd -D")},
+            ):
                 with patch("backend.daemon.collector.build_uid_process_map", return_value={}):
                     entries, _inode_map = collector._collect_entries()
 
@@ -944,9 +1049,18 @@ class TestDataCollector:
     def test_collect_entries_with_psutil(self, collector):
         sample_entries = [
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=80, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=0, inode=67890,
-                pid=2, process_name="nginx", cmdline="/usr/sbin/nginx",
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=80,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=67890,
+                pid=2,
+                process_name="nginx",
+                cmdline="/usr/sbin/nginx",
             )
         ]
 
@@ -961,16 +1075,25 @@ class TestDataCollector:
     def test_collect_entries_psutil_missing_pid(self, collector):
         sample_entries = [
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=443, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=0, inode=11111,
-                pid=None, process_name=None,
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=443,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=11111,
+                pid=None,
+                process_name=None,
             )
         ]
 
         with patch("backend.daemon.collector._psutil_connections", return_value=sample_entries):
-            with patch("backend.daemon.collector.build_inode_to_pid_map", return_value={
-                11111: (3, "apache", "/usr/sbin/apache2")
-            }):
+            with patch(
+                "backend.daemon.collector.build_inode_to_pid_map",
+                return_value={11111: (3, "apache", "/usr/sbin/apache2")},
+            ):
                 with patch("backend.daemon.collector.build_uid_process_map", return_value={}):
                     entries, _inode_map = collector._collect_entries()
 
@@ -981,17 +1104,26 @@ class TestDataCollector:
     def test_collect_entries_resolves_via_uid(self, collector):
         sample_entries = [
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=53, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=1000, inode=99999,
-                pid=None, process_name=None,
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=53,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=1000,
+                inode=99999,
+                pid=None,
+                process_name=None,
             )
         ]
 
         with patch("backend.daemon.collector.parse_all_proc", return_value=sample_entries):
             with patch("backend.daemon.collector.build_inode_to_pid_map", return_value={}):
-                with patch("backend.daemon.collector.build_uid_process_map", return_value={
-                    1000: ("user", "dnsmasq", "/usr/sbin/dnsmasq")
-                }):
+                with patch(
+                    "backend.daemon.collector.build_uid_process_map",
+                    return_value={1000: ("user", "dnsmasq", "/usr/sbin/dnsmasq")},
+                ):
                     entries, _inode_map = collector._collect_entries()
 
         assert entries[0].process_name == "dnsmasq (user)"
@@ -1010,14 +1142,32 @@ class TestDataCollector:
     def test_collect_entries_multiple(self, collector):
         sample_entries = [
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=22, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=0, inode=100, pid=1,
-                process_name="sshd", cmdline="/usr/sbin/sshd"
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=22,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=100,
+                pid=1,
+                process_name="sshd",
+                cmdline="/usr/sbin/sshd",
             ),
             SocketEntry(
-                proto="tcp", local_ip="0.0.0.0", local_port=80, remote_ip="0.0.0.0",
-                remote_port=0, state="LISTEN", state_code="0A", uid=0, inode=101, pid=2,
-                process_name="nginx", cmdline="/usr/sbin/nginx"
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=80,
+                remote_ip="0.0.0.0",
+                remote_port=0,
+                state="LISTEN",
+                state_code="0A",
+                uid=0,
+                inode=101,
+                pid=2,
+                process_name="nginx",
+                cmdline="/usr/sbin/nginx",
             ),
         ]
 
@@ -1052,18 +1202,37 @@ class TestSnapshotBuilder:
 
     def test_build_snapshot_basic(self, sb, sample_listening_entries):
         from backend.models import ProcessInfo
+
         sample_alerts = [
-            Alert(level=AlertLevel.WARNING, port=8080, proto="tcp", process_name="unknown",
-                  pid=None, message="Test alert", timestamp=time.time())
+            Alert(
+                level=AlertLevel.WARNING,
+                port=8080,
+                proto="tcp",
+                process_name="unknown",
+                pid=None,
+                message="Test alert",
+                timestamp=time.time(),
+            )
         ]
         sample_traffic = {
             "eth0": InterfaceStats(
-                interface="eth0", rx_bytes=1000, tx_bytes=500, rx_packets=10, tx_packets=5,
-                rx_errors=0, tx_errors=0, rx_drops=0, tx_drops=0, rx_rate=100.0, tx_rate=50.0,
+                interface="eth0",
+                rx_bytes=1000,
+                tx_bytes=500,
+                rx_packets=10,
+                tx_packets=5,
+                rx_errors=0,
+                tx_errors=0,
+                rx_drops=0,
+                tx_drops=0,
+                rx_rate=100.0,
+                tx_rate=50.0,
             )
         }
         sample_process_tree = {
-            1: ProcessInfo(pid=1, ppid=0, name="init", cmdline="/sbin/init", state="S", uid=0, children=[2])
+            1: ProcessInfo(
+                pid=1, ppid=0, name="init", cmdline="/sbin/init", state="S", uid=0, children=[2]
+            )
         }
         sample_risk_scores = {22: 0.1, 80: 0.2}
 
@@ -1089,15 +1258,33 @@ class TestSnapshotBuilder:
     def test_build_snapshot_with_geo_stats(self, sb, sample_listening_entries):
         sample_established = [
             SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=44532, remote_ip="8.8.8.8",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=1000, inode=67890,
-                pid=1234, process_name="firefox", cmdline="/usr/lib/firefox/firefox",
+                proto="tcp",
+                local_ip="192.168.1.10",
+                local_port=44532,
+                remote_ip="8.8.8.8",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=1000,
+                inode=67890,
+                pid=1234,
+                process_name="firefox",
+                cmdline="/usr/lib/firefox/firefox",
                 remote_country_code="US",
             ),
             SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=44533, remote_ip="1.1.1.1",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=1000, inode=67891,
-                pid=1234, process_name="firefox", cmdline="/usr/lib/firefox/firefox",
+                proto="tcp",
+                local_ip="192.168.1.10",
+                local_port=44533,
+                remote_ip="1.1.1.1",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=1000,
+                inode=67891,
+                pid=1234,
+                process_name="firefox",
+                cmdline="/usr/lib/firefox/firefox",
                 remote_country_code="US",
             ),
         ]
@@ -1118,8 +1305,13 @@ class TestSnapshotBuilder:
 
     def test_build_snapshot_empty_lists(self, sb):
         snapshot = sb._build_snapshot(
-            listening=[], established=[], alerts=[], traffic={},
-            process_tree={}, risk_scores={}, interval_ms=2000,
+            listening=[],
+            established=[],
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2000,
         )
         assert snapshot.listening == []
         assert snapshot.summary["total_listening"] == 0
@@ -1127,16 +1319,25 @@ class TestSnapshotBuilder:
 
     def test_build_snapshot_poll_interval_ms(self, sb, sample_listening_entries):
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=[], alerts=[],
-            traffic={}, process_tree={}, risk_scores={}, interval_ms=2500,
+            listening=sample_listening_entries,
+            established=[],
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2500,
         )
         assert snapshot.poll_interval_ms == 2500
 
     def test_build_snapshot_risk_scores_in_summary(self, sb, sample_listening_entries):
         sample_risk_scores = {22: 0.1, 80: 0.8, 443: 0.05}
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=[], alerts=[],
-            traffic={}, process_tree={}, risk_scores=sample_risk_scores,
+            listening=sample_listening_entries,
+            established=[],
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores=sample_risk_scores,
             interval_ms=2000,
         )
         assert snapshot.summary["risk_scores"] == {"22": 0.1, "80": 0.8, "443": 0.05}
@@ -1144,32 +1345,88 @@ class TestSnapshotBuilder:
     def test_build_snapshot_geo_without_country_code(self, sb, sample_listening_entries):
         sample_established = [
             SocketEntry(
-                proto="tcp", local_ip="192.168.1.10", local_port=44532, remote_ip="192.168.1.1",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=1000, inode=67890,
-                pid=1234, process_name="app", cmdline="/app", remote_country_code=None,
+                proto="tcp",
+                local_ip="192.168.1.10",
+                local_port=44532,
+                remote_ip="192.168.1.1",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=1000,
+                inode=67890,
+                pid=1234,
+                process_name="app",
+                cmdline="/app",
+                remote_country_code=None,
             )
         ]
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=sample_established,
-            alerts=[], traffic={}, process_tree={}, risk_scores={}, interval_ms=2000,
+            listening=sample_listening_entries,
+            established=sample_established,
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2000,
         )
         assert snapshot.geo_stats["countries_count"] == 0
 
     def test_build_snapshot_multiple_countries(self, sb, sample_listening_entries):
         sample_established = [
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=1, remote_ip="1.1.1.1",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=1, pid=1,
-                process_name="test", cmdline="test", remote_country_code="US"),
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=2, remote_ip="2.2.2.2",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=2, pid=1,
-                process_name="test", cmdline="test", remote_country_code="US"),
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=3, remote_ip="3.3.3.3",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=3, pid=1,
-                process_name="test", cmdline="test", remote_country_code="DE"),
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=1,
+                remote_ip="1.1.1.1",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=1,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code="US",
+            ),
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=2,
+                remote_ip="2.2.2.2",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=2,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code="US",
+            ),
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=3,
+                remote_ip="3.3.3.3",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=3,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code="DE",
+            ),
         ]
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=sample_established,
-            alerts=[], traffic={}, process_tree={}, risk_scores={}, interval_ms=2000,
+            listening=sample_listening_entries,
+            established=sample_established,
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2000,
         )
         assert snapshot.geo_stats["countries_count"] == 2
         assert snapshot.geo_stats["unique_ips_per_country"]["US"] == 2
@@ -1177,19 +1434,48 @@ class TestSnapshotBuilder:
 
     def test_build_snapshot_top_countries_sorted(self, sb, sample_listening_entries):
         sample_established = [
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=i, remote_ip=f"{i}.{i}.{i}.{i}",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=i, pid=1,
-                process_name="test", cmdline="test", remote_country_code="US")
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=i,
+                remote_ip=f"{i}.{i}.{i}.{i}",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=i,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code="US",
+            )
             for i in range(1, 4)
         ] + [
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=i+10, remote_ip=f"{i+10}.{i+10}.{i+10}.{i+10}",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=i+10, pid=1,
-                process_name="test", cmdline="test", remote_country_code="DE")
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=i + 10,
+                remote_ip=f"{i + 10}.{i + 10}.{i + 10}.{i + 10}",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=i + 10,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code="DE",
+            )
             for i in range(1, 3)
         ]
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=sample_established,
-            alerts=[], traffic={}, process_tree={}, risk_scores={}, interval_ms=2000,
+            listening=sample_listening_entries,
+            established=sample_established,
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2000,
         )
         top = snapshot.geo_stats["top_countries"]
         assert top[0] == ("US", 3)
@@ -1197,14 +1483,31 @@ class TestSnapshotBuilder:
 
     def test_build_snapshot_top_countries_limited(self, sb, sample_listening_entries):
         sample_established = [
-            SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=i, remote_ip=f"{i}.{i}.{i}.{i}",
-                remote_port=443, state="ESTABLISHED", state_code="01", uid=0, inode=i, pid=1,
-                process_name="test", cmdline="test", remote_country_code=f"C{i:02d}")
+            SocketEntry(
+                proto="tcp",
+                local_ip="0.0.0.0",
+                local_port=i,
+                remote_ip=f"{i}.{i}.{i}.{i}",
+                remote_port=443,
+                state="ESTABLISHED",
+                state_code="01",
+                uid=0,
+                inode=i,
+                pid=1,
+                process_name="test",
+                cmdline="test",
+                remote_country_code=f"C{i:02d}",
+            )
             for i in range(12)
         ]
         snapshot = sb._build_snapshot(
-            listening=sample_listening_entries, established=sample_established,
-            alerts=[], traffic={}, process_tree={}, risk_scores={}, interval_ms=2000,
+            listening=sample_listening_entries,
+            established=sample_established,
+            alerts=[],
+            traffic={},
+            process_tree={},
+            risk_scores={},
+            interval_ms=2000,
         )
         assert len(snapshot.geo_stats["top_countries"]) == 10
         assert snapshot.geo_stats["countries_count"] == 12
@@ -1227,7 +1530,9 @@ class TestPublish:
             cfg=mock_config,
         )
 
-    def _make_snapshot(self, sb, listening, alerts=None, traffic=None, process_tree=None, risk_scores=None):
+    def _make_snapshot(
+        self, sb, listening, alerts=None, traffic=None, process_tree=None, risk_scores=None
+    ):
         """Helper to build a snapshot for publish tests."""
         return sb._build_snapshot(
             listening=listening,
@@ -1242,7 +1547,9 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_writes_snapshot(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_writes_snapshot(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         snapshot = self._make_snapshot(sb, sample_listening_entries)
         sb._publish(snapshot, [])
         mock_write.assert_called_once()
@@ -1252,7 +1559,9 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_broadcasts_to_socket(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_broadcasts_to_socket(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         snapshot = self._make_snapshot(sb, sample_listening_entries)
         sb._publish(snapshot, [])
         sb._socket_server.broadcast.assert_called_once()
@@ -1262,15 +1571,19 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_without_socket_server(self, mock_hb, mock_widget, mock_write, mock_config, sample_listening_entries):
+    def test_publish_without_socket_server(
+        self, mock_hb, mock_widget, mock_write, mock_config, sample_listening_entries
+    ):
         alert_engine = Mock()
         alert_engine.malicious_ports = set()
         alert_engine.known_safe = {}
         alert_engine.port_blacklist = set()
         alert_engine.is_baseline_complete.return_value = False
         sb_no_sock = SnapshotBuilder(
-            alert_engine=alert_engine, history=Mock(),
-            socket_server=None, cfg=mock_config,
+            alert_engine=alert_engine,
+            history=Mock(),
+            socket_server=None,
+            cfg=mock_config,
         )
         snapshot = self._make_snapshot(sb_no_sock, sample_listening_entries)
         sb_no_sock._publish(snapshot, [])
@@ -1279,10 +1592,19 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_records_history(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_records_history(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         sample_alerts = [
-            Alert(level=AlertLevel.WARNING, port=8080, proto="tcp", process_name="test",
-                  pid=1000, message="Test alert", timestamp=time.time())
+            Alert(
+                level=AlertLevel.WARNING,
+                port=8080,
+                proto="tcp",
+                process_name="test",
+                pid=1000,
+                message="Test alert",
+                timestamp=time.time(),
+            )
         ]
         snapshot = self._make_snapshot(sb, sample_listening_entries, alerts=sample_alerts)
         sb._publish(snapshot, sample_alerts)
@@ -1292,15 +1614,19 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_with_no_history(self, mock_hb, mock_widget, mock_write, mock_config, sample_listening_entries):
+    def test_publish_with_no_history(
+        self, mock_hb, mock_widget, mock_write, mock_config, sample_listening_entries
+    ):
         alert_engine = Mock()
         alert_engine.malicious_ports = set()
         alert_engine.known_safe = {}
         alert_engine.port_blacklist = set()
         alert_engine.is_baseline_complete.return_value = False
         sb_no_hist = SnapshotBuilder(
-            alert_engine=alert_engine, history=None,
-            socket_server=Mock(), cfg=mock_config,
+            alert_engine=alert_engine,
+            history=None,
+            socket_server=Mock(),
+            cfg=mock_config,
         )
         snapshot = self._make_snapshot(sb_no_hist, sample_listening_entries)
         try:
@@ -1312,7 +1638,9 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_heartbeat_uses_effective_path(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_heartbeat_uses_effective_path(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         snapshot = self._make_snapshot(sb, sample_listening_entries)
         sb._publish(snapshot, [])
         mock_hb.assert_called_once()
@@ -1322,12 +1650,28 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_with_multiple_alerts(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_with_multiple_alerts(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         sample_alerts = [
-            Alert(level=AlertLevel.WARNING, port=8080, proto="tcp", process_name="app1",
-                  pid=1000, message="Alert 1", timestamp=time.time()),
-            Alert(level=AlertLevel.CRITICAL, port=4444, proto="tcp", process_name="app2",
-                  pid=2000, message="Alert 2", timestamp=time.time()),
+            Alert(
+                level=AlertLevel.WARNING,
+                port=8080,
+                proto="tcp",
+                process_name="app1",
+                pid=1000,
+                message="Alert 1",
+                timestamp=time.time(),
+            ),
+            Alert(
+                level=AlertLevel.CRITICAL,
+                port=4444,
+                proto="tcp",
+                process_name="app2",
+                pid=2000,
+                message="Alert 2",
+                timestamp=time.time(),
+            ),
         ]
         snapshot = self._make_snapshot(sb, sample_listening_entries, alerts=sample_alerts)
         sb._publish(snapshot, sample_alerts)
@@ -1336,16 +1680,24 @@ class TestPublish:
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_passes_snapshot_json_to_broadcast(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_passes_snapshot_json_to_broadcast(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         snapshot = self._make_snapshot(sb, sample_listening_entries)
         sb._publish(snapshot, [])
         broadcast_arg = sb._socket_server.broadcast.call_args[0][0]
-        assert "KPortWatch" in broadcast_arg or "listening" in broadcast_arg or "summary" in broadcast_arg
+        assert (
+            "KPortWatch" in broadcast_arg
+            or "listening" in broadcast_arg
+            or "summary" in broadcast_arg
+        )
 
     @patch("backend.daemon.snapshot.write_snapshot")
     @patch("backend.daemon.snapshot.write_widget_snapshot")
     @patch("backend.daemon.snapshot._write_heartbeat")
-    def test_publish_records_summary_once(self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries):
+    def test_publish_records_summary_once(
+        self, mock_hb, mock_widget, mock_write, sb, sample_listening_entries
+    ):
         snapshot = self._make_snapshot(sb, sample_listening_entries)
         sb._publish(snapshot, [])
         sb._history.record_summary.assert_called_once()

@@ -2,6 +2,7 @@
 
 Uses Textual's pilot API for headless testing without needing a running daemon.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,6 +27,7 @@ from tui.widgets.traffic_bar import TrafficBar
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_socket_entry() -> SocketEntry:
@@ -144,6 +146,7 @@ def mock_provider(sample_snapshot: Snapshot) -> DataProvider:
 # MainScreen Tests
 # =============================================================================
 
+
 class TestMainScreen:
     """Tests for MainScreen."""
 
@@ -154,6 +157,7 @@ class TestMainScreen:
 
         # Create a minimal app for testing
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -173,6 +177,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -193,13 +198,14 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
             await pilot.pause()
 
             # Mock the exit method to verify it's called
-            with patch.object(app, 'exit') as mock_exit:
+            with patch.object(app, "exit") as mock_exit:
                 screen.action_quit()
                 mock_exit.assert_called_once()
 
@@ -209,13 +215,14 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
             await pilot.pause()
 
             # Mock refresh_data to verify it's called
-            with patch.object(screen, 'refresh_data') as mock_refresh:
+            with patch.object(screen, "refresh_data") as mock_refresh:
                 screen.action_refresh()
                 mock_refresh.assert_called_once()
 
@@ -225,13 +232,14 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
             await pilot.pause()
 
             # Mock the export worker to verify it's called
-            with patch.object(screen, '_do_export_task') as mock_export:
+            with patch.object(screen, "_do_export_task") as mock_export:
                 screen.action_export()
                 mock_export.assert_called_once()
 
@@ -241,6 +249,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -263,6 +272,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -284,6 +294,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -305,6 +316,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -334,10 +346,12 @@ class TestMainScreen:
 
     @pytest.mark.asyncio
     async def test_main_screen_proto_filter_cycle(self, mock_provider: DataProvider):
-        """Proto filter cycles through ALL → TCP → UDP → ICMP → ALL."""
+        """Proto filter cycles through ALL → TCP → UDP → ALL (ICMP is not
+        monitored — it never appears in /proc/net/{tcp,udp})."""
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -355,9 +369,7 @@ class TestMainScreen:
             screen.action_proto_filter_cycle()
             assert port_table.filter_proto == "UDP"
 
-            screen.action_proto_filter_cycle()
-            assert port_table.filter_proto == "ICMP"
-
+            # UDP wraps back to ALL (no ICMP step)
             screen.action_proto_filter_cycle()
             assert port_table.filter_proto == "ALL"
 
@@ -370,6 +382,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -393,6 +406,7 @@ class TestMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -405,6 +419,7 @@ class TestMainScreen:
 # =============================================================================
 # SettingsScreen Tests
 # =============================================================================
+
 
 class TestSettingsScreen:
     """Tests for SettingsScreen."""
@@ -422,6 +437,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -445,6 +461,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -470,6 +487,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -494,6 +512,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             result = await app.push_screen(screen)
@@ -516,6 +535,7 @@ class TestSettingsScreen:
 
         from textual.app import App
         from tui.themes import register_kpw_themes
+
         app = App()
         async with app.run_test() as pilot:
             # Register themes first
@@ -537,6 +557,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -561,6 +582,7 @@ class TestSettingsScreen:
         )
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -573,6 +595,7 @@ class TestSettingsScreen:
 # ProcessKillConfirm Tests
 # =============================================================================
 
+
 class TestProcessKillConfirm:
     """Tests for ProcessKillConfirm modal from process_tree_screen.py."""
 
@@ -582,6 +605,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             await app.push_screen(screen)
@@ -598,6 +622,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -617,6 +642,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -635,6 +661,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             await app.push_screen(screen)
@@ -651,6 +678,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             await app.push_screen(screen)
@@ -667,6 +695,7 @@ class TestProcessKillConfirm:
         screen = ProcessKillConfirm(pid=1234, name="firefox")
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -692,6 +721,7 @@ class TestProcessKillConfirm:
 # KillConfirmScreen Tests (from kill_confirm.py)
 # =============================================================================
 
+
 class TestKillConfirmScreen:
     """Tests for KillConfirmScreen from kill_confirm.py."""
 
@@ -702,6 +732,7 @@ class TestKillConfirmScreen:
         screen = KillConfirmScreen(entry=sample_socket_entry, provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             await app.push_screen(screen)
@@ -713,12 +744,15 @@ class TestKillConfirmScreen:
             assert screen.entry.process_name == "sshd"
 
     @pytest.mark.asyncio
-    async def test_kill_confirm_screen_cancel_dismisses_with_none(self, sample_socket_entry: SocketEntry):
+    async def test_kill_confirm_screen_cancel_dismisses_with_none(
+        self, sample_socket_entry: SocketEntry
+    ):
         """Cancel dismisses with None."""
         mock_provider = Mock(spec=DataProvider)
         screen = KillConfirmScreen(entry=sample_socket_entry, provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             result = await app.push_screen(screen)
@@ -733,12 +767,15 @@ class TestKillConfirmScreen:
             assert result is None
 
     @pytest.mark.asyncio
-    async def test_kill_confirm_screen_escape_dismisses_with_none(self, sample_socket_entry: SocketEntry):
+    async def test_kill_confirm_screen_escape_dismisses_with_none(
+        self, sample_socket_entry: SocketEntry
+    ):
         """Escape key dismisses with None."""
         mock_provider = Mock(spec=DataProvider)
         screen = KillConfirmScreen(entry=sample_socket_entry, provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             result = await app.push_screen(screen)
@@ -752,7 +789,9 @@ class TestKillConfirmScreen:
             assert result is None
 
     @pytest.mark.asyncio
-    async def test_kill_confirm_screen_sigterm_calls_provider(self, sample_socket_entry: SocketEntry):
+    async def test_kill_confirm_screen_sigterm_calls_provider(
+        self, sample_socket_entry: SocketEntry
+    ):
         """SIGTERM button calls provider.kill_process."""
         mock_provider = Mock(spec=DataProvider)
         mock_provider.kill_process.return_value = (True, "Process terminated")
@@ -760,6 +799,7 @@ class TestKillConfirmScreen:
         screen = KillConfirmScreen(entry=sample_socket_entry, provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             await app.push_screen(screen)
@@ -777,7 +817,9 @@ class TestKillConfirmScreen:
             mock_provider.kill_process.assert_called_once_with(sample_socket_entry.pid)
 
     @pytest.mark.asyncio
-    async def test_kill_confirm_screen_no_pid_dismisses_with_error(self, sample_socket_entry: SocketEntry):
+    async def test_kill_confirm_screen_no_pid_dismisses_with_error(
+        self, sample_socket_entry: SocketEntry
+    ):
         """Entry with no PID dismisses with error message."""
         # Create entry without PID
         entry_no_pid = SocketEntry(
@@ -798,6 +840,7 @@ class TestKillConfirmScreen:
         screen = KillConfirmScreen(entry=entry_no_pid, provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -819,6 +862,7 @@ class TestKillConfirmScreen:
 # ConnectionLog Tests (as a widget on MainScreen)
 # =============================================================================
 
+
 class TestConnectionLogOnMainScreen:
     """Tests for ConnectionLog widget behavior on MainScreen."""
 
@@ -828,6 +872,7 @@ class TestConnectionLogOnMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -849,6 +894,7 @@ class TestConnectionLogOnMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -870,6 +916,7 @@ class TestConnectionLogOnMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -887,6 +934,7 @@ class TestConnectionLogOnMainScreen:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -908,6 +956,7 @@ class TestConnectionLogOnMainScreen:
 # ProcessTreeScreen Tests
 # =============================================================================
 
+
 class TestProcessTreeScreen:
     """Tests for ProcessTreeScreen."""
 
@@ -917,6 +966,7 @@ class TestProcessTreeScreen:
         screen = ProcessTreeScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -924,6 +974,7 @@ class TestProcessTreeScreen:
 
             # Check that tree widget exists
             from textual.widgets import Tree
+
             tree = screen.query_one("#process-tree", Tree)
             assert tree is not None
 
@@ -933,6 +984,7 @@ class TestProcessTreeScreen:
         screen = ProcessTreeScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -951,6 +1003,7 @@ class TestProcessTreeScreen:
         screen = ProcessTreeScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -979,6 +1032,7 @@ class TestProcessTreeScreen:
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 class TestTuiIntegration:
     """Integration tests for TUI screen interactions."""
@@ -1016,7 +1070,7 @@ class TestTuiIntegration:
             await pilot.pause()
 
             # Mock the app's push_screen method
-            with patch.object(app, 'push_screen') as mock_push:
+            with patch.object(app, "push_screen") as mock_push:
                 main_screen.action_tree()
                 # Should push a ProcessTreeScreen
                 assert mock_push.called
@@ -1027,6 +1081,7 @@ class TestTuiIntegration:
         screen = MainScreen(provider=mock_provider)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1050,6 +1105,7 @@ class TestTuiIntegration:
 # HelpScreen Tests
 # =============================================================================
 
+
 class TestHelpScreen:
     """Tests for HelpScreen from help_screen.py."""
 
@@ -1059,6 +1115,7 @@ class TestHelpScreen:
         screen = HelpScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1066,6 +1123,7 @@ class TestHelpScreen:
 
             # Check that widgets are present
             from textual.widgets import Footer, Header, Markdown
+
             header = screen.query_one(Header)
             footer = screen.query_one(Footer)
             markdown = screen.query_one(Markdown)
@@ -1090,6 +1148,7 @@ class TestHelpScreen:
         screen = HelpScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1108,6 +1167,7 @@ class TestHelpScreen:
         screen = HelpScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1126,6 +1186,7 @@ class TestHelpScreen:
         screen = HelpScreen()
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1145,6 +1206,7 @@ class TestHelpScreen:
 
         from textual.app import App
         from textual.widgets import Markdown
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1163,6 +1225,7 @@ class TestHelpScreen:
 
         from textual.app import App
         from textual.widgets import Markdown
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1180,6 +1243,7 @@ class TestHelpScreen:
 
         from textual.app import App
         from textual.containers import VerticalScroll
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1194,6 +1258,7 @@ class TestHelpScreen:
 # DetailScreen Tests
 # =============================================================================
 
+
 class TestDetailScreen:
     """Tests for DetailScreen from detail_screen.py."""
 
@@ -1203,6 +1268,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1210,6 +1276,7 @@ class TestDetailScreen:
 
             # Check that widgets are present
             from textual.widgets import Footer, Header
+
             header = screen.query_one(Header)
             footer = screen.query_one(Footer)
             assert header is not None
@@ -1225,6 +1292,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1253,6 +1321,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1273,11 +1342,14 @@ class TestDetailScreen:
         assert hasattr(screen, "action_copy_info")
 
     @pytest.mark.asyncio
-    async def test_detail_screen_copy_action_calls_safe_copy(self, sample_socket_entry: SocketEntry):
+    async def test_detail_screen_copy_action_calls_safe_copy(
+        self, sample_socket_entry: SocketEntry
+    ):
         """action_copy_info() calls safe_copy_to_clipboard."""
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1294,12 +1366,15 @@ class TestDetailScreen:
                 assert "PID" in copied_text
 
     @pytest.mark.asyncio
-    async def test_detail_screen_shows_connection_details_section(self, sample_socket_entry: SocketEntry):
+    async def test_detail_screen_shows_connection_details_section(
+        self, sample_socket_entry: SocketEntry
+    ):
         """DetailScreen shows CONNECTION DETAILS section."""
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1316,6 +1391,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1332,6 +1408,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1348,6 +1425,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1364,6 +1442,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1380,6 +1459,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1396,6 +1476,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1411,6 +1492,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1421,13 +1503,16 @@ class TestDetailScreen:
             assert len(geo_container) > 0
 
     @pytest.mark.asyncio
-    async def test_detail_screen_shows_duration_with_first_seen(self, sample_established_entry: SocketEntry):
+    async def test_detail_screen_shows_duration_with_first_seen(
+        self, sample_established_entry: SocketEntry
+    ):
         """DetailScreen shows duration when first_seen is set."""
         sample_established_entry.first_seen = time.time() - 100  # 100 seconds ago
         screen = DetailScreen(sample_established_entry)
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1438,13 +1523,16 @@ class TestDetailScreen:
             assert "DURATION" in static_text or "Duration" in static_text
 
     @pytest.mark.asyncio
-    async def test_detail_screen_shows_risk_score_when_present(self, sample_established_entry: SocketEntry):
+    async def test_detail_screen_shows_risk_score_when_present(
+        self, sample_established_entry: SocketEntry
+    ):
         """DetailScreen shows risk score when set."""
         sample_established_entry.risk_score = 0.8
         screen = DetailScreen(sample_established_entry)
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1455,11 +1543,14 @@ class TestDetailScreen:
             assert "SECURITY" in static_text or "Risk" in static_text
 
     @pytest.mark.asyncio
-    async def test_detail_screen_displays_footer_with_shortcuts(self, sample_socket_entry: SocketEntry):
+    async def test_detail_screen_displays_footer_with_shortcuts(
+        self, sample_socket_entry: SocketEntry
+    ):
         """DetailScreen shows footer with keyboard shortcuts."""
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1472,13 +1563,16 @@ class TestDetailScreen:
             assert len(footer[0].children) > 0
 
     @pytest.mark.asyncio
-    async def test_detail_screen_shows_hostname_when_present(self, sample_established_entry: SocketEntry):
+    async def test_detail_screen_shows_hostname_when_present(
+        self, sample_established_entry: SocketEntry
+    ):
         """DetailScreen shows hostname when set."""
         sample_established_entry.remote_hostname = "example.com"
         screen = DetailScreen(sample_established_entry)
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1489,7 +1583,9 @@ class TestDetailScreen:
             assert "example.com" in static_text
 
     @pytest.mark.asyncio
-    async def test_detail_screen_shows_geo_info_when_present(self, sample_established_entry: SocketEntry):
+    async def test_detail_screen_shows_geo_info_when_present(
+        self, sample_established_entry: SocketEntry
+    ):
         """DetailScreen shows geo info when set."""
         sample_established_entry.remote_country = "United States"
         sample_established_entry.remote_city = "Mountain View"
@@ -1497,6 +1593,7 @@ class TestDetailScreen:
 
         from textual.app import App
         from textual.widgets import Static
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1515,6 +1612,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             # Should mount without error
@@ -1531,6 +1629,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1540,12 +1639,15 @@ class TestDetailScreen:
             assert app.screen is screen
 
     @pytest.mark.asyncio
-    async def test_detail_screen_copy_includes_hostname(self, sample_established_entry: SocketEntry):
+    async def test_detail_screen_copy_includes_hostname(
+        self, sample_established_entry: SocketEntry
+    ):
         """Copied text includes hostname when present."""
         sample_established_entry.remote_hostname = "example.com"
         screen = DetailScreen(sample_established_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)
@@ -1563,6 +1665,7 @@ class TestDetailScreen:
         screen = DetailScreen(sample_socket_entry)
 
         from textual.app import App
+
         app = App()
         async with app.run_test() as pilot:
             app.push_screen(screen)

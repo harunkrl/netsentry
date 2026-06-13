@@ -3,6 +3,7 @@
 
 Launch with:  python3 tui/kportwatch_tui.py
 """
+
 from __future__ import annotations
 
 import os
@@ -59,16 +60,23 @@ class KPortWatchTUI(App):
         self.notifications_enabled: bool = cfg.tui_notifications_enabled
         self.data_provider = DataProvider()
         # Resolve saved theme key — may be old key name
-        self._theme_name: str = self._resolve_theme_key(
-            getattr(cfg, "color_theme", DEFAULT_THEME)
-        )
+        self._theme_name: str = self._resolve_theme_key(getattr(cfg, "color_theme", DEFAULT_THEME))
 
     @staticmethod
     def _resolve_theme_key(key: str) -> str:
         """Resolve a theme key, handling old names gracefully."""
         # Old → new mapping
-        legacy_map = {"dark": "cyberpunk", "nord": "nord", "solarized": "solarized-dark", "light": "kpw-light"}
-        return legacy_map.get(key, key) if key not in KPW_THEMES and key not in THEME_DISPLAY_MAP.values() else key
+        legacy_map = {
+            "dark": "cyberpunk",
+            "nord": "nord",
+            "solarized": "solarized-dark",
+            "light": "kpw-light",
+        }
+        return (
+            legacy_map.get(key, key)
+            if key not in KPW_THEMES and key not in THEME_DISPLAY_MAP.values()
+            else key
+        )
 
     def on_mount(self) -> None:
         """Register custom themes and apply the persisted theme."""
@@ -87,16 +95,19 @@ class KPortWatchTUI(App):
 
     def action_open_settings(self) -> None:
         from tui.screens.settings_screen import SettingsScreen
+
         cfg = get_config()
         theme_display = key_to_display_name(current_theme_key(self))
-        self.push_screen(SettingsScreen(
-            desktop_notifications=cfg.notifications_enabled,
-            tui_notifications=self.notifications_enabled,
-            geoip_enabled=getattr(cfg, 'geoip_enabled', True),
-            burst_threshold=getattr(cfg, 'burst_threshold', 3),
-            scan_threshold=getattr(cfg, 'scan_threshold', 5),
-            current_theme=theme_display,
-        ))
+        self.push_screen(
+            SettingsScreen(
+                desktop_notifications=cfg.notifications_enabled,
+                tui_notifications=self.notifications_enabled,
+                geoip_enabled=getattr(cfg, "geoip_enabled", True),
+                burst_threshold=getattr(cfg, "burst_threshold", 3),
+                scan_threshold=getattr(cfg, "scan_threshold", 5),
+                current_theme=theme_display,
+            )
+        )
 
 
 def main() -> None:

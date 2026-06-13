@@ -7,6 +7,7 @@ K6: Socket I/O uses timeout to prevent indefinite blocking.
 K11: kill_process() is designed to be called via ``run_in_executor``
      or ``asyncio.to_thread`` to avoid blocking the TUI event loop.
 """
+
 from __future__ import annotations
 
 import json
@@ -99,8 +100,7 @@ class DataProvider:
             return True, f"Process {pid} terminated gracefully (SIGTERM)"
         except PermissionError:
             return False, (
-                f"Permission denied — cannot kill PID {pid}. "
-                "Try running with elevated privileges."
+                f"Permission denied — cannot kill PID {pid}. Try running with elevated privileges."
             )
 
         # Brief wait to confirm

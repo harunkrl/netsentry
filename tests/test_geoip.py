@@ -1,4 +1,5 @@
 """KPortWatch — Tests for backend.parsers.geoip."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,7 @@ from backend.parsers import geoip as geoip_mod
 from shared.network import is_private_ip
 
 # ── Fixtures ────────────────────────────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_geoip_module():
@@ -38,6 +40,7 @@ def _reset_geoip_module():
 
 def _reinit_executor(mod):
     from concurrent.futures import ThreadPoolExecutor
+
     svc = mod._default_service
     try:
         if svc._executor is None or svc._executor._shutdown:
@@ -46,9 +49,15 @@ def _reinit_executor(mod):
         svc._executor = ThreadPoolExecutor(max_workers=1)
 
 
-def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",
-                city: str = "Istanbul", lat: float = 41.01, lon: float = 28.98,
-                cached_at: float | None = None) -> dict:
+def _seed_cache(
+    ip: str,
+    country: str = "Turkey",
+    country_code: str = "TR",
+    city: str = "Istanbul",
+    lat: float = 41.01,
+    lon: float = 28.98,
+    cached_at: float | None = None,
+) -> dict:
     """Add an entry directly to the in-memory cache and return it."""
     entry = {
         "country": country,
@@ -64,6 +73,7 @@ def _seed_cache(ip: str, country: str = "Turkey", country_code: str = "TR",
 
 
 # ── Private IP detection ───────────────────────────────────────
+
 
 class TestPrivateIPDetection:
     def test_loopback_v4(self):
@@ -123,6 +133,7 @@ class TestPrivateIPDetection:
 
 # ── Cache hit / miss / TTL ─────────────────────────────────────
 
+
 class TestCacheHit:
     def test_cache_hit_returns_entry(self):
         _seed_cache("8.8.8.8")
@@ -157,6 +168,7 @@ class TestCacheHit:
 
 # ── Lookup trigger ─────────────────────────────────────────────
 
+
 class TestLookupTrigger:
     def test_uncached_ip_submits_background_lookup(self):
         with patch.object(geoip_mod._default_service._executor, "submit") as mock_submit:
@@ -173,19 +185,22 @@ class TestLookupTrigger:
 
 # ── Do lookup (API interaction) ────────────────────────────────
 
+
 class TestDoLookup:
     def test_successful_lookup_stores_geo(self):
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "status": "success",
-            "country": "United States",
-            "countryCode": "US",
-            "city": "Mountain View",
-            "lat": 37.386,
-            "lon": -122.084,
-            "isp": "Google",
-            "org": "Google LLC",
-        }).encode()
+        mock_response.read.return_value = json.dumps(
+            {
+                "status": "success",
+                "country": "United States",
+                "countryCode": "US",
+                "city": "Mountain View",
+                "lat": 37.386,
+                "lon": -122.084,
+                "isp": "Google",
+                "org": "Google LLC",
+            }
+        ).encode()
         mock_response.__enter__ = lambda s: mock_response
         mock_response.__exit__ = MagicMock(return_value=False)
 
@@ -202,6 +217,7 @@ class TestDoLookup:
 
     def test_api_failure_stores_nothing(self):
         from urllib.error import URLError
+
         with patch("backend.parsers.geoip.urlopen", side_effect=URLError("timeout")):
             geoip_mod._default_service._do_lookup("1.1.1.1")
 
@@ -212,6 +228,7 @@ class TestDoLookup:
 
     def test_api_429_rate_limit(self):
         from urllib.error import HTTPError
+
         error = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch("backend.parsers.geoip.urlopen", side_effect=error):
             geoip_mod._default_service._do_lookup("1.1.1.1")
@@ -220,10 +237,12 @@ class TestDoLookup:
 
     def test_api_returns_fail_status(self):
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "status": "fail",
-            "message": "invalid query",
-        }).encode()
+        mock_response.read.return_value = json.dumps(
+            {
+                "status": "fail",
+                "message": "invalid query",
+            }
+        ).encode()
         mock_response.__enter__ = lambda s: mock_response
         mock_response.__exit__ = MagicMock(return_value=False)
 
@@ -235,16 +254,18 @@ class TestDoLookup:
     def test_pending_cleared_after_lookup(self):
         geoip_mod._default_service._pending_lookups.add("9.9.9.9")
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "status": "success",
-            "country": "Germany",
-            "countryCode": "DE",
-            "city": "Berlin",
-            "lat": 52.52,
-            "lon": 13.405,
-            "isp": "Test",
-            "org": "Test",
-        }).encode()
+        mock_response.read.return_value = json.dumps(
+            {
+                "status": "success",
+                "country": "Germany",
+                "countryCode": "DE",
+                "city": "Berlin",
+                "lat": 52.52,
+                "lon": 13.405,
+                "isp": "Test",
+                "org": "Test",
+            }
+        ).encode()
         mock_response.__enter__ = lambda s: mock_response
         mock_response.__exit__ = MagicMock(return_value=False)
 
@@ -256,6 +277,7 @@ class TestDoLookup:
 
 # ── LRU eviction ───────────────────────────────────────────────
 
+
 class TestLRUEviction:
     def test_evicts_oldest_when_over_limit(self):
         geoip_mod._default_service._cache_max_entries = 3
@@ -266,10 +288,18 @@ class TestLRUEviction:
 
         # Adding one more should evict the oldest (1.1.1.1)
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "status": "success", "country": "X", "countryCode": "XX",
-            "city": "Y", "lat": 0.0, "lon": 0.0, "isp": "", "org": "",
-        }).encode()
+        mock_response.read.return_value = json.dumps(
+            {
+                "status": "success",
+                "country": "X",
+                "countryCode": "XX",
+                "city": "Y",
+                "lat": 0.0,
+                "lon": 0.0,
+                "isp": "",
+                "org": "",
+            }
+        ).encode()
         mock_response.__enter__ = lambda s: mock_response
         mock_response.__exit__ = MagicMock(return_value=False)
 
@@ -283,6 +313,7 @@ class TestLRUEviction:
 
 
 # ── Persistent cache I/O ───────────────────────────────────────
+
 
 class TestPersistentCache:
     def test_save_and_load(self, tmp_path):
@@ -330,8 +361,12 @@ class TestPersistentCache:
         cache_file = str(tmp_path / "geoip-cache.json")
         data = {
             "8.8.8.8": {
-                "country": "US", "countryCode": "US", "city": "MV",
-                "lat": 37.0, "lon": -122.0, "cached_at": time.time(),
+                "country": "US",
+                "countryCode": "US",
+                "city": "MV",
+                "lat": 37.0,
+                "lon": -122.0,
+                "cached_at": time.time(),
             },
             "1.1.1.1": {"country": "AU"},  # missing required keys
             "bad": "not a dict",
@@ -364,6 +399,7 @@ class TestPersistentCache:
 
 # ── Batch lookup ────────────────────────────────────────────────
 
+
 class TestBatchLookup:
     def test_batch_returns_cached_results(self):
         _seed_cache("8.8.8.8", country="United States")
@@ -394,17 +430,20 @@ class TestBatchLookup:
 
 # ── Init ────────────────────────────────────────────────────────
 
+
 class TestInit:
     def test_init_with_config(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod.init({
-            "geoip_api_url": "https://custom-api.example.com/",
-            "geoip_cache_file": cache_file,
-            "geoip_cache_max_entries": 500,
-            "geoip_cache_ttl_days": 14,
-            "geoip_batch_size": 5,
-            "geoip_timeout": 3.0,
-        })
+        geoip_mod.init(
+            {
+                "geoip_api_url": "https://custom-api.example.com/",
+                "geoip_cache_file": cache_file,
+                "geoip_cache_max_entries": 500,
+                "geoip_cache_ttl_days": 14,
+                "geoip_batch_size": 5,
+                "geoip_timeout": 3.0,
+            }
+        )
         assert geoip_mod._default_service._api_url == "https://custom-api.example.com/"
         assert geoip_mod._default_service._cache_max_entries == 500
         assert geoip_mod._default_service._cache_ttl_days == 14
@@ -417,27 +456,35 @@ class TestInit:
     def test_init_rejects_http_url(self, tmp_path):
         """Non-HTTPS API URLs should be rejected and forced to default."""
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod.init({
-            "geoip_api_url": "http://malicious.example.com/",
-            "geoip_cache_file": cache_file,
-        })
+        geoip_mod.init(
+            {
+                "geoip_api_url": "http://malicious.example.com/",
+                "geoip_cache_file": cache_file,
+            }
+        )
         assert geoip_mod._default_service._api_url == "https://ipwho.is/"
 
     def test_init_rejects_localhost_url(self, tmp_path):
         """Localhost API URLs should be rejected and forced to default."""
         cache_file = str(tmp_path / "geoip-cache.json")
-        geoip_mod.init({
-            "geoip_api_url": "https://127.0.0.1/",
-            "geoip_cache_file": cache_file,
-        })
+        geoip_mod.init(
+            {
+                "geoip_api_url": "https://127.0.0.1/",
+                "geoip_cache_file": cache_file,
+            }
+        )
         assert geoip_mod._default_service._api_url == "https://ipwho.is/"
 
     def test_init_loads_existing_cache(self, tmp_path):
         cache_file = str(tmp_path / "geoip-cache.json")
         data = {
             "8.8.8.8": {
-                "country": "US", "countryCode": "US", "city": "MV",
-                "lat": 37.0, "lon": -122.0, "cached_at": time.time(),
+                "country": "US",
+                "countryCode": "US",
+                "city": "MV",
+                "lat": 37.0,
+                "lon": -122.0,
+                "cached_at": time.time(),
             },
         }
         with open(cache_file, "w") as f:

@@ -6,6 +6,7 @@ connection counts, and keyboard hints.
 Responsive: adapts content to terminal width.  Shortcuts are
 rendered without Rich bracket markup to avoid parsing confusion.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -57,10 +58,7 @@ class StatusBar(Static):
         self.update("... Waiting for data ...")
 
     def show_daemon_down(self) -> None:
-        self.update(
-            "\u2717 DAEMON OFFLINE  |  "
-            "Start: kportwatch-daemon --foreground"
-        )
+        self.update("\u2717 DAEMON OFFLINE  |  Start: kportwatch-daemon --foreground")
 
     def rerender(self) -> None:
         """Re-render with cached data (called on terminal resize)."""
@@ -123,9 +121,7 @@ class StatusBar(Static):
         if alert_count == 0:
             status_seg = "\u2022 Secure"
         else:
-            has_critical = any(
-                getattr(a, "level", "") == "CRITICAL" for a in alerts
-            )
+            has_critical = any(getattr(a, "level", "") == "CRITICAL" for a in alerts)
             status_seg = "✗ CRITICAL" if has_critical else "⚠ Warning"
 
         # Desktop notifications indicator

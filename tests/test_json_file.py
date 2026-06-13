@@ -1,4 +1,5 @@
 """KPortWatch — Tests for backend.writers.json_file (atomic JSON I/O)."""
+
 import json
 import os
 
@@ -46,6 +47,7 @@ def _make_sample_snapshot() -> Snapshot:
 
 # ── Roundtrip ──────────────────────────────────────────────────
 
+
 class TestWriteReadRoundtrip:
     def test_write_then_read_roundtrip(self, tmp_data_file):
         """write_snapshot followed by read_snapshot returns an equivalent Snapshot."""
@@ -77,6 +79,7 @@ class TestWriteReadRoundtrip:
 
 # ── Error handling ─────────────────────────────────────────────
 
+
 class TestReadErrors:
     def test_read_missing_file_returns_none(self, tmp_path):
         """Reading a non-existent file returns None."""
@@ -97,6 +100,7 @@ class TestReadErrors:
 
 
 # ── Atomicity ──────────────────────────────────────────────────
+
 
 class TestAtomicWrite:
     def test_tmp_file_cleaned_up_after_write(self, tmp_data_file):
@@ -128,6 +132,7 @@ class TestAtomicWrite:
 
 # ── Parent directory creation ──────────────────────────────────
 
+
 class TestParentDirCreation:
     def test_creates_parent_directories(self, tmp_path):
         """write_snapshot should create parent dirs if they don't exist."""
@@ -151,6 +156,7 @@ class TestParentDirCreation:
 
 
 # ── Widget snapshot ───────────────────────────────────────────
+
 
 class TestWriteWidgetSnapshot:
     def test_write_widget_snapshot_creates_file(self, tmp_path):

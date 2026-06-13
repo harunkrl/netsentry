@@ -10,6 +10,7 @@ def testread_file_safe(tmp_path):
     assert read_file_safe(str(f)) == "hello"
     assert read_file_safe(str(tmp_path / "nonexistent")) is None
 
+
 @patch("backend.parsers.inode_map.os.listdir")
 @patch("backend.parsers.inode_map.os.readlink")
 @patch("backend.parsers.inode_map.read_file_safe")

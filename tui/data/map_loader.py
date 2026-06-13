@@ -3,6 +3,7 @@
 Loads the Braille ASCII world map from an external data file with
 LRU caching to avoid repeated disk I/O.
 """
+
 from __future__ import annotations
 
 import logging

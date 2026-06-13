@@ -10,6 +10,7 @@ OrderedDict LRU cache, thread-pool background lookups, lock-based safety.
 Uses ipwho.is as primary API (HTTPS, no key required, 10 000 req/month).
 Falls back to ip-api.com (HTTP, 45 req/min) if ipwho.is fails.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -31,6 +32,7 @@ logger = logging.getLogger("kportwatch.geoip")
 
 # ── Service class ──────────────────────────────────────────────────────────
 
+
 class GeoIpService:
     """Encapsulates GeoIP lookup functionality with thread-safe state.
 
@@ -48,7 +50,7 @@ class GeoIpService:
     _DEFAULT_CACHE_TTL_DAYS = 7
     _DEFAULT_TIMEOUT = 5.0
     _DEFAULT_BATCH_SIZE = 10
-    _DEFAULT_MIN_REQUEST_INTERVAL = 1.5  # 45 req/min ≈ 1.33s, use 1.5s for safety
+    _DEFAULT_MIN_REQUEST_INTERVAL = 1.5  # conservative spacing (~40 req/min)
 
     # Required keys for cache entries
     _REQUIRED_KEYS = frozenset({"country", "countryCode", "lat", "lon", "cached_at"})
@@ -95,6 +97,7 @@ class GeoIpService:
 
         # Validate API URL scheme — only HTTPS allowed to prevent SSRF
         from urllib.parse import urlparse as _urlparse
+
         parsed = _urlparse(self._api_url)
         if parsed.scheme != "https":
             logger.warning(
@@ -112,9 +115,7 @@ class GeoIpService:
         self._cache_max_entries = max(
             1, config_dict.get("geoip_cache_max_entries", self._cache_max_entries)
         )
-        self._cache_ttl_days = max(
-            1, config_dict.get("geoip_cache_ttl_days", self._cache_ttl_days)
-        )
+        self._cache_ttl_days = max(1, config_dict.get("geoip_cache_ttl_days", self._cache_ttl_days))
         self._timeout = max(0.1, config_dict.get("geoip_timeout", self._timeout))
         self._batch_size = max(1, config_dict.get("geoip_batch_size", self._batch_size))
 
@@ -305,7 +306,7 @@ class GeoIpService:
                     logger.debug("GeoIP (ip-api.com fallback) failed for %s: %s", ip, reason)
             except HTTPError as exc:
                 if exc.code == 429:
-                    logger.warning("GeoIP rate-limited by ip-api.com (429)")
+                    logger.warning("GeoIP rate-limited by provider (HTTP 429)")
                 else:
                     logger.debug("GeoIP (ip-api.com fallback) HTTP error for %s: %s", ip, exc)
             except (URLError, OSError, json.JSONDecodeError) as exc:
@@ -350,6 +351,7 @@ def __getattr__(name: str):
 
 # ── Module-level public API (backward-compatible wrappers) ───────────────────
 
+
 def init(config_dict: dict | None = None) -> None:
     """Configure the GeoIP module and load persistent cache.
 
@@ -386,88 +388,17 @@ def lookup_batch(ips: list[str]) -> dict[str, dict | None]:
     return _default_service.lookup_batch(ips)
 
 
-# ── Module-level state accessors (for test access/backward compat) ───────────
-
-# Create a special type that provides read-write access to singleton attributes
-class _ModuleStateAccessor:
-    """Provides module-level attribute access to the singleton service's state."""
-
-    def __init__(self, service: GeoIpService) -> None:
-        self._service = service
-
-    # Read-only access (for most uses)
-    @property
-    def memory_cache(self) -> OrderedDict[str, dict]:
-        return self._service._memory_cache
-
-    @property
-    def pending_lookups(self) -> set[str]:
-        return self._service._pending_lookups
-
-    @property
-    def lock(self) -> threading.Lock:
-        return self._service._lock
-
-    @property
-    def executor(self) -> ThreadPoolExecutor:
-        return self._service._executor
-
-    @property
-    def api_url(self) -> str:
-        return self._service._api_url
-
-    @property
-    def cache_file(self) -> str:
-        return self._service._cache_file
-
-    @property
-    def cache_max_entries(self) -> int:
-        return self._service._cache_max_entries
-
-    @property
-    def cache_ttl_days(self) -> int:
-        return self._service._cache_ttl_days
-
-    @property
-    def timeout(self) -> float:
-        return self._service._timeout
-
-    @property
-    def batch_size(self) -> int:
-        return self._service._batch_size
-
-    @property
-    def initialized(self) -> bool:
-        return self._service._initialized
-
-    @property
-    def last_request_time(self) -> float:
-        return self._service._last_request_time
-
-    @property
-    def lookups_since_save(self) -> int:
-        return self._service._lookups_since_save
-
-
-# Create accessor instance
-_state = _ModuleStateAccessor(_default_service)
-
-
-# Expose module-level attributes for backward compatibility with tests
-# These map to the accessor properties for read access
-_memory_cache = _state.memory_cache
-_pending_lookups = _state.pending_lookups
-_lock = _state.lock
-_executor = _state.executor
-_api_url = _state.api_url
-_cache_file = _state.cache_file
-_cache_max_entries = _state.cache_max_entries
-_cache_ttl_days = _state.cache_ttl_days
-_timeout = _state.timeout
-_batch_size = _state.batch_size
-_initialized = _state.initialized
-_last_request_time = _state.last_request_time
-_lookups_since_save = _state.lookups_since_save
+# ── Internal access (for tests) ────────────────────────────────
+#
+# NOTE: Module-level attributes like ``_memory_cache``, ``_initialized``,
+# ``_api_url`` … are resolved on demand by the module-level ``__getattr__``
+# proxy defined above, which delegates to ``_default_service``. We do *not*
+# bind them as module attributes at import time: doing so would snapshot
+# immutable values (str/int/bool) at import and leave them stale after a
+# later ``init()`` call, because ``__getattr__`` only fires for attributes
+# that are *absent* from ``sys.modules[__name__].__dict__``.
+#
+# Test code accesses the singleton directly via ``geoip_mod._default_service``.
 
 
 # Expose internal methods for test access

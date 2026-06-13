@@ -1,4 +1,5 @@
 """Tests for backend/update.py — version checking, state file, update logic."""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +20,7 @@ from backend.update import (
 )
 
 # ── Version parsing ───────────────────────────────────────────
+
 
 class TestParseVersion:
     """Tests for parse_version()."""
@@ -55,6 +57,7 @@ class TestParseVersion:
 
 # ── get_local_version ─────────────────────────────────────────
 
+
 class TestGetLocalVersion:
     """Tests for get_local_version()."""
 
@@ -71,6 +74,7 @@ class TestGetLocalVersion:
 
 
 # ── Update state file ─────────────────────────────────────────
+
 
 class TestUpdateStateFile:
     """Tests for write_update_state() and read_update_state()."""
@@ -133,6 +137,7 @@ class TestUpdateStateFile:
 
 # ── check_for_update ──────────────────────────────────────────
 
+
 class TestCheckForUpdate:
     """Tests for check_for_update() with mocked GitHub API."""
 
@@ -167,6 +172,7 @@ class TestCheckForUpdate:
 
 # ── get_latest_version (mocked HTTP) ──────────────────────────
 
+
 class TestGetLatestVersion:
     """Tests for get_latest_version() with mocked urllib."""
 
@@ -174,10 +180,12 @@ class TestGetLatestVersion:
     def test_parse_tags_response(self, mock_urlopen):
         """Parse a valid GitHub Tags API response."""
         mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps([
-            {"name": "v2.1.0"},
-            {"name": "v2.0.0"},
-        ]).encode()
+        mock_resp.read.return_value = json.dumps(
+            [
+                {"name": "v2.1.0"},
+                {"name": "v2.0.0"},
+            ]
+        ).encode()
         mock_resp.__enter__ = lambda s: mock_resp
         mock_resp.__exit__ = MagicMock(return_value=False)
         mock_urlopen.return_value = mock_resp
@@ -201,6 +209,7 @@ class TestGetLatestVersion:
     def test_network_error(self, mock_urlopen):
         """Network error returns None."""
         import urllib.error
+
         mock_urlopen.side_effect = urllib.error.URLError("no network")
 
         result = get_latest_version()
@@ -208,6 +217,7 @@ class TestGetLatestVersion:
 
 
 # ── _find_project_dir ─────────────────────────────────────────
+
 
 class TestFindProjectDir:
     """Tests for _find_project_dir()."""
@@ -236,6 +246,7 @@ class TestFindProjectDir:
 
 
 # ── _verify_tag ───────────────────────────────────────────────
+
 
 class TestVerifyTag:
     """Tests for _verify_tag()."""
@@ -296,6 +307,7 @@ class TestVerifyTag:
     def test_verify_tag_timeout(self, mock_run):
         """Returns False when subprocess times out."""
         import subprocess as sp
+
         mock_run.side_effect = sp.TimeoutExpired("git", 30)
 
         result = _verify_tag("v2.1.0", "/fake/project")
@@ -312,6 +324,7 @@ class TestVerifyTag:
 
 # ── perform_update ─────────────────────────────────────────────
 
+
 class TestPerformUpdate:
     """Tests for perform_update()."""
 
@@ -321,8 +334,9 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_success(self, mock_find_dir, mock_latest, mock_verify,
-                                     mock_run, mock_write_state, mock_restart):
+    def test_perform_update_success(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Successful update flow returns True."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -345,8 +359,9 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_with_restart(self, mock_find_dir, mock_latest, mock_verify,
-                                          mock_run, mock_write_state, mock_restart):
+    def test_perform_update_with_restart(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Update with daemon restart."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -387,8 +402,9 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_no_latest_version(self, mock_find_dir, mock_latest, mock_verify,
-                                                mock_run, mock_write_state, mock_restart):
+    def test_perform_update_no_latest_version(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Update proceeds when no latest version available (skips verify)."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = None  # No latest version
@@ -409,8 +425,9 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_git_pull_fails(self, mock_find_dir, mock_latest, mock_verify,
-                                             mock_run, mock_write_state, mock_restart):
+    def test_perform_update_git_pull_fails(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Returns False when git pull fails."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -431,10 +448,12 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_git_pull_timeout(self, mock_find_dir, mock_latest, mock_verify,
-                                               mock_run, mock_write_state, mock_restart):
+    def test_perform_update_git_pull_timeout(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Returns False when git pull times out."""
         import subprocess as sp
+
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
         mock_verify.return_value = True
@@ -450,8 +469,9 @@ class TestPerformUpdate:
     @patch("backend.update._verify_tag")
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
-    def test_perform_update_git_not_found(self, mock_find_dir, mock_latest, mock_verify,
-                                            mock_run, mock_write_state, mock_restart):
+    def test_perform_update_git_not_found(
+        self, mock_find_dir, mock_latest, mock_verify, mock_run, mock_write_state, mock_restart
+    ):
         """Returns False when git is not found."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -469,8 +489,16 @@ class TestPerformUpdate:
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
     @patch("os.path.exists")
-    def test_perform_update_pip_install_fails(self, mock_exists, mock_find_dir, mock_latest,
-                                               mock_verify, mock_run, mock_write_state, mock_restart):
+    def test_perform_update_pip_install_fails(
+        self,
+        mock_exists,
+        mock_find_dir,
+        mock_latest,
+        mock_verify,
+        mock_run,
+        mock_write_state,
+        mock_restart,
+    ):
         """Returns False when pip install fails."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -492,10 +520,19 @@ class TestPerformUpdate:
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
     @patch("os.path.exists")
-    def test_perform_update_pip_timeout(self, mock_exists, mock_find_dir, mock_latest,
-                                          mock_verify, mock_run, mock_write_state, mock_restart):
+    def test_perform_update_pip_timeout(
+        self,
+        mock_exists,
+        mock_find_dir,
+        mock_latest,
+        mock_verify,
+        mock_run,
+        mock_write_state,
+        mock_restart,
+    ):
         """Returns False when pip install times out."""
         import subprocess as sp
+
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
         mock_verify.return_value = True
@@ -516,8 +553,16 @@ class TestPerformUpdate:
     @patch("backend.update.get_latest_version")
     @patch("backend.update._find_project_dir")
     @patch("os.path.exists")
-    def test_perform_update_pip_not_found(self, mock_exists, mock_find_dir, mock_latest,
-                                           mock_verify, mock_run, mock_write_state, mock_restart):
+    def test_perform_update_pip_not_found(
+        self,
+        mock_exists,
+        mock_find_dir,
+        mock_latest,
+        mock_verify,
+        mock_run,
+        mock_write_state,
+        mock_restart,
+    ):
         """Returns False when pip/python is not found."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -540,8 +585,16 @@ class TestPerformUpdate:
     @patch("backend.update._find_project_dir")
     @patch("os.path.exists")
     @patch("sys.executable", "/usr/bin/python3")
-    def test_perform_update_uses_venv_python(self, mock_exists, mock_find_dir, mock_latest,
-                                              mock_verify, mock_run, mock_write_state, mock_restart):
+    def test_perform_update_uses_venv_python(
+        self,
+        mock_exists,
+        mock_find_dir,
+        mock_latest,
+        mock_verify,
+        mock_run,
+        mock_write_state,
+        mock_restart,
+    ):
         """Uses venv python when available."""
         mock_find_dir.return_value = "/fake/project"
         mock_latest.return_value = "v2.1.0"
@@ -563,6 +616,7 @@ class TestPerformUpdate:
 
 # ── _restart_daemon ───────────────────────────────────────────
 
+
 class TestRestartDaemon:
     """Tests for _restart_daemon()."""
 
@@ -582,6 +636,7 @@ class TestRestartDaemon:
     def test_restart_daemon_timeout(self, mock_run):
         """Handles systemctl timeout gracefully."""
         import subprocess as sp
+
         mock_run.side_effect = sp.TimeoutExpired("systemctl", 10)
 
         # Should not raise, just log debug
@@ -598,6 +653,7 @@ class TestRestartDaemon:
 
 # ── main() function tests ─────────────────────────────────────
 
+
 class TestMain:
     """Tests for main() CLI entry point."""
 
@@ -611,6 +667,7 @@ class TestMain:
         mock_latest.return_value = "v2.0.0"
 
         from backend.update import main
+
         # Should not raise
         main()
 
@@ -622,13 +679,16 @@ class TestMain:
     @patch("backend.update.get_local_version")
     @patch("backend.update.get_latest_version")
     @patch("backend.update.parse_version")
-    def test_main_check_latest_none(self, mock_parse_version, mock_latest, mock_local, mock_write_state, mock_exit):
+    def test_main_check_latest_none(
+        self, mock_parse_version, mock_latest, mock_local, mock_write_state, mock_exit
+    ):
         """--check when GitHub is unreachable."""
         mock_local.return_value = "2.0.0"
         mock_latest.return_value = None
         mock_parse_version.return_value = (2, 0, 0)  # Handle version comparison
 
         from backend.update import main
+
         main()
 
         mock_exit.assert_called_once_with(1)
@@ -643,6 +703,7 @@ class TestMain:
         mock_latest.return_value = "v2.1.0"
 
         from backend.update import main
+
         main()
 
         write_call = mock_write_state.call_args

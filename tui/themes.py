@@ -16,8 +16,10 @@ Usage in widgets (Rich markup)::
 
     from tui.themes import alert_colour, state_colour
 """
+
 from __future__ import annotations
 
+from shared.constants import DEFAULT_THEME
 from textual.theme import Theme
 
 # ═══════════════════════════════════════════════════════════════
@@ -55,7 +57,8 @@ KPW_THEMES: dict[str, Theme] = {
     ),
 }
 
-DEFAULT_THEME = "cyberpunk"
+# NOTE: DEFAULT_THEME is imported from shared.constants (single source of truth)
+# so that shared.config can resolve the persisted theme without a circular import.
 
 # User-facing display names → internal theme keys
 THEME_DISPLAY_MAP: dict[str, str] = {
@@ -86,24 +89,24 @@ def key_to_display_name(key: str) -> str:
 
 ALERT_COLOURS: dict[str, str] = {
     "CRITICAL": "bold red",
-    "WARNING":  "bold yellow",
-    "INFO":     "cyan",
-    "LOW":      "dim cyan",
+    "WARNING": "bold yellow",
+    "INFO": "cyan",
+    "LOW": "dim cyan",
 }
 
 STATE_COLOURS: dict[str, str] = {
     "ESTABLISHED": "bold green",
-    "LISTEN":      "bold cyan",
-    "TIME_WAIT":   "dim",
-    "CLOSE_WAIT":  "dim red",
-    "SYN_SENT":    "cyan",
-    "SYN_RECV":    "cyan",
-    "FIN_WAIT1":   "dim yellow",
-    "FIN_WAIT2":   "dim yellow",
-    "CLOSING":     "dim red",
-    "LAST_ACK":    "dim red",
-    "CLOSE":       "dim",
-    "UNCONN":      "dim",
+    "LISTEN": "bold cyan",
+    "TIME_WAIT": "dim",
+    "CLOSE_WAIT": "dim red",
+    "SYN_SENT": "cyan",
+    "SYN_RECV": "cyan",
+    "FIN_WAIT1": "dim yellow",
+    "FIN_WAIT2": "dim yellow",
+    "CLOSING": "dim red",
+    "LAST_ACK": "dim red",
+    "CLOSE": "dim",
+    "UNCONN": "dim",
 }
 
 
@@ -118,6 +121,7 @@ def state_colour(state: str) -> str:
 # ═══════════════════════════════════════════════════════════════
 # 3. Theme registration and switching
 # ═══════════════════════════════════════════════════════════════
+
 
 def register_kpw_themes(app) -> None:
     """Register KPortWatch custom themes with the Textual app.
@@ -162,6 +166,7 @@ def apply_theme(app, theme_name: str) -> None:
     # Persist to config
     try:
         from shared.config import save_config_setting
+
         save_config_setting("tui", "color_theme", theme_name)
     except Exception:
         pass

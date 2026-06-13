@@ -3,20 +3,21 @@
 Tests cover: _init_components, _handle_sighup, _handle_shutdown_signal,
 _sleep_remaining, and run() loop behavior - previously uncovered lines.
 """
+
 from __future__ import annotations
 
 import signal
 import time
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import Mock, patch
 
 import pytest
-from backend.daemon.controller import DaemonController
-from backend.models import Alert, AlertLevel, SocketEntry
 from backend.daemon.collector import CollectedData
+from backend.daemon.controller import DaemonController
+from backend.models import SocketEntry
 from shared.config import AppConfig
 
-
 # ── Fixtures ───────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_args():
@@ -96,20 +97,21 @@ class TestInitComponents:
 
     def test_init_creates_all_components(self, mock_args, mock_config):
         """All components are initialised."""
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns") as mock_rdns, \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
 
             ctrl = DaemonController(mock_args)
@@ -127,20 +129,21 @@ class TestInitComponents:
 
     def test_init_loads_config(self, mock_args, mock_config):
         """load_config is called during init."""
-        with patch("backend.daemon.controller.load_config", return_value=mock_config) as mock_load, \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config) as mock_load,
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -149,20 +152,21 @@ class TestInitComponents:
 
     def test_init_configures_dns(self, mock_args, mock_config):
         """DNS cache is configured during init."""
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns") as mock_rdns, \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns") as mock_rdns,
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -176,20 +180,21 @@ class TestInitComponents:
         """GeoIP module is initialized when enabled."""
         mock_config.geoip_enabled = True
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod") as mock_geoip, \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod") as mock_geoip,
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -200,20 +205,21 @@ class TestInitComponents:
         """GeoIP module is NOT initialized when disabled."""
         mock_config.geoip_enabled = False
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod") as mock_geoip, \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod") as mock_geoip,
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -222,20 +228,21 @@ class TestInitComponents:
 
     def test_init_loads_baseline(self, mock_args, mock_config):
         """AlertEngine.load_baseline is called during init."""
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = True
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -244,20 +251,21 @@ class TestInitComponents:
 
     def test_init_registers_signal_handlers(self, mock_args, mock_config):
         """Signal handlers are registered during init."""
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal") as mock_signal:
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal") as mock_signal,
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -271,20 +279,21 @@ class TestInitComponents:
         """Interval is set from config during init."""
         mock_config.poll_interval = 3.5
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config), \
-             patch("backend.parsers.rdns"), \
-             patch("backend.daemon.controller.AlertEngine") as mock_ae, \
-             patch("backend.daemon.controller.HistoryRecorder"), \
-             patch("backend.daemon.controller.CommandHandler"), \
-             patch("backend.daemon.controller.UnixSocketServer"), \
-             patch("backend.daemon.controller.DataCollector"), \
-             patch("backend.daemon.controller.NotificationManager"), \
-             patch("backend.daemon.controller.SnapshotBuilder"), \
-             patch("backend.daemon.controller.UpdateChecker"), \
-             patch("backend.daemon.controller.geoip_mod"), \
-             patch("signal.signal"):
-
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+            patch("backend.parsers.rdns"),
+            patch("backend.daemon.controller.AlertEngine") as mock_ae,
+            patch("backend.daemon.controller.HistoryRecorder"),
+            patch("backend.daemon.controller.CommandHandler"),
+            patch("backend.daemon.controller.UnixSocketServer"),
+            patch("backend.daemon.controller.DataCollector"),
+            patch("backend.daemon.controller.NotificationManager"),
+            patch("backend.daemon.controller.SnapshotBuilder"),
+            patch("backend.daemon.controller.UpdateChecker"),
+            patch("backend.daemon.controller.geoip_mod"),
+            patch("signal.signal"),
+        ):
             mock_ae.return_value.load_baseline.return_value = False
             ctrl = DaemonController(mock_args)
             ctrl._init_components()
@@ -304,8 +313,10 @@ class TestSignalHandlers:
         """SIGHUP reloads configuration."""
         ctrl = _make_controller(mock_args, mock_config)
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config) as mock_load, \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config):
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config) as mock_load,
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+        ):
             ctrl._handle_sighup(signal.SIGHUP, None)
             mock_load.assert_called_once_with(mock_config.config_path)
 
@@ -316,8 +327,10 @@ class TestSignalHandlers:
         new_config = mock_config
         new_config.poll_interval = 5.0
 
-        with patch("backend.daemon.controller.load_config", return_value=new_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=new_config):
+        with (
+            patch("backend.daemon.controller.load_config", return_value=new_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=new_config),
+        ):
             ctrl._handle_sighup(signal.SIGHUP, None)
             assert ctrl.interval == 5.0
 
@@ -325,8 +338,10 @@ class TestSignalHandlers:
         """SIGHUP propagates new config to all components."""
         ctrl = _make_controller(mock_args, mock_config)
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config):
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+        ):
             ctrl._handle_sighup(signal.SIGHUP, None)
 
             ctrl.collector.reconfigure.assert_called_once_with(mock_config)
@@ -338,8 +353,10 @@ class TestSignalHandlers:
         """SIGHUP resets the alert engine baseline."""
         ctrl = _make_controller(mock_args, mock_config)
 
-        with patch("backend.daemon.controller.load_config", return_value=mock_config), \
-             patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config):
+        with (
+            patch("backend.daemon.controller.load_config", return_value=mock_config),
+            patch("backend.daemon.controller.apply_cli_overrides", return_value=mock_config),
+        ):
             ctrl._handle_sighup(signal.SIGHUP, None)
             ctrl.alert_engine.reset_baseline.assert_called_once()
 
@@ -382,11 +399,13 @@ class TestSleepRemaining:
 
         # Simulate: cycle_start at t=100, current t=100.5 → 1.5s remaining
         call_num = [0]
+
         def fake_time():
             call_num[0] += 1
             if call_num[0] <= 3:
                 return 100.5  # Before end_time (102.0)
             return 103.0  # After end_time
+
         with patch("time.time", side_effect=fake_time):
             with patch("time.sleep") as mock_sleep:
                 ctrl._sleep_remaining(100.0)
@@ -408,6 +427,7 @@ class TestSleepRemaining:
         ctrl.interval = 5.0
 
         sleep_count = [0]
+
         def fake_sleep(dt):
             sleep_count[0] += 1
             if sleep_count[0] >= 1:
@@ -435,7 +455,6 @@ class TestRunLoop:
         ctrl.collector.collect.side_effect = Exception("stop test")
         call_count = [0]
 
-        original_sleep = ctrl._sleep_remaining
         def fake_sleep(cycle_start):
             call_count[0] += 1
             if call_count[0] >= 1:
@@ -443,8 +462,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = fake_sleep
 
-        with patch.object(ctrl, "_init_components") as mock_init, \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components") as mock_init, patch.object(ctrl, "_cleanup"):
             ctrl.run()
             mock_init.assert_called_once()
 
@@ -453,9 +471,19 @@ class TestRunLoop:
         ctrl = _make_controller(mock_args, mock_config)
 
         sample_data = CollectedData(
-            listening=[SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=22,
-                                    remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-                                    state_code="0A", uid=0, inode=1)],
+            listening=[
+                SocketEntry(
+                    proto="tcp",
+                    local_ip="0.0.0.0",
+                    local_port=22,
+                    remote_ip="0.0.0.0",
+                    remote_port=0,
+                    state="LISTEN",
+                    state_code="0A",
+                    uid=0,
+                    inode=1,
+                )
+            ],
             established=[],
             traffic={},
             process_tree={},
@@ -465,14 +493,14 @@ class TestRunLoop:
 
         # Run one cycle then stop
         cycle_count = [0]
+
         def stop_after_one(cycle_start):
             cycle_count[0] += 1
             ctrl.running = False
 
         ctrl._sleep_remaining = stop_after_one
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         assert cycle_count[0] >= 1
@@ -492,8 +520,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = stop_immediately
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup") as mock_cleanup:
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup") as mock_cleanup:
             ctrl.run()
             mock_cleanup.assert_called_once()
 
@@ -502,6 +529,7 @@ class TestRunLoop:
         ctrl = _make_controller(mock_args, mock_config)
 
         call_count = [0]
+
         def bad_collect():
             call_count[0] += 1
             if call_count[0] == 1:
@@ -517,8 +545,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = fake_sleep
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         # Error count incremented then reset
@@ -534,8 +561,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = fake_sleep
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         assert ctrl.running is False
@@ -546,10 +572,22 @@ class TestRunLoop:
         ctrl = _make_controller(mock_args, mock_config)
 
         sample_data = CollectedData(
-            listening=[SocketEntry(proto="tcp", local_ip="0.0.0.0", local_port=22,
-                                    remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-                                    state_code="0A", uid=0, inode=1)],
-            established=[], traffic={}, process_tree={},
+            listening=[
+                SocketEntry(
+                    proto="tcp",
+                    local_ip="0.0.0.0",
+                    local_port=22,
+                    remote_ip="0.0.0.0",
+                    remote_port=0,
+                    state="LISTEN",
+                    state_code="0A",
+                    uid=0,
+                    inode=1,
+                )
+            ],
+            established=[],
+            traffic={},
+            process_tree={},
         )
         ctrl.collector.collect.return_value = sample_data
         ctrl.alert_engine.analyze.return_value = []
@@ -561,8 +599,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = stop_after_one
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         ctrl.alert_engine.save_baseline.assert_called()
@@ -572,7 +609,10 @@ class TestRunLoop:
         ctrl = _make_controller(mock_args, mock_config)
 
         sample_data = CollectedData(
-            listening=[], established=[], traffic={}, process_tree={},
+            listening=[],
+            established=[],
+            traffic={},
+            process_tree={},
         )
         ctrl.collector.collect.return_value = sample_data
         ctrl.alert_engine.analyze.return_value = []
@@ -586,8 +626,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = stop_after_one
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         ctrl.alert_engine.save_baseline.assert_not_called()
@@ -597,6 +636,7 @@ class TestRunLoop:
         ctrl = _make_controller(mock_args, mock_config)
 
         call_count = [0]
+
         def collect_with_error():
             call_count[0] += 1
             if call_count[0] == 1:
@@ -612,8 +652,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = stop_on_second
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         assert ctrl._error_count == 0
@@ -625,7 +664,10 @@ class TestRunLoop:
         ctrl.interval = 3.0
 
         sample_data = CollectedData(
-            listening=[], established=[], traffic={}, process_tree={},
+            listening=[],
+            established=[],
+            traffic={},
+            process_tree={},
         )
         ctrl.collector.collect.return_value = sample_data
         ctrl.alert_engine.analyze.return_value = []
@@ -635,8 +677,7 @@ class TestRunLoop:
 
         ctrl._sleep_remaining = stop_after_one
 
-        with patch.object(ctrl, "_init_components"), \
-             patch.object(ctrl, "_cleanup"):
+        with patch.object(ctrl, "_init_components"), patch.object(ctrl, "_cleanup"):
             ctrl.run()
 
         build_call = ctrl.snapshot_builder.build_and_publish.call_args

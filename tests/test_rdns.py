@@ -1,4 +1,5 @@
 """Tests for backend.parsers.rdns — DNS resolution with LRU cache."""
+
 from __future__ import annotations
 
 import threading
@@ -8,6 +9,7 @@ import pytest
 from backend.parsers import rdns
 
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_rdns_state():
@@ -21,6 +23,7 @@ def _reset_rdns_state():
         rdns._pending_lookups.clear()
     # Re-init executor if shut down by another test
     from concurrent.futures import ThreadPoolExecutor
+
     try:
         if rdns._executor is None or rdns._executor._shutdown:
             rdns._executor = ThreadPoolExecutor(max_workers=1)
@@ -36,6 +39,7 @@ def _seed_cache(entries: dict[str, str]) -> None:
 
 
 # ── Cache hit tests ───────────────────────────────────────────────
+
 
 class TestCacheHit:
     def test_cached_hostname_returned(self):
@@ -55,11 +59,13 @@ class TestCacheHit:
 
     def test_cache_hit_moves_to_end_lru(self):
         """Accessing a cached entry should move it to the end (most recent)."""
-        _seed_cache({
-            "1.1.1.1": "one",
-            "2.2.2.2": "two",
-            "3.3.3.3": "three",
-        })
+        _seed_cache(
+            {
+                "1.1.1.1": "one",
+                "2.2.2.2": "two",
+                "3.3.3.3": "three",
+            }
+        )
         # Access "1.1.1.1" — should move to end
         rdns.get_hostname("1.1.1.1")
         keys = list(rdns._rdns_cache.keys())
@@ -67,6 +73,7 @@ class TestCacheHit:
 
 
 # ── Lookup trigger tests ──────────────────────────────────────────
+
 
 class TestLookupTrigger:
     def test_uncached_ip_triggers_background_lookup(self):
@@ -94,6 +101,7 @@ class TestLookupTrigger:
 
 
 # ── _do_lookup tests ──────────────────────────────────────────────
+
 
 class TestDoLookup:
     def test_successful_lookup_stores_hostname(self):
@@ -127,6 +135,7 @@ class TestDoLookup:
 
 # ── LRU eviction tests ────────────────────────────────────────────
 
+
 class TestLRUEviction:
     def test_cache_evicts_when_over_limit(self):
         """When cache exceeds _MAX_CACHE_SIZE, oldest entries should be evicted."""
@@ -155,6 +164,7 @@ class TestLRUEviction:
 
 # ── Thread safety test ────────────────────────────────────────────
 
+
 class TestThreadSafety:
     def test_concurrent_lookups_no_crash(self):
         """Multiple threads doing lookups simultaneously should not crash."""
@@ -167,10 +177,7 @@ class TestThreadSafety:
             except Exception as e:
                 errors.append(str(e))
 
-        threads = [
-            threading.Thread(target=lookup_ip, args=(f"10.0.0.{i}",))
-            for i in range(50)
-        ]
+        threads = [threading.Thread(target=lookup_ip, args=(f"10.0.0.{i}",)) for i in range(50)]
         for t in threads:
             t.start()
         for t in threads:

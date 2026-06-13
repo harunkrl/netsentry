@@ -1,4 +1,5 @@
 """KPortWatch — TUI unit tests for formatting helpers and utilities."""
+
 from __future__ import annotations
 
 from tui.themes import THEME_DISPLAY_NAMES
@@ -41,30 +42,37 @@ class TestNetworkUtil:
 
     def test_loopback_v4(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("127.0.0.1") is True
 
     def test_loopback_v6(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("::1") is True
 
     def test_private_10(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("10.0.0.1") is True
 
     def test_private_172(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("172.16.0.1") is True
 
     def test_private_192(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("192.168.1.1") is True
 
     def test_public(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("8.8.8.8") is False
 
     def test_invalid_ip(self) -> None:
         from shared.network import is_private_ip
+
         assert is_private_ip("not-an-ip") is True
 
 
@@ -73,22 +81,26 @@ class TestFsUtils:
 
     def test_read_file_safe_nonexistent(self, tmp_path) -> None:
         from shared.fs_utils import read_file_safe
+
         assert read_file_safe(str(tmp_path / "nonexistent")) is None
 
     def test_read_file_safe_existing(self, tmp_path) -> None:
         from shared.fs_utils import read_file_safe
+
         f = tmp_path / "test.txt"
         f.write_text("  hello world  \n")
         assert read_file_safe(str(f)) == "hello world"
 
     def test_atomic_write(self, tmp_path) -> None:
         from shared.fs_utils import atomic_write
+
         target = tmp_path / "output.txt"
         atomic_write(str(target), "test content")
         assert target.read_text() == "test content"
 
     def test_atomic_write_creates_dirs(self, tmp_path) -> None:
         from shared.fs_utils import atomic_write
+
         target = tmp_path / "sub" / "dir" / "output.txt"
         atomic_write(str(target), "nested")
         assert target.read_text() == "nested"
@@ -99,4 +111,5 @@ class TestClipboardUtil:
 
     def test_import(self) -> None:
         from tui.utils.clipboard import safe_copy_to_clipboard
+
         assert callable(safe_copy_to_clipboard)

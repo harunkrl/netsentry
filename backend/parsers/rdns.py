@@ -6,6 +6,7 @@ LRU cache and a thread pool for background DNS lookups.
 Backward-compatible API: all module-level functions delegate to a singleton
 ReverseDnsService instance.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,7 +48,9 @@ class ReverseDnsService:
         # so that test patches to the module-level variables are reflected.
 
     # ── Configuration ─────────────────────────────────────────────
-    def configure(self, *, max_cache_size: int | None = None, max_pending: int | None = None) -> None:
+    def configure(
+        self, *, max_cache_size: int | None = None, max_pending: int | None = None
+    ) -> None:
         """Update service configuration for cache and concurrency limits.
 
         Args:
@@ -124,6 +127,7 @@ _default_service = ReverseDnsService()
 
 # ── Module-level backward-compatible API ────────────────────────────
 
+
 def configure(*, max_cache_size: int | None = None, max_pending: int | None = None) -> None:
     """Update module-level configuration for cache and concurrency limits.
 
@@ -160,12 +164,14 @@ def get_hostname(ip: str) -> str | None:
 
 # ── Test helper: module-level function for _do_lookup ───────────────
 
+
 def _do_lookup(ip: str) -> None:
     """Module-level wrapper for _do_lookup (for test mocking)."""
     _default_service._do_lookup(ip)
 
 
 # ── Test helper: reset singleton for tests ───────────────────────────
+
 
 def _reset_for_test() -> None:
     """Reset the singleton service and module state (for test fixtures)."""

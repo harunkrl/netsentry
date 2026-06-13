@@ -1,4 +1,5 @@
 """Tests for process tree builder and ProcessInfo model."""
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -13,6 +14,7 @@ from backend.parsers.process_tree import (
 )
 
 # ── _parse_stat tests ──────────────────────────────────────────
+
 
 class TestParseStat:
     """Tests for _parse_stat() helper."""
@@ -67,11 +69,13 @@ class TestParseStat:
 
 # ── build_process_tree tests ───────────────────────────────────
 
+
 class TestBuildProcessTree:
     """Tests for build_process_tree()."""
 
     def test_basic_tree(self):
         """Build tree from mocked /proc — PID 1 and 2 should be parsed."""
+
         def fake_read(path):
             if "/1/stat" in path:
                 return "1 (systemd) S 0 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
@@ -79,8 +83,10 @@ class TestBuildProcessTree:
                 return "2 (kthreadd) S 0 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
             return None
 
-        with patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read), \
-             patch("os.listdir", return_value=["1", "2"]):
+        with (
+            patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read),
+            patch("os.listdir", return_value=["1", "2"]),
+        ):
             tree = build_process_tree()
 
         assert 1 in tree
@@ -91,6 +97,7 @@ class TestBuildProcessTree:
 
     def test_children_populated(self):
         """systemd should have children when tree has child processes."""
+
         def fake_read(path):
             if "/1/stat" in path:
                 return "1 (systemd) S 0 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
@@ -98,8 +105,10 @@ class TestBuildProcessTree:
                 return "100 (child) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
             return None
 
-        with patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read), \
-             patch("os.listdir", return_value=["1", "100"]):
+        with (
+            patch("backend.parsers.process_tree.read_file_safe", side_effect=fake_read),
+            patch("os.listdir", return_value=["1", "100"]),
+        ):
             tree = build_process_tree()
 
         assert len(tree[1].children) > 0
@@ -108,6 +117,7 @@ class TestBuildProcessTree:
         """Passing inode_map should set has_network on socket-owning processes."""
         # Find a PID that actually has sockets
         from backend.parsers.inode_map import build_inode_to_pid_map
+
         inode_map = build_inode_to_pid_map()
         if not inode_map:
             pytest.skip("No socket-owning processes found")
@@ -135,6 +145,7 @@ class TestBuildProcessTree:
 
 
 # ── get_tree_roots tests ───────────────────────────────────────
+
 
 class TestGetTreeRoots:
     """Tests for get_tree_roots()."""
@@ -175,6 +186,7 @@ class TestGetTreeRoots:
 
 # ── ProcessInfo model tests ────────────────────────────────────
 
+
 class TestProcessInfo:
     """Tests for ProcessInfo dataclass."""
 
@@ -200,8 +212,12 @@ class TestProcessInfo:
     def test_from_dict_ignores_extra_keys(self):
         """Extra keys should be silently ignored."""
         d = {
-            "pid": 1, "ppid": 0, "name": "init",
-            "cmdline": "", "state": "S", "uid": 0,
+            "pid": 1,
+            "ppid": 0,
+            "name": "init",
+            "cmdline": "",
+            "state": "S",
+            "uid": 0,
             "extra": "ignored",
         }
         info = ProcessInfo.from_dict(d)
@@ -215,6 +231,7 @@ class TestProcessInfo:
 
 
 # ── Snapshot serialization with processes ──────────────────────
+
 
 class TestSnapshotProcesses:
     """Tests for Snapshot serialization with process tree data."""

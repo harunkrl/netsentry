@@ -19,6 +19,7 @@ Usage::
 The public API is identical to the old monolithic config.py.
 All submodules are internal implementation details.
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,11 +27,17 @@ import os
 import threading as _threading
 from dataclasses import dataclass, field
 
+from shared.config.generation import generate_example_config
+from shared.config.parsers import parse_custom_rules, parse_port_list, parse_safe_ports, read_toml
+from shared.config.persistence import CONFIG_DIR, CONFIG_FILE, save_config_setting, save_tui_setting
+from shared.config.rules import CustomRule
 from shared.constants import (
     ALERT_POLL_INTERVAL,
     BASELINE_FILE,
     DATA_FILE,
     DEFAULT_POLL_INTERVAL,
+    DEFAULT_SCAN_THRESHOLD,
+    DEFAULT_THEME,
     GEOIP_CACHE_FILE,
     IDLE_POLL_INTERVAL,
     IDLE_THRESHOLD_SECS,
@@ -40,32 +47,30 @@ from shared.constants import (
     PRIVILEGED_PORT_MAX,
     SOCKET_PATH,
 )
-from shared.config.rules import CustomRule
-from shared.config.parsers import read_toml, parse_port_list, parse_safe_ports, parse_custom_rules
-from shared.config.persistence import save_config_setting, save_tui_setting, CONFIG_DIR, CONFIG_FILE
-from shared.config.generation import generate_example_config
 
 logger = logging.getLogger("kportwatch.config")
 
 __all__ = [
-    "CustomRule",
-    "AppConfig",
-    "get_config",
-    "load_config",
-    "apply_cli_overrides",
-    "generate_example_config",
-    "save_config_setting",
-    "save_tui_setting",
     "CONFIG_DIR",
     "CONFIG_FILE",
+    "AppConfig",
+    "CustomRule",
+    "apply_cli_overrides",
+    "generate_example_config",
+    "get_config",
+    "load_config",
+    "save_config_setting",
+    "save_tui_setting",
 ]
 
 
 # ── Config dataclass ──────────────────────────────────────────────
 
+
 @dataclass
 class AppConfig:
     """Merged application configuration."""
+
     # Polling
     poll_interval: float = DEFAULT_POLL_INTERVAL
     alert_poll_interval: float = ALERT_POLL_INTERVAL
@@ -85,13 +90,18 @@ class AppConfig:
     known_safe_ports: dict[int, str] = field(default_factory=lambda: dict(KNOWN_SAFE_PORTS))
     privileged_port_max: int = PRIVILEGED_PORT_MAX
 
+    # Security
+    scan_threshold: int = (
+        DEFAULT_SCAN_THRESHOLD  # connection bursts above this trigger a port-scan alert
+    )
+
     # Custom rules
     custom_rules: list[CustomRule] = field(default_factory=list)
 
     # Whitelist / Blacklist
-    port_whitelist: frozenset[int] = field(default_factory=frozenset)   # never alert on these
-    port_blacklist: frozenset[int] = field(default_factory=frozenset)   # always CRITICAL on these
-    ip_blacklist: list[str] = field(default_factory=list)               # glob patterns for IPs
+    port_whitelist: frozenset[int] = field(default_factory=frozenset)  # never alert on these
+    port_blacklist: frozenset[int] = field(default_factory=frozenset)  # always CRITICAL on these
+    ip_blacklist: list[str] = field(default_factory=list)  # glob patterns for IPs
 
     # DNS / rDNS
     dns_cache_size: int = 1024
@@ -101,8 +111,8 @@ class AppConfig:
     notifications_enabled: bool = True
     notification_min_level: str = "WARNING"  # INFO, WARNING, CRITICAL
     alert_ttl: float = 3600.0  # re-notify after this many seconds
-    notification_rate_limit: int = 10        # max notifications per window
-    notification_rate_window: float = 60.0   # seconds for rate window
+    notification_rate_limit: int = 10  # max notifications per window
+    notification_rate_window: float = 60.0  # seconds for rate window
 
     # Daemon health
     heartbeat_file: str = ""  # empty = auto-derive from data_file
@@ -110,7 +120,7 @@ class AppConfig:
     # Auto-update
     update_enabled: bool = True
     update_check_interval: float = 86400.0  # 24 hours
-    update_auto_apply: bool = False          # just notify, don't auto-apply
+    update_auto_apply: bool = False  # just notify, don't auto-apply
 
     # GeoIP
     geoip_enabled: bool = True
@@ -123,6 +133,7 @@ class AppConfig:
 
     # TUI preferences
     tui_notifications_enabled: bool = True
+    color_theme: str = DEFAULT_THEME  # persisted TUI color theme key
 
     # History
     history_retention_days: int = 30  # prune files older than this
@@ -152,6 +163,7 @@ def get_config() -> AppConfig:
 
 
 # ── Loader ───────────────────────────────────────────────────────────
+
 
 def load_config(path: str | None = None) -> AppConfig:
     """Load configuration from TOML file, merging over defaults.
@@ -216,6 +228,13 @@ def load_config(path: str | None = None) -> AppConfig:
             v = alerts["privileged_port_max"]
             if isinstance(v, int) and 0 <= v <= 65535:
                 cfg.privileged_port_max = v
+
+        # ── Security ────────────────────────────
+        security = data.get("security", {})
+        if "scan_threshold" in security:
+            v = security["scan_threshold"]
+            if isinstance(v, int) and v > 0:
+                cfg.scan_threshold = v
 
         # ── DNS ─────────────────────────────────
         dns = data.get("dns", {})
@@ -330,6 +349,11 @@ def load_config(path: str | None = None) -> AppConfig:
             v = tui["notifications_enabled"]
             if isinstance(v, bool):
                 cfg.tui_notifications_enabled = v
+        if "color_theme" in tui:
+            v = tui["color_theme"]
+            # Accept any non-empty string; validity is enforced at apply time
+            if isinstance(v, str) and v.strip():
+                cfg.color_theme = v.strip()
 
         # ── History ────────────────────────────────
         hist = data.get("history", {})

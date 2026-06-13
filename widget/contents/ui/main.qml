@@ -55,10 +55,6 @@ PlasmoidItem {
     property string trafficTx: ""
     property string trafficIface: ""
 
-    // Alert tracking for desktop notifications
-    property int _lastAlertHash: 0
-    property var _prevAlertMap: ({})
-
     ListModel { id: connectionsModel }
     ListModel { id: establishedModel }
 
@@ -117,35 +113,22 @@ PlasmoidItem {
         onTriggered: dataSource.connectedSources = []
     }
 
-    // ── Notification source ────────────────────────────────────
-    Plasma5Support.DataSource {
-        id: notifySource
-        engine: 'executable'
-        connectedSources: []
-        onNewData: (sourceName, data) => { connectedSources = [] }
-    }
+    // ── Notifications ──────────────────────────────────────────────
+    // Desktop notifications are sent exclusively by the daemon's
+    // NotificationManager (which has rate-limiting + dedup). The widget
+    // only uses Plasmoid.showPassiveNotification() for transient in-panel
+    // feedback, which avoids (a) duplicate system notifications and
+    // (b) the shell/notify-send injection surface.
 
-    function sendDesktopNotification(title, body, urgency) {
-        var urg = urgency || "normal"
-        // Sanitize: remove any character that could break shell quoting
-        var safeTitle = title.replace(/["'`\\$!?;|&(){}[\]<>\n\r]/g, " ").substring(0, 120)
-        var safeBody = body.replace(/["'`\\$!?;|&(){}[\]<>\n\r]/g, " ").substring(0, 200)
-        notifySource.connectedSources = [
-            "sh -c 'notify-send -a KPortWatch -u " + urg + " \"" + safeTitle + "\" \"" + safeBody + "\" 2>/dev/null || true'"
-        ]
-    }
-
-    // ── Snapshot parsing ───────────────────────────────────────
+    // ── Snapshot parsing ─────────────────────────────────────────────────
     function parseSnapshot(rawJson) {
         try {
             var parsed = JSON.parse(rawJson)
         } catch(e) {
             console.log("KPortWatch parse error: " + e)
             root.dataStale = true
-            root.sendDesktopNotification(
-                "KPortWatch Error",
-                "Failed to parse daemon data: " + e,
-                "low"
+            plasmoid.showPassiveNotification(
+                i18n("KPortWatch: failed to parse daemon data") + ": " + e
             )
             return
         }
@@ -206,40 +189,10 @@ PlasmoidItem {
             root.threatLevel = "secure"
         }
 
-        // ── Desktop notifications for new alerts ───────────────
-        var alertHash = 0
-        for (var i = 0; i < filtered.length; i++) {
-            alertHash = (alertHash * 31 + filtered[i].port + filtered[i].level.charCodeAt(0)) | 0
-        }
-        if (filtered.length > 0 && alertHash !== root._lastAlertHash && root._lastAlertHash !== 0) {
-            // Find new alerts (comparing by port+level)
-            var prevMap = root._prevAlertMap || {}
-            var newAlerts = []
-            for (var i = 0; i < filtered.length; i++) {
-                var aKey = filtered[i].port + "-" + filtered[i].level
-                if (!prevMap[aKey]) { newAlerts.push(filtered[i]) }
-            }
-            if (newAlerts.length === 1) {
-                var a = newAlerts[0]
-                sendDesktopNotification(
-                    "KPortWatch Alert: " + a.level,
-                    a.message,
-                    a.level === "CRITICAL" ? "critical" : "normal"
-                )
-            } else if (newAlerts.length > 1) {
-                sendDesktopNotification(
-                    "KPortWatch: " + newAlerts.length + " new alerts",
-                    newAlerts[0].message + " (and " + (newAlerts.length - 1) + " more)",
-                    "critical"
-                )
-            }
-        }
-        root._lastAlertHash = alertHash
-        var prevAlertMap = {}
-        for (var i = 0; i < filtered.length; i++) {
-            prevAlertMap[filtered[i].port + "-" + filtered[i].level] = true
-        }
-        root._prevAlertMap = prevAlertMap
+        // NOTE: Desktop notifications for new alerts are handled by the
+        // daemon's NotificationManager (rate-limited + deduped). The widget
+        // must NOT re-notify — doing so would produce duplicate system
+        // notifications. (Previously this block shelled out to notify-send.)
 
         // ── Filter and sort listening ports ────────────────────
         var newListening = parsed.listening || []

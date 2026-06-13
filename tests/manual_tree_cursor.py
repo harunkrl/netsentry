@@ -1,4 +1,3 @@
-
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
 
@@ -29,6 +28,7 @@ class TestApp(App):
         print("After cursor_line:", target.is_expanded)
 
         self.exit()
+
 
 if __name__ == "__main__":
     app = TestApp()

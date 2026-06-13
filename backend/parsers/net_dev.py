@@ -9,11 +9,13 @@
 
 Each data line: "iface: rx_bytes rx_packets rx_errs rx_drop rx_fifo rx_frame rx_compressed rx_multicast tx_bytes tx_packets tx_errs tx_drop tx_fifo tx_colls tx_carrier tx_compressed"
 """
+
 from __future__ import annotations
 
 from backend.models import InterfaceStats
 
 # ── Internal helpers ───────────────────────────────────────────
+
 
 def _parse_line(line: str) -> InterfaceStats | None:
     """Parse a single /proc/net/dev data line into InterfaceStats.
@@ -55,6 +57,7 @@ def _parse_line(line: str) -> InterfaceStats | None:
 
 
 # ── Public API ─────────────────────────────────────────────────
+
 
 def parse_proc_net_dev(path: str = "/proc/net/dev") -> list[InterfaceStats]:
     """Parse /proc/net/dev into a list of InterfaceStats.

@@ -5,6 +5,7 @@ Tests cover:
 - backend/kportwatchctl.py — CLI control tool
 - backend/kportwatch_client.py — TUI client entry point
 """
+
 from __future__ import annotations
 
 import signal
@@ -16,6 +17,7 @@ from backend import export, kportwatch_client, kportwatchctl
 # =============================================================================
 # Tests for backend/export.py
 # =============================================================================
+
 
 class TestExportCLIArgumentParsing:
     """Test CLI argument parsing for export.py.
@@ -32,9 +34,9 @@ class TestExportCLIArgumentParsing:
         export.main()
         # Verify export_history_json was called with default arguments
         call_args = mock_export_json.call_args
-        assert call_args[1]['date'] is None
-        assert call_args[1]['event_type'] is None
-        assert call_args[1]['last_n'] is None
+        assert call_args[1]["date"] is None
+        assert call_args[1]["event_type"] is None
+        assert call_args[1]["last_n"] is None
 
     @patch("backend.export.export_history_json")
     @patch("sys.argv", ["kportwatch-export", "--date", "2024-06-01"])
@@ -43,7 +45,7 @@ class TestExportCLIArgumentParsing:
         mock_export_json.return_value = 1
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['date'] == "2024-06-01"
+        assert call_args[1]["date"] == "2024-06-01"
 
     @patch("backend.export.export_history_json")
     @patch("sys.argv", ["kportwatch-export", "--format", "json"])
@@ -77,7 +79,7 @@ class TestExportCLIArgumentParsing:
         mock_export_json.return_value = 1
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['event_type'] == "summary"
+        assert call_args[1]["event_type"] == "summary"
 
     @patch("backend.export.export_history_json")
     @patch("sys.argv", ["kportwatch-export", "--type", "alert"])
@@ -86,7 +88,7 @@ class TestExportCLIArgumentParsing:
         mock_export_json.return_value = 1
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['event_type'] == "alert"
+        assert call_args[1]["event_type"] == "alert"
 
     @patch("backend.export.export_history_json")
     @patch("sys.argv", ["kportwatch-export", "--last", "100"])
@@ -95,7 +97,7 @@ class TestExportCLIArgumentParsing:
         mock_export_json.return_value = 1
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['last_n'] == 100
+        assert call_args[1]["last_n"] == 100
 
     @patch("backend.export.list_available_dates")
     @patch("sys.argv", ["kportwatch-export", "--list-dates"])
@@ -106,16 +108,31 @@ class TestExportCLIArgumentParsing:
         mock_list_dates.assert_called_once()
 
     @patch("backend.export.export_history_csv")
-    @patch("sys.argv", ["kportwatch-export", "-d", "2024-06-01", "-f", "csv", "-o", "out.csv", "-t", "alert", "--last", "50"])
+    @patch(
+        "sys.argv",
+        [
+            "kportwatch-export",
+            "-d",
+            "2024-06-01",
+            "-f",
+            "csv",
+            "-o",
+            "out.csv",
+            "-t",
+            "alert",
+            "--last",
+            "50",
+        ],
+    )
     def test_short_arguments(self, mock_export_csv):
         """Test short form arguments."""
         mock_export_csv.return_value = 1
         export.main()
         call_args = mock_export_csv.call_args
         assert "out.csv" in call_args[0][0]
-        assert call_args[1]['date'] == "2024-06-01"
-        assert call_args[1]['event_type'] == "alert"
-        assert call_args[1]['last_n'] == 50
+        assert call_args[1]["date"] == "2024-06-01"
+        assert call_args[1]["event_type"] == "alert"
+        assert call_args[1]["last_n"] == 50
 
 
 class TestExportListDates:
@@ -156,7 +173,9 @@ class TestExportSuccessfulExport:
         mock_export_json.return_value = 5
         export.main()
         mock_export_json.assert_called_once()
-        mock_export_json.assert_called_once_with("test.json", date=None, event_type=None, last_n=None)
+        mock_export_json.assert_called_once_with(
+            "test.json", date=None, event_type=None, last_n=None
+        )
         mock_print.assert_called_once_with("Exported 5 entries to test.json")
 
     @patch("backend.export.export_history_csv")
@@ -179,7 +198,7 @@ class TestExportSuccessfulExport:
         mock_export_json.assert_called_once()
         call_args = mock_export_json.call_args
         assert "2024-06-01" in call_args[0][0]  # Should be in the output path
-        assert call_args[1]['date'] == "2024-06-01"
+        assert call_args[1]["date"] == "2024-06-01"
 
     @patch("backend.export.export_history_json")
     @patch("builtins.print")
@@ -189,7 +208,7 @@ class TestExportSuccessfulExport:
         mock_export_json.return_value = 2
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['event_type'] == "alert"
+        assert call_args[1]["event_type"] == "alert"
 
     @patch("backend.export.export_history_json")
     @patch("builtins.print")
@@ -199,7 +218,7 @@ class TestExportSuccessfulExport:
         mock_export_json.return_value = 50
         export.main()
         call_args = mock_export_json.call_args
-        assert call_args[1]['last_n'] == 50
+        assert call_args[1]["last_n"] == 50
 
 
 class TestExportErrorHandling:
@@ -242,6 +261,7 @@ class TestExportMainFunction:
 # =============================================================================
 # Tests for backend/kportwatchctl.py
 # =============================================================================
+
 
 class TestKPortWatchCtlPIDHandling:
     """Test PID file handling functions."""
@@ -339,7 +359,9 @@ class TestKPortWatchCtlStatusCommand:
     @patch("backend.kportwatchctl.SOCKET_PATH", "/tmp/test.sock")
     @patch("backend.kportwatchctl.PID_FILE", "/tmp/test.pid")
     @patch("builtins.print")
-    def test_status_not_running_stale_pid(self, mock_print, mock_exists, mock_is_alive, mock_read_pid):
+    def test_status_not_running_stale_pid(
+        self, mock_print, mock_exists, mock_is_alive, mock_read_pid
+    ):
         """Test status when PID file exists but process is dead."""
         mock_read_pid.return_value = 12345
         mock_is_alive.return_value = False
@@ -356,7 +378,9 @@ class TestKPortWatchCtlStatusCommand:
     @patch("backend.kportwatchctl.SOCKET_PATH", "/tmp/test.sock")
     @patch("backend.kportwatchctl.PID_FILE", "/tmp/test.pid")
     @patch("builtins.print")
-    def test_status_running_socket_exists(self, mock_print, mock_exists, mock_is_alive, mock_read_pid):
+    def test_status_running_socket_exists(
+        self, mock_print, mock_exists, mock_is_alive, mock_read_pid
+    ):
         """Test status when daemon is running and socket exists."""
         mock_read_pid.return_value = 12345
         mock_is_alive.return_value = True
@@ -399,7 +423,9 @@ class TestKPortWatchCtlStopCommand:
     @patch("backend.kportwatchctl._cleanup_pidfile")
     @patch("os.kill")
     @patch("builtins.print")
-    def test_stop_success(self, mock_print, mock_kill, mock_cleanup, mock_wait, mock_is_alive, mock_read_pid):
+    def test_stop_success(
+        self, mock_print, mock_kill, mock_cleanup, mock_wait, mock_is_alive, mock_read_pid
+    ):
         """Test successfully stopping the daemon."""
         mock_read_pid.return_value = 12345
         mock_is_alive.return_value = True
@@ -419,7 +445,9 @@ class TestKPortWatchCtlStopCommand:
     @patch("backend.kportwatchctl._cleanup_pidfile")
     @patch("os.kill")
     @patch("builtins.print")
-    def test_stop_force_kill(self, mock_print, mock_kill, mock_cleanup, mock_wait, mock_is_alive, mock_read_pid):
+    def test_stop_force_kill(
+        self, mock_print, mock_kill, mock_cleanup, mock_wait, mock_is_alive, mock_read_pid
+    ):
         """Test force killing daemon when it doesn't stop gracefully."""
         mock_read_pid.return_value = 12345
         mock_is_alive.side_effect = [True, False]  # First call says alive, second says dead
@@ -437,7 +465,9 @@ class TestKPortWatchCtlStopCommand:
     @patch("backend.kportwatchctl._find_daemon_pids")
     @patch("backend.kportwatchctl._cleanup_pidfile")
     @patch("builtins.print")
-    def test_stop_not_running(self, mock_print, mock_cleanup, mock_find, mock_is_alive, mock_read_pid):
+    def test_stop_not_running(
+        self, mock_print, mock_cleanup, mock_find, mock_is_alive, mock_read_pid
+    ):
         """Test stopping when daemon is not running."""
         mock_read_pid.return_value = None
         mock_find.return_value = []
@@ -640,6 +670,7 @@ class TestKPortWatchCtlMainFunction:
 # Tests for backend/kportwatch_client.py
 # =============================================================================
 
+
 class TestKPortWatchClientModule:
     """Test that the client module can be imported and has expected structure."""
 
@@ -662,6 +693,7 @@ class TestKPortWatchClientModule:
     def test_main_signature(self):
         """Test that main() has correct signature."""
         import inspect
+
         sig = inspect.signature(kportwatch_client.main)
         # main() should take no arguments (or only optional ones)
         params = [p for p in sig.parameters.values() if p.default == inspect.Parameter.empty]
@@ -717,7 +749,10 @@ class TestKPortWatchClientMain:
 
         mock_exit.assert_called_once_with(1)
         # Should print error message about connection refused
-        assert any("refused" in str(call).lower() or "starting" in str(call).lower() for call in mock_print.call_args_list)
+        assert any(
+            "refused" in str(call).lower() or "starting" in str(call).lower()
+            for call in mock_print.call_args_list
+        )
 
     @patch("socket.socket")
     @patch("sys.exit")
@@ -769,16 +804,14 @@ class TestKPortWatchClientMain:
 # Test cleanup and utilities
 # =============================================================================
 
+
 class TestKPortWatchCtlUtilities:
     """Test utility functions in kportwatchctl."""
 
     @patch("subprocess.run")
     def test_find_daemon_pids_success(self, mock_run):
         """Test finding daemon PIDs via pgrep."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="12345\n12346\n"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="12345\n12346\n")
 
         pids = kportwatchctl._find_daemon_pids()
 
@@ -794,10 +827,7 @@ class TestKPortWatchCtlUtilities:
     @patch("subprocess.run")
     def test_find_daemon_pids_no_results(self, mock_run):
         """Test finding daemon PIDs when none found."""
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout=""
-        )
+        mock_run.return_value = MagicMock(returncode=1, stdout="")
 
         pids = kportwatchctl._find_daemon_pids()
         assert pids == []
@@ -834,6 +864,7 @@ class TestKPortWatchCtlUtilities:
 # Integration-style tests
 # =============================================================================
 
+
 class TestCLIIntegration:
     """Integration-style tests for CLI entry points."""
 
@@ -853,3 +884,49 @@ class TestCLIIntegration:
         assert hasattr(kportwatchctl, "cmd_restart")
         assert hasattr(kportwatchctl, "cmd_reload")
         assert hasattr(kportwatchctl, "cmd_kill")
+
+
+class TestProcessStateIsolationShield:
+    """Regression guard for the autouse isolation fixture in conftest.py.
+
+    The CLI daemon-control commands (cmd_stop/cmd_reload/cmd_restart) always
+    fall back to a real ``pgrep`` via ``_find_daemon_pids`` to mop up orphans.
+    When a real KPortWatch daemon runs on the host, that leaks the live PID
+    into tests and makes the suite flaky/unsafe (Faz 5 fix).
+
+    These tests pin the isolation contract: within this module,
+    ``_find_daemon_pids`` must be mocked (return []) so no real pgrep runs,
+    while ``TestKPortWatchCtlUtilities`` is exempt (it exercises the real
+    function). If someone removes or weakens the fixture, these fail loudly.
+    """
+
+    def test_find_daemon_pids_is_mocked_within_command_tests(self):
+        """Inside this (command-test) class, _find_daemon_pids must be a mock."""
+        from unittest.mock import Mock
+
+        # _find_daemon_pids is patched by the autouse fixture for this class.
+        assert isinstance(kportwatchctl._find_daemon_pids, Mock), (
+            "Isolation shield inactive: _find_daemon_pids should be mocked "
+            "for CLI command tests so a live host daemon cannot leak in."
+        )
+
+    def test_mocked_find_daemon_pids_returns_empty_list(self):
+        """The mocked _find_daemon_pids must return [] (no host daemons found)."""
+        assert kportwatchctl._find_daemon_pids() == []
+
+    def test_cmd_stop_does_not_invoke_real_pgrep(self):
+        """cmd_stop must not reach the real process table via pgrep.
+
+        With the shield active, the fallback returns [] immediately; even when
+        a real daemon is running on the host, cmd_stop must report 'not running'
+        rather than discovering/altering the live process.
+        """
+        with (
+            patch("backend.kportwatchctl._read_pid", return_value=None),
+            patch("backend.kportwatchctl._cleanup_pidfile"),
+            patch("builtins.print"),
+        ):
+            # No _find_daemon_pids patch here — rely on the autouse shield.
+            args = Mock()
+            result = kportwatchctl.cmd_stop(args)
+        assert result == 1  # daemon not running — no real pgrep consulted

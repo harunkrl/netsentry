@@ -4,10 +4,9 @@ Tests cover ProcessTreeScreen data flow, tree rendering, filtering,
 hash-based update strategy, expand state persistence, label building,
 and ProcessKillConfirm modal kill workers.
 """
+
 from __future__ import annotations
 
-import asyncio
-import os
 import signal
 import time
 from dataclasses import asdict
@@ -17,33 +16,78 @@ import pytest
 from backend.models import ProcessInfo, Snapshot
 from textual.app import App
 from textual.widgets import Input, Static, Tree
-
 from tui.screens.process_tree_screen import ProcessKillConfirm, ProcessTreeScreen
 
-
 # ── Fixtures ───────────────────────────────────────────────────
+
 
 @pytest.fixture
 def process_data() -> dict[int, ProcessInfo]:
     """A small process tree:
-        1 (systemd) → 828 (firewalld), 2420 (sddm) → 3034 (firefox)
-        2 (kthreadd) → 100 (kworker)
+    1 (systemd) → 828 (firewalld), 2420 (sddm) → 3034 (firefox)
+    2 (kthreadd) → 100 (kworker)
     """
     return {
-        1: ProcessInfo(pid=1, ppid=0, name="systemd", cmdline="/sbin/init",
-                       state="S", uid=0, has_network=True, children=[828, 2420]),
-        2: ProcessInfo(pid=2, ppid=0, name="kthreadd", cmdline="",
-                       state="S", uid=0, has_network=False, children=[100]),
-        100: ProcessInfo(pid=100, ppid=2, name="kworker/0:1", cmdline="",
-                         state="S", uid=0, has_network=False, children=[]),
-        828: ProcessInfo(pid=828, ppid=1, name="firewalld",
-                         cmdline="/usr/bin/python3 /usr/bin/firewalld",
-                         state="S", uid=0, has_network=False, children=[]),
-        2420: ProcessInfo(pid=2420, ppid=1, name="sddm", cmdline="/usr/bin/sddm",
-                          state="S", uid=0, has_network=False, children=[3034]),
-        3034: ProcessInfo(pid=3034, ppid=2420, name="firefox",
-                          cmdline="/usr/lib/firefox/firefox",
-                          state="S", uid=1000, has_network=True, children=[]),
+        1: ProcessInfo(
+            pid=1,
+            ppid=0,
+            name="systemd",
+            cmdline="/sbin/init",
+            state="S",
+            uid=0,
+            has_network=True,
+            children=[828, 2420],
+        ),
+        2: ProcessInfo(
+            pid=2,
+            ppid=0,
+            name="kthreadd",
+            cmdline="",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[100],
+        ),
+        100: ProcessInfo(
+            pid=100,
+            ppid=2,
+            name="kworker/0:1",
+            cmdline="",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[],
+        ),
+        828: ProcessInfo(
+            pid=828,
+            ppid=1,
+            name="firewalld",
+            cmdline="/usr/bin/python3 /usr/bin/firewalld",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[],
+        ),
+        2420: ProcessInfo(
+            pid=2420,
+            ppid=1,
+            name="sddm",
+            cmdline="/usr/bin/sddm",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[3034],
+        ),
+        3034: ProcessInfo(
+            pid=3034,
+            ppid=2420,
+            name="firefox",
+            cmdline="/usr/lib/firefox/firefox",
+            state="S",
+            uid=1000,
+            has_network=True,
+            children=[],
+        ),
     }
 
 
@@ -91,8 +135,9 @@ class TestMakeNodeLabel:
 
     def test_sleeping_process(self):
         """Sleeping process shows dim style."""
-        info = ProcessInfo(pid=1, ppid=0, name="systemd", cmdline="/sbin/init",
-                           state="S", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=1, ppid=0, name="systemd", cmdline="/sbin/init", state="S", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "systemd" in label
         assert "dim" in label
@@ -100,39 +145,55 @@ class TestMakeNodeLabel:
 
     def test_running_process(self):
         """Running process shows bold style."""
-        info = ProcessInfo(pid=100, ppid=1, name="compute", cmdline="./compute",
-                           state="R", uid=1000, has_network=False)
+        info = ProcessInfo(
+            pid=100,
+            ppid=1,
+            name="compute",
+            cmdline="./compute",
+            state="R",
+            uid=1000,
+            has_network=False,
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "bold" in label
         assert "compute" in label
 
     def test_zombie_process(self):
         """Zombie process shows red style."""
-        info = ProcessInfo(pid=66, ppid=1, name="zombie", cmdline="",
-                           state="Z", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=66, ppid=1, name="zombie", cmdline="", state="Z", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "red" in label
 
     def test_stopped_process(self):
         """Stopped process shows yellow style."""
-        info = ProcessInfo(pid=50, ppid=1, name="paused", cmdline="./app",
-                           state="T", uid=1000, has_network=False)
+        info = ProcessInfo(
+            pid=50, ppid=1, name="paused", cmdline="./app", state="T", uid=1000, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "yellow" in label
 
     def test_network_active_process(self):
         """Network-active process shows green marker."""
-        info = ProcessInfo(pid=3034, ppid=1, name="firefox",
-                           cmdline="/usr/lib/firefox/firefox",
-                           state="S", uid=1000, has_network=True)
+        info = ProcessInfo(
+            pid=3034,
+            ppid=1,
+            name="firefox",
+            cmdline="/usr/lib/firefox/firefox",
+            state="S",
+            uid=1000,
+            has_network=True,
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "green" in label
         assert "*" in label
 
     def test_network_inactive_process(self):
         """Inactive process shows spaces instead of marker."""
-        info = ProcessInfo(pid=100, ppid=1, name="worker", cmdline="",
-                           state="S", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=100, ppid=1, name="worker", cmdline="", state="S", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         # Should start with spaces (no green marker)
         assert label.startswith("  ")
@@ -140,24 +201,27 @@ class TestMakeNodeLabel:
     def test_long_cmdline_truncated(self):
         """cmdline > 40 chars is truncated with ellipsis."""
         long_cmd = "a" * 50
-        info = ProcessInfo(pid=1, ppid=0, name="app", cmdline=long_cmd,
-                           state="S", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=1, ppid=0, name="app", cmdline=long_cmd, state="S", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "…" in label
 
     def test_short_cmdline_not_truncated(self):
         """cmdline <= 40 chars is shown fully."""
         short_cmd = "/usr/bin/app"
-        info = ProcessInfo(pid=1, ppid=0, name="app", cmdline=short_cmd,
-                           state="S", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=1, ppid=0, name="app", cmdline=short_cmd, state="S", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         assert "…" not in label
         assert short_cmd in label
 
     def test_cmdline_same_as_name_not_shown(self):
         """cmdline identical to name is not duplicated."""
-        info = ProcessInfo(pid=1, ppid=0, name="bash", cmdline="bash",
-                           state="S", uid=0, has_network=False)
+        info = ProcessInfo(
+            pid=1, ppid=0, name="bash", cmdline="bash", state="S", uid=0, has_network=False
+        )
         label = ProcessTreeScreen._make_node_label(info)
         # cmdline part should not be shown (same as name)
         assert label.count("bash") == 1
@@ -218,9 +282,14 @@ class TestHashComputation:
             # Change state of one process
             modified = dict(process_data)
             modified[3034] = ProcessInfo(
-                pid=3034, ppid=2420, name="firefox",
+                pid=3034,
+                ppid=2420,
+                name="firefox",
                 cmdline="/usr/lib/firefox/firefox",
-                state="R", uid=1000, has_network=True, children=[],
+                state="R",
+                uid=1000,
+                has_network=True,
+                children=[],
             )
             h2 = screen._compute_display_hash(modified)
             assert h1 != h2
@@ -239,15 +308,22 @@ class TestHashComputation:
             h1 = screen._compute_display_hash(process_data)
             modified = dict(process_data)
             modified[828] = ProcessInfo(
-                pid=828, ppid=1, name="firewalld",
+                pid=828,
+                ppid=1,
+                name="firewalld",
                 cmdline="/usr/bin/python3 /usr/bin/firewalld",
-                state="S", uid=0, has_network=True, children=[],  # Changed
+                state="S",
+                uid=0,
+                has_network=True,
+                children=[],  # Changed
             )
             h2 = screen._compute_display_hash(modified)
             assert h1 != h2
 
     @pytest.mark.asyncio
-    async def test_structure_hash_same_without_pid_change(self, mock_process_provider, process_data):
+    async def test_structure_hash_same_without_pid_change(
+        self, mock_process_provider, process_data
+    ):
         """Changing only state (not PIDs) keeps structure hash same."""
         screen = ProcessTreeScreen()
         app = _make_process_app(mock_process_provider)
@@ -260,9 +336,14 @@ class TestHashComputation:
             h1 = screen._compute_structure_hash(process_data)
             modified = dict(process_data)
             modified[3034] = ProcessInfo(
-                pid=3034, ppid=2420, name="firefox",
+                pid=3034,
+                ppid=2420,
+                name="firefox",
                 cmdline="/usr/lib/firefox/firefox",
-                state="R", uid=1000, has_network=True, children=[],
+                state="R",
+                uid=1000,
+                has_network=True,
+                children=[],
             )
             h2 = screen._compute_structure_hash(modified)
             assert h1 == h2  # Same PIDs → same structure hash
@@ -398,7 +479,7 @@ class TestProcessTreeScreenFilter:
             screen._last_structure_hash = None  # Force rebuild
             screen._rebuild_tree()
 
-            tree = screen.query_one("#process-tree", Tree)
+            screen.query_one("#process-tree", Tree)
             # firefox should be visible, but only matching branch
             assert len(screen._pid_to_node) > 0
             assert 3034 in screen._pid_to_node
@@ -555,7 +636,7 @@ class TestProcessTreeScreenActions:
             app.push_screen(screen)
             await pilot.pause()
 
-            with patch.object(app, 'pop_screen') as mock_pop:
+            with patch.object(app, "pop_screen") as mock_pop:
                 screen.action_close()
                 mock_pop.assert_called_once()
 
@@ -571,8 +652,8 @@ class TestProcessTreeScreenActions:
             await pilot.pause()
 
             # Don't select anything → should notify
-            with patch.object(app, 'notify') as mock_notify:
-                with patch.object(app, 'push_screen'):
+            with patch.object(app, "notify"):
+                with patch.object(app, "push_screen"):
                     screen.action_kill()
                     # If no valid node is selected, notify should be called
                     # (depends on cursor_line state — this is a smoke test)
@@ -663,8 +744,7 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill") as mock_kill, \
-                 patch.object(app, "notify") as mock_notify:
+            with patch("os.kill") as mock_kill, patch.object(app, "notify"):
                 await screen._do_kill_sigterm()
                 mock_kill.assert_called_once_with(12345, signal.SIGTERM)
 
@@ -678,8 +758,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=ProcessLookupError), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=ProcessLookupError),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigterm()
                 msg = mock_notify.call_args[0][0]
                 assert "not found" in msg.lower()
@@ -694,8 +776,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=PermissionError), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=PermissionError),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigterm()
                 msg = mock_notify.call_args[0][0]
                 assert "permission" in msg.lower() or "denied" in msg.lower()
@@ -710,8 +794,7 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill") as mock_kill, \
-                 patch.object(app, "notify") as mock_notify:
+            with patch("os.kill") as mock_kill, patch.object(app, "notify"):
                 await screen._do_kill_sigkill()
                 mock_kill.assert_called_once_with(12345, signal.SIGKILL)
 
@@ -725,8 +808,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=ProcessLookupError), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=ProcessLookupError),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigkill()
                 msg = mock_notify.call_args[0][0]
                 assert "not found" in msg.lower()
@@ -741,8 +826,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=PermissionError), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=PermissionError),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigkill()
                 msg = mock_notify.call_args[0][0]
                 assert "permission" in msg.lower() or "denied" in msg.lower()
@@ -757,8 +844,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=OSError("test error")), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=OSError("test error")),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigterm()
                 msg = mock_notify.call_args[0][0]
                 assert "test error" in msg
@@ -773,8 +862,10 @@ class TestProcessKillConfirmWorkers:
             await app.push_screen(screen)
             await pilot.pause()
 
-            with patch("os.kill", side_effect=OSError("test error")), \
-                 patch.object(app, "notify") as mock_notify:
+            with (
+                patch("os.kill", side_effect=OSError("test error")),
+                patch.object(app, "notify") as mock_notify,
+            ):
                 await screen._do_kill_sigkill()
                 msg = mock_notify.call_args[0][0]
                 assert "test error" in msg

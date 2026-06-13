@@ -1,4 +1,5 @@
 """KPortWatch — TOML parsing helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -9,6 +10,7 @@ logger = logging.getLogger("kportwatch.config")
 def read_toml(path: str) -> dict:
     """Read a TOML file, returning an empty dict on any error."""
     import tomllib
+
     try:
         with open(path, "rb") as fh:
             return tomllib.load(fh)
@@ -67,9 +69,13 @@ def parse_custom_rules(raw_rules: list) -> list:
             level = "WARNING"
         rule = CustomRule(
             port=match.get("port") if isinstance(match.get("port"), int) else None,
-            port_pattern=match.get("port_pattern") if isinstance(match.get("port_pattern"), str) else None,
+            port_pattern=match.get("port_pattern")
+            if isinstance(match.get("port_pattern"), str)
+            else None,
             remote_ip=match.get("remote_ip") if isinstance(match.get("remote_ip"), str) else None,
-            process_name=match.get("process_name") if isinstance(match.get("process_name"), str) else None,
+            process_name=match.get("process_name")
+            if isinstance(match.get("process_name"), str)
+            else None,
             proto=match.get("proto") if isinstance(match.get("proto"), str) else None,
             level=level,
             message=raw_rule.get("message", "Custom rule triggered"),

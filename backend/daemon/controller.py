@@ -12,6 +12,7 @@ The orchestrator owns only the **lifecycle** state (``running``, ``interval``,
 baseline bookkeeping, error counter) and the **adaptive interval** logic.
 All other mutable state lives inside the respective components.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -24,7 +25,11 @@ import time
 try:
     from systemd.daemon import notify as _sd_notify
 except ImportError:
-    _sd_notify = lambda *a, **kw: None  # type: ignore[assignment]
+
+    def _sd_notify(*args, **kwargs):  # type: ignore[no-redef]
+        """No-op systemd notify when python-systemd is unavailable."""
+        return None
+
 
 from shared import PID_FILE
 from shared.config import apply_cli_overrides, load_config
@@ -83,6 +88,7 @@ class DaemonController:
 
         # Propagate DNS cache limits
         from backend.parsers import rdns
+
         rdns.configure(
             max_cache_size=self.cfg.dns_cache_size,
             max_pending=self.cfg.dns_max_pending,
@@ -90,14 +96,16 @@ class DaemonController:
 
         # Initialise GeoIP module
         if self.cfg.geoip_enabled:
-            geoip_mod.init({
-                "geoip_api_url": self.cfg.geoip_api_url,
-                "geoip_cache_file": self.cfg.geoip_cache_file,
-                "geoip_cache_max_entries": self.cfg.geoip_cache_max_entries,
-                "geoip_cache_ttl_days": self.cfg.geoip_cache_ttl_days,
-                "geoip_batch_size": self.cfg.geoip_batch_size,
-                "geoip_timeout": self.cfg.geoip_timeout,
-            })
+            geoip_mod.init(
+                {
+                    "geoip_api_url": self.cfg.geoip_api_url,
+                    "geoip_cache_file": self.cfg.geoip_cache_file,
+                    "geoip_cache_max_entries": self.cfg.geoip_cache_max_entries,
+                    "geoip_cache_ttl_days": self.cfg.geoip_cache_ttl_days,
+                    "geoip_batch_size": self.cfg.geoip_batch_size,
+                    "geoip_timeout": self.cfg.geoip_timeout,
+                }
+            )
 
         # Alert engine
         self.alert_engine = AlertEngine(
@@ -186,9 +194,7 @@ class DaemonController:
         if alerts:
             return self.cfg.alert_poll_interval
 
-        current_hash = hash(
-            frozenset((e.local_port, e.proto, e.state) for e in listening)
-        )
+        current_hash = hash(frozenset((e.local_port, e.proto, e.state) for e in listening))
         if current_hash != self._last_snapshot_hash:
             self._last_snapshot_hash = current_hash
             self._last_change_time = time.time()
@@ -219,6 +225,7 @@ class DaemonController:
         # Shut down async subsystems
         try:
             from backend.parsers import rdns as _rdns_mod
+
             _rdns_mod.shutdown()
         except Exception:
             logger.debug("rdns shutdown error", exc_info=True)
@@ -269,17 +276,13 @@ class DaemonController:
                 )
 
                 self.notification_manager.handle(alerts)
-                self.interval = self._adaptive_interval(
-                    collected.listening, alerts
-                )
+                self.interval = self._adaptive_interval(collected.listening, alerts)
                 self._error_count = 0
                 _sd_notify("WATCHDOG=1")  # heartbeat for systemd
 
             except Exception:
                 self._error_count += 1
-                logger.exception(
-                    "Error in daemon cycle (consecutive: %d)", self._error_count
-                )
+                logger.exception("Error in daemon cycle (consecutive: %d)", self._error_count)
                 self.interval = self.cfg.poll_interval
                 if self._error_count >= 10:
                     logger.critical(

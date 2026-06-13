@@ -9,6 +9,7 @@ Covers:
   - Inode=0 skipping, malformed line skipping
   - parse_all_proc with mocked PROC_PATHS
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,6 +24,7 @@ from backend.parsers.proc_net import (
 )
 
 # ── Hex IP parsing ─────────────────────────────────────────────
+
 
 class TestParseHexIp:
     """Test _parse_hex_ip for IPv4 and IPv6."""
@@ -62,6 +64,7 @@ class TestParseHexIp:
 
 # ── Hex port parsing ───────────────────────────────────────────
 
+
 class TestParseHexPort:
     """Test _parse_hex_port."""
 
@@ -85,6 +88,7 @@ class TestParseHexPort:
 
 
 # ── State decoding ─────────────────────────────────────────────
+
 
 class TestDecodeState:
     """Test _decode_state for TCP and UDP."""
@@ -118,12 +122,11 @@ class TestDecodeState:
 
 # ── parse_proc_net ─────────────────────────────────────────────
 
+
 class TestParseProcNet:
     """Test parse_proc_net with realistic temp files."""
 
-    def test_parse_realistic_tcp_file(
-        self, tmp_path: Path, proc_tcp_content: str
-    ) -> None:
+    def test_parse_realistic_tcp_file(self, tmp_path: Path, proc_tcp_content: str) -> None:
         tcp_file = tmp_path / "tcp"
         tcp_file.write_text(proc_tcp_content)
 
@@ -151,9 +154,7 @@ class TestParseProcNet:
         entries = parse_proc_net(str(missing), "tcp")
         assert entries == []
 
-    def test_permission_error_returns_empty(
-        self, tmp_path: Path, proc_tcp_content: str
-    ) -> None:
+    def test_permission_error_returns_empty(self, tmp_path: Path, proc_tcp_content: str) -> None:
         """PermissionError is now caught and returns empty list (not crash)."""
         tcp_file = tmp_path / "tcp"
         tcp_file.write_text(proc_tcp_content)
@@ -224,12 +225,11 @@ class TestParseProcNet:
 
 # ── parse_all_proc ─────────────────────────────────────────────
 
+
 class TestParseAllProc:
     """Test parse_all_proc with mocked PROC_PATHS."""
 
-    def test_parse_all_proc_combines_all(
-        self, tmp_path: Path, proc_tcp_content: str
-    ) -> None:
+    def test_parse_all_proc_combines_all(self, tmp_path: Path, proc_tcp_content: str) -> None:
         """parse_all_proc should combine entries from all 4 proc files."""
         tcp_file = tmp_path / "tcp"
         tcp6_file = tmp_path / "tcp6"

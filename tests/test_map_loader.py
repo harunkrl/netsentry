@@ -1,7 +1,7 @@
 """Tests for tui/data/map_loader.py."""
+
 from __future__ import annotations
 
-import pytest
 from tui.data.map_loader import load_world_map
 
 

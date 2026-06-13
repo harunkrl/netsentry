@@ -10,6 +10,7 @@ from shared import SOCKET_PATH
 
 logger = logging.getLogger("kportwatch.unix_socket")
 
+
 class UnixSocketServer:
     """Unix domain socket server supporting both broadcast and request/response.
 
@@ -79,7 +80,7 @@ class UnixSocketServer:
     def _handle_client_message(self, client: socket.socket, data: bytes):
         """Handle an initial message from a client."""
         try:
-            message = json.loads(data.decode('utf-8').strip())
+            message = json.loads(data.decode("utf-8").strip())
         except (json.JSONDecodeError, UnicodeDecodeError):
             # Not valid JSON — treat as broadcast subscriber
             with self._clients_lock:
@@ -102,9 +103,10 @@ class UnixSocketServer:
         """
         try:
             import struct
+
             # SO_PEERCRED = 17 on Linux, data = struct_ucred { pid, uid, gid }
-            cred = client.getsockopt(socket.SOL_SOCKET, 17, struct.calcsize('3i'))
-            pid, uid, _gid = struct.unpack('3i', cred)
+            cred = client.getsockopt(socket.SOL_SOCKET, 17, struct.calcsize("3i"))
+            pid, uid, _gid = struct.unpack("3i", cred)
             return pid, uid
         except (OSError, AttributeError, struct.error) as e:
             logger.debug("SO_PEERCRED unavailable: %s", e)
@@ -126,7 +128,9 @@ class UnixSocketServer:
         # For destructive commands, verify client identity via SO_PEERCRED
         creds = self._get_peer_credentials(client)
         if creds is None:
-            logger.warning("Kill command rejected: cannot verify client identity (SO_PEERCRED unavailable)")
+            logger.warning(
+                "Kill command rejected: cannot verify client identity (SO_PEERCRED unavailable)"
+            )
             return {"status": "error", "message": "Client identity verification unavailable"}
 
         client_pid, client_uid = creds
@@ -135,7 +139,8 @@ class UnixSocketServer:
         if client_uid != os.getuid():
             logger.warning(
                 "Kill command rejected: client uid=%d != daemon uid=%d",
-                client_uid, os.getuid(),
+                client_uid,
+                os.getuid(),
             )
             return {"status": "error", "message": "Permission denied: different user"}
 
@@ -148,7 +153,9 @@ class UnixSocketServer:
         client_cmdline = ""
         try:
             with open(f"/proc/{client_pid}/cmdline", "rb") as f:
-                client_cmdline = f.read(4096).replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+                client_cmdline = (
+                    f.read(4096).replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+                )
         except (FileNotFoundError, PermissionError, OSError):
             pass
 
@@ -157,7 +164,8 @@ class UnixSocketServer:
         if not any(p in client_exe or p in client_cmdline for p in allowed_patterns):
             logger.warning(
                 "Kill command rejected: client exe='%s' cmdline='%s' not in allowlist",
-                client_exe, client_cmdline[:200],
+                client_exe,
+                client_cmdline[:200],
             )
             return {
                 "status": "error",
@@ -166,7 +174,8 @@ class UnixSocketServer:
 
         logger.info(
             "Kill command authorized for PID %d (client: %s)",
-            client_pid, client_exe,
+            client_pid,
+            client_exe,
         )
         return None
 
@@ -177,7 +186,7 @@ class UnixSocketServer:
         auth_error = self._authorize_command(client, command)
         if auth_error is not None:
             with contextlib.suppress(OSError):
-                client.sendall(json.dumps(auth_error).encode('utf-8') + b'\n')
+                client.sendall(json.dumps(auth_error).encode("utf-8") + b"\n")
             with contextlib.suppress(OSError):
                 client.close()
             return
@@ -192,7 +201,7 @@ class UnixSocketServer:
             response = {"status": "error", "message": "No command handler registered"}
 
         try:
-            response_data = json.dumps(response).encode('utf-8') + b'\n'
+            response_data = json.dumps(response).encode("utf-8") + b"\n"
             client.sendall(response_data)
         except OSError as e:
             logger.error("Failed to send command response: %s", e)
@@ -202,7 +211,7 @@ class UnixSocketServer:
 
     def broadcast(self, json_data: str):
         dead_clients = []
-        data = json_data.encode('utf-8') + b'\n'
+        data = json_data.encode("utf-8") + b"\n"
         with self._clients_lock:
             for client in self.clients:
                 try:
@@ -248,7 +257,7 @@ def send_command(command: dict, timeout: float = 5.0) -> dict:
     sock.settimeout(timeout)
     try:
         sock.connect(SOCKET_PATH)
-        sock.sendall(json.dumps(command).encode('utf-8') + b'\n')
+        sock.sendall(json.dumps(command).encode("utf-8") + b"\n")
         response_data = b""
         max_size = 10 * 1024 * 1024  # 10MB safety limit
         while True:
@@ -258,11 +267,11 @@ def send_command(command: dict, timeout: float = 5.0) -> dict:
             response_data += chunk
             if len(response_data) > max_size:
                 raise ValueError("Response exceeds maximum allowed size (10MB)")
-            if b'\n' in response_data:
+            if b"\n" in response_data:
                 break
         if not response_data:
             raise ConnectionError("Empty response from server")
-        return json.loads(response_data.decode('utf-8').strip())
+        return json.loads(response_data.decode("utf-8").strip())
     except TimeoutError:
         raise TimeoutError("Server did not respond in time") from None
     except OSError as e:

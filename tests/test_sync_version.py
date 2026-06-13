@@ -1,12 +1,11 @@
 """Tests for scripts/sync-version.py."""
+
 from __future__ import annotations
 
 import importlib.util
 import json
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 # Load scripts/sync-version.py as a module (not a package)
 _SCRIPT = Path("scripts/sync-version.py")
@@ -36,12 +35,9 @@ class TestSyncVersion:
         pyproject.write_text('[project]\nversion = "3.0.0"\n')
 
         metadata = tmp_path / "metadata.json"
-        metadata.write_text(json.dumps({
-            "KPlugin": {"Version": "2.1.0", "Name": "Test"}
-        }))
+        metadata.write_text(json.dumps({"KPlugin": {"Version": "2.1.0", "Name": "Test"}}))
 
-        with patch.object(_sync, "PYPROJECT", pyproject), \
-             patch.object(_sync, "METADATA", metadata):
+        with patch.object(_sync, "PYPROJECT", pyproject), patch.object(_sync, "METADATA", metadata):
             changed = _sync.sync_version()
 
         assert changed is True
@@ -54,12 +50,9 @@ class TestSyncVersion:
         pyproject.write_text('[project]\nversion = "2.1.0"\n')
 
         metadata = tmp_path / "metadata.json"
-        metadata.write_text(json.dumps({
-            "KPlugin": {"Version": "2.1.0", "Name": "Test"}
-        }))
+        metadata.write_text(json.dumps({"KPlugin": {"Version": "2.1.0", "Name": "Test"}}))
 
-        with patch.object(_sync, "PYPROJECT", pyproject), \
-             patch.object(_sync, "METADATA", metadata):
+        with patch.object(_sync, "PYPROJECT", pyproject), patch.object(_sync, "METADATA", metadata):
             changed = _sync.sync_version()
 
         assert changed is False

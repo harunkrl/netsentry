@@ -8,6 +8,7 @@ Usage:
     python3 kportwatch-daemon.py --foreground --verbose
     python3 kportwatch-daemon.py --interval 5
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,6 +32,7 @@ def _write_heartbeat(path: str) -> None:
     """Write a tiny JSON file with current timestamp for health checks."""
     try:
         import json as _json
+
         data = _json.dumps({"ts": time.time()}).encode()
         tmp = path + ".tmp"
         with open(tmp, "wb") as fh:
@@ -52,17 +54,20 @@ def parse_args() -> argparse.Namespace:
         help=f"Polling interval in seconds (default: {DEFAULT_POLL_INTERVAL})",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose (DEBUG) logging",
     )
     parser.add_argument(
-        "--foreground", "-f",
+        "--foreground",
+        "-f",
         action="store_true",
         help="Run in foreground (don't daemonize)",
     )
     parser.add_argument(
-        "--config", "-c",
+        "--config",
+        "-c",
         type=str,
         default=None,
         help="Path to config file (default: ~/.config/kportwatch/config.toml)",
@@ -144,6 +149,7 @@ def compute_traffic_deltas(
 def daemon_loop(args: argparse.Namespace) -> None:
     """Main daemon loop — delegates to DaemonController."""
     from backend.daemon_controller import DaemonController
+
     controller = DaemonController(args)
     controller.run()
 
@@ -225,9 +231,10 @@ if __name__ == "__main__":
     except Exception:
         import pathlib
         import traceback
+
         crash_log = pathlib.Path.home() / ".local" / "share" / "kportwatch" / "crash.log"
         crash_log.parent.mkdir(parents=True, exist_ok=True)
         with open(crash_log, "a") as f:
-            f.write(f"\n{'='*60}\nCrash at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"\n{'=' * 60}\nCrash at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             traceback.print_exc(file=f)
         raise

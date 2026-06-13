@@ -1,4 +1,5 @@
 """KPortWatch — Example config generation."""
+
 from __future__ import annotations
 
 import logging
@@ -38,6 +39,12 @@ malicious_ports = [4444, 5555, 31337, 12345, 12346, 6666, 6667, 6668, 6669, 2737
 631 = "cups"
 5353 = "avahi"
 1716 = "kdeconnectd"
+
+# ── Security ───────────────────────────────────────────
+# [security]
+# Number of connection events in the scan window that triggers a
+# "port scan detected" alert.
+# scan_threshold = 5
 
 # ── Custom alert rules ──────────────────────────────────────────
 # Each rule has a "match" table and alert properties.
@@ -114,6 +121,8 @@ timeout = 5.0
 # TUI toast notifications (the pop-up messages in the terminal)
 # Toggle at runtime with the 'n' key — saved persistently here.
 notifications_enabled = true
+# Color theme key: cyberpunk, kpw-light, nord (cycled with 'T' key)
+color_theme = "cyberpunk"
 """
 
 

@@ -4,16 +4,26 @@ Computes risk scores, assembles a :class:`Snapshot`, and publishes it
 (write JSON, broadcast over socket, record history, heartbeat).
 
 Performance optimizations:
-  - Hash-based snapshot diffing: skips JSON write when nothing changed.
-  - Conditionally includes process tree (only when TUI is connected).
-  2. Skips JSON file write when snapshot hash unchanged (saves ~20ms disk I/O)
-Owns its own ``_risk_scores`` and ``_prev_listening_set`` state.
+  - **Hash-based snapshot diffing**: the JSON file writes
+    (``write_snapshot`` for the TUI + ``write_widget_snapshot`` for the
+    Plasma widget) are skipped when the snapshot's *content* is unchanged
+    since the last write. The volatile ``timestamp`` field is excluded from
+    the hash so an otherwise-identical snapshot is detected. A forced write
+    happens every :data:`_FORCE_WRITE_EVERY` cycles to self-heal if either
+    file is deleted/corrupted. Socket broadcast, history, and heartbeat
+    always run.
+
+Owns its own ``_risk_scores``, ``_prev_listening_set``,
+``_last_content_hash`` and ``_publish_count`` state.
 External dependencies (alert_engine, history, socket_server, cfg) are
 injected at construction.  ``interval_ms`` is passed per-call because
 it is owned by the orchestrator.
 """
+
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
 from dataclasses import asdict
@@ -23,6 +33,10 @@ from backend.risk_score import calculate_risk_score
 from backend.writers.json_file import write_snapshot, write_widget_snapshot
 
 logger = logging.getLogger(__name__)
+
+# Force a full file rewrite every N cycles even when content is unchanged,
+# so that a deleted/corrupted JSON file self-heals within ~N poll intervals.
+_FORCE_WRITE_EVERY: int = 30
 
 
 def _write_heartbeat(path: str) -> None:
@@ -52,6 +66,10 @@ class SnapshotBuilder:
         self._risk_scores: dict = {}
         self._prev_listening_set: frozenset = frozenset()
 
+        # Private state — hash-diffing for skip-write optimization
+        self._last_content_hash: str | None = None
+        self._publish_count: int = 0
+
     def reconfigure(self, cfg) -> None:
         """Apply a new config (e.g. after SIGHUP)."""
         self._cfg = cfg
@@ -70,8 +88,13 @@ class SnapshotBuilder:
         """Compute risk scores, build snapshot, publish to all sinks."""
         risk_scores = self._compute_risk_scores(listening)
         snapshot = self._build_snapshot(
-            listening, established, alerts, traffic, process_tree,
-            risk_scores, interval_ms,
+            listening,
+            established,
+            alerts,
+            traffic,
+            process_tree,
+            risk_scores,
+            interval_ms,
         )
         self._publish(snapshot, alerts)
         return snapshot
@@ -116,9 +139,7 @@ class SnapshotBuilder:
             if cc and e.remote_ip:
                 country_ips.setdefault(cc, set()).add(e.remote_ip)
 
-        top_countries = sorted(
-            country_ips.items(), key=lambda x: len(x[1]), reverse=True
-        )[:10]
+        top_countries = sorted(country_ips.items(), key=lambda x: len(x[1]), reverse=True)[:10]
 
         return Snapshot(
             timestamp=time.time(),
@@ -127,9 +148,7 @@ class SnapshotBuilder:
             established=established,
             alerts=alerts,
             traffic=traffic,
-            processes={
-                str(pid): asdict(info) for pid, info in process_tree.items()
-            },
+            processes={str(pid): asdict(info) for pid, info in process_tree.items()},
             summary={
                 "total_listening": len(listening),
                 "total_established": len(established),
@@ -138,20 +157,31 @@ class SnapshotBuilder:
             },
             geo_stats={
                 "countries_count": len(country_ips),
-                "unique_ips_per_country": {
-                    cc: len(ips) for cc, ips in country_ips.items()
-                },
-                "top_countries": [
-                    (cc, len(ips)) for cc, ips in top_countries
-                ],
+                "unique_ips_per_country": {cc: len(ips) for cc, ips in country_ips.items()},
+                "top_countries": [(cc, len(ips)) for cc, ips in top_countries],
             },
         )
 
     def _publish(self, snapshot: Snapshot, alerts: list) -> None:
-        """Write snapshot, broadcast, record history."""
+        """Write snapshot, broadcast, record history.
+
+        JSON file writes are skipped when the snapshot content is unchanged
+        (see module docstring); broadcast, heartbeat, and history always run.
+        """
         snapshot_json = snapshot.to_json()
-        write_snapshot(snapshot_json)
-        write_widget_snapshot(snapshot)
+        content_hash = self._content_hash(snapshot)
+        self._publish_count += 1
+
+        # Skip the (relatively expensive) atomic file writes when nothing
+        # meaningful changed, *except* on the first publish or every
+        # _FORCE_WRITE_EVERY cycles (self-heal deleted/corrupted files).
+        write_files = (
+            content_hash != self._last_content_hash or self._publish_count % _FORCE_WRITE_EVERY == 1
+        )
+        if write_files:
+            write_snapshot(snapshot_json)
+            write_widget_snapshot(snapshot)
+            self._last_content_hash = content_hash
 
         if self._socket_server:
             self._socket_server.broadcast(snapshot_json)
@@ -163,8 +193,23 @@ class SnapshotBuilder:
             self._history.record_alert(alert)
 
         logger.debug(
-            "Snapshot: %d listening, %d established, %d alerts",
+            "Snapshot: %d listening, %d established, %d alerts (files_written=%s)",
             len(snapshot.listening),
             len(snapshot.established),
             len(alerts),
+            write_files,
         )
+
+    @staticmethod
+    def _content_hash(snapshot: Snapshot) -> str:
+        """Stable SHA-256 over snapshot content, ignoring volatile fields.
+
+        Excludes ``timestamp`` and ``poll_interval_ms`` so that an otherwise
+        identical snapshot yields the same hash (which is what lets us skip
+        the redundant file write).
+        """
+        payload = snapshot.to_dict()
+        payload.pop("timestamp", None)
+        payload.pop("poll_interval_ms", None)
+        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

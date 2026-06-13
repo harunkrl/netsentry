@@ -1,4 +1,5 @@
 """Tests for tui.data.provider — TUI data provider and process killer."""
+
 from __future__ import annotations
 
 import signal
@@ -11,6 +12,7 @@ from shared import AlertLevel
 from tui.data.provider import DataProvider
 
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def data_file(tmp_path: Path) -> Path:
@@ -25,9 +27,15 @@ def provider(data_file: Path) -> DataProvider:
 @pytest.fixture
 def sample_json() -> str:
     entry = SocketEntry(
-        proto="tcp", local_ip="0.0.0.0", local_port=22,
-        remote_ip="0.0.0.0", remote_port=0, state="LISTEN",
-        state_code="0A", uid=0, inode=12345,
+        proto="tcp",
+        local_ip="0.0.0.0",
+        local_port=22,
+        remote_ip="0.0.0.0",
+        remote_port=0,
+        state="LISTEN",
+        state_code="0A",
+        uid=0,
+        inode=12345,
     )
     snapshot = Snapshot(
         listening=[entry],
@@ -40,8 +48,11 @@ def sample_json() -> str:
 
 # ── Fetch tests ───────────────────────────────────────────────────
 
+
 class TestFetch:
-    def test_fetch_returns_snapshot(self, provider: DataProvider, data_file: Path, sample_json: str):
+    def test_fetch_returns_snapshot(
+        self, provider: DataProvider, data_file: Path, sample_json: str
+    ):
         data_file.write_text(sample_json)
         result = provider.fetch()
         assert result is not None
@@ -75,8 +86,11 @@ class TestFetch:
 
     def test_fetch_roundtrip_preserves_alerts(self, provider: DataProvider, data_file: Path):
         alert = Alert(
-            level=AlertLevel.CRITICAL, port=4444, proto="tcp",
-            process_name="suspicious", pid=999,
+            level=AlertLevel.CRITICAL,
+            port=4444,
+            proto="tcp",
+            process_name="suspicious",
+            pid=999,
             message="Malicious port detected",
         )
         snapshot = Snapshot(alerts=[alert])
@@ -89,6 +103,7 @@ class TestFetch:
 
 
 # ── Kill process tests ────────────────────────────────────────────
+
 
 class TestKillProcess:
     def test_invalid_pid_zero(self, provider: DataProvider):
@@ -153,6 +168,7 @@ class TestKillProcess:
     @patch("os.kill")
     def test_kill_permission_denied_on_sigterm(self, mock_kill, provider: DataProvider):
         """If SIGTERM raises PermissionError, should return failure."""
+
         def mock_kill_fn(pid, sig):
             if sig == signal.SIGTERM or sig == signal.SIGKILL:
                 raise PermissionError
@@ -166,6 +182,7 @@ class TestKillProcess:
     @patch("os.kill")
     def test_process_already_terminated(self, mock_kill, provider: DataProvider):
         """If process disappears between check and SIGTERM."""
+
         def mock_kill_fn(pid, sig):
             if sig == signal.SIGTERM:
                 raise ProcessLookupError

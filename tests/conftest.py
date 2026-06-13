@@ -1,13 +1,16 @@
 """Shared pytest fixtures for KPortWatch tests."""
+
 from __future__ import annotations
 
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from backend.models import Alert, AlertLevel, InterfaceStats, ProcessInfo, Snapshot, SocketEntry
 
 # ── File paths ─────────────────────────────────────────────────
+
 
 @pytest.fixture
 def tmp_data_file(tmp_path: Path) -> Path:
@@ -16,6 +19,7 @@ def tmp_data_file(tmp_path: Path) -> Path:
 
 
 # ── Model instances ────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_socket_entry() -> SocketEntry:
@@ -105,6 +109,7 @@ def sample_snapshot(
 
 # ── /proc/net content strings ─────────────────────────────────
 
+
 @pytest.fixture
 def proc_tcp_content() -> str:
     """Return a realistic /proc/net/tcp content string (header + 3 data lines).
@@ -123,6 +128,7 @@ def proc_tcp_content() -> str:
 
 
 # ── /proc/net/dev content strings ──────────────────────────────
+
 
 @pytest.fixture
 def proc_net_dev_content() -> str:
@@ -160,6 +166,7 @@ def sample_interface_stats() -> InterfaceStats:
 
 # ── Process tree fixtures ─────────────────────────────────────
 
+
 @pytest.fixture
 def sample_inode_map() -> dict:
     """Return a sample inode→(pid, name, cmdline) mapping.
@@ -181,22 +188,71 @@ def sample_process_tree():
         2 (kthreadd) → 100 (kworker)
     """
     return {
-        1: ProcessInfo(pid=1, ppid=0, name="systemd", cmdline="/sbin/init", state="S", uid=0,
-                       has_network=True, children=[828, 2420]),
-        2: ProcessInfo(pid=2, ppid=0, name="kthreadd", cmdline="", state="S", uid=0,
-                       has_network=False, children=[100]),
-        100: ProcessInfo(pid=100, ppid=2, name="kworker/0:1", cmdline="", state="S", uid=0,
-                         has_network=False, children=[]),
-        828: ProcessInfo(pid=828, ppid=1, name="firewalld", cmdline="/usr/bin/python3 /usr/bin/firewalld", state="S", uid=0,
-                         has_network=False, children=[]),
-        2420: ProcessInfo(pid=2420, ppid=1, name="sddm", cmdline="/usr/bin/sddm", state="S", uid=0,
-                          has_network=False, children=[3034]),
-        3034: ProcessInfo(pid=3034, ppid=2420, name="firefox", cmdline="/usr/lib/firefox/firefox", state="S", uid=1000,
-                          has_network=True, children=[]),
+        1: ProcessInfo(
+            pid=1,
+            ppid=0,
+            name="systemd",
+            cmdline="/sbin/init",
+            state="S",
+            uid=0,
+            has_network=True,
+            children=[828, 2420],
+        ),
+        2: ProcessInfo(
+            pid=2,
+            ppid=0,
+            name="kthreadd",
+            cmdline="",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[100],
+        ),
+        100: ProcessInfo(
+            pid=100,
+            ppid=2,
+            name="kworker/0:1",
+            cmdline="",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[],
+        ),
+        828: ProcessInfo(
+            pid=828,
+            ppid=1,
+            name="firewalld",
+            cmdline="/usr/bin/python3 /usr/bin/firewalld",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[],
+        ),
+        2420: ProcessInfo(
+            pid=2420,
+            ppid=1,
+            name="sddm",
+            cmdline="/usr/bin/sddm",
+            state="S",
+            uid=0,
+            has_network=False,
+            children=[3034],
+        ),
+        3034: ProcessInfo(
+            pid=3034,
+            ppid=2420,
+            name="firefox",
+            cmdline="/usr/lib/firefox/firefox",
+            state="S",
+            uid=1000,
+            has_network=True,
+            children=[],
+        ),
     }
 
 
 # ── GeoIP fixtures ──────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_geo_entry() -> SocketEntry:
@@ -221,3 +277,45 @@ def sample_geo_entry() -> SocketEntry:
         remote_lat=37.386,
         remote_lon=-122.084,
     )
+
+
+# ── Process-state isolation shield ─────────────────────────────
+# Some CLI command tests exercise cmd_stop / cmd_reload / cmd_restart, which
+# always fall back to pgrep (`_find_daemon_pids`) and may send real signals.
+# When a real KPortWatch daemon happens to be running on the host, those tests
+# discover its PID and either (a) assert against the wrong PID, or (b) send a
+# real signal to the live process — making the suite flaky and unsafe.
+#
+# This autouse fixture installs a default, safe mock for the real-system-touching
+# surfaces ONLY for the CLI entrypoint tests. Any test that needs to assert on
+# the real behavior of these functions patches them directly with @patch, which
+# takes precedence over (overrides) this fixture's mock.
+
+
+@pytest.fixture(autouse=True)
+def _isolate_cli_process_state(request: pytest.FixtureRequest):
+    """Shield CLI command tests from the host's real process table.
+
+    The daemon control commands (cmd_stop/cmd_reload/cmd_restart) always fall
+    back to ``_find_daemon_pids`` (a real ``pgrep``) to mop up orphaned daemons.
+    When a real KPortWatch daemon is running on the host, those tests discover
+    its PID and either assert against the wrong PID or signal the live process,
+    making the suite flaky and unsafe.
+
+    Active ONLY for the ``test_cli_entrypoints`` module, and ONLY for classes
+    that drive the *commands* (not the unit tests that exercise the helper
+    functions themselves — ``TestKPortWatchCtlUtilities`` must see the real
+    ``_find_daemon_pids`` so it can assert on its ``subprocess.run`` behaviour).
+
+    We deliberately mock ONLY ``_find_daemon_pids``: ``os.kill`` is left alone,
+    because tests that do not patch it rely on the real ``ProcessLookupError``
+    semantics to model a "process gone" state.
+    """
+    module_name = getattr(request.module, "__name__", "")
+    cls_name = getattr(getattr(request, "cls", None), "__name__", "")
+    if "test_cli_entrypoints" not in module_name or cls_name == "TestKPortWatchCtlUtilities":
+        yield
+        return
+
+    with patch("backend.kportwatchctl._find_daemon_pids", return_value=[]):
+        yield

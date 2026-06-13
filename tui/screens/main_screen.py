@@ -3,6 +3,7 @@
 Combines all widgets in a horizontal split layout with auto-refresh,
 search/filter bar, and keyboard-driven interaction.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -147,7 +148,9 @@ class MainScreen(Screen):
                     port_table.set_filter(query)
                     if query.strip():
                         visible = len(port_table._row_entries)
-                        status_bar.set_filter_info(f"Filter: '{query}' → PortTable ({visible} shown)")
+                        status_bar.set_filter_info(
+                            f"Filter: '{query}' → PortTable ({visible} shown)"
+                        )
                     else:
                         status_bar.set_filter_info("")
             except Exception:
@@ -207,6 +210,7 @@ class MainScreen(Screen):
             status_bar = self.query_one("#status-bar", StatusBar)
             # Use desktop_notifications from config, not TUI toast
             from shared.config import get_config
+
             cfg = get_config()
             status_bar.set_notification_state(cfg.notifications_enabled)
             summary = getattr(snapshot, "summary", {}) or {}
@@ -260,11 +264,14 @@ class MainScreen(Screen):
         try:
             import os
             from datetime import datetime
+
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = os.path.expanduser(f"~/kportwatch_export_{ts}.json")
             with open(path, "w") as f:
                 f.write(snapshot.to_json())
-            self.app.call_from_thread(self.app.notify, f"Exported to {path}", severity="information")
+            self.app.call_from_thread(
+                self.app.notify, f"Exported to {path}", severity="information"
+            )
         except Exception as e:
             self.app.call_from_thread(self.app.notify, f"Export failed: {e}", severity="error")
 
@@ -290,6 +297,7 @@ class MainScreen(Screen):
     def action_help(self) -> None:
         """Show the help screen."""
         from tui.screens.help_screen import HelpScreen
+
         self.app.push_screen(HelpScreen())
 
     def action_settings(self) -> None:
@@ -299,11 +307,13 @@ class MainScreen(Screen):
     def action_tree(self) -> None:
         """Open the process tree view."""
         from tui.screens.process_tree_screen import ProcessTreeScreen
+
         self.app.push_screen(ProcessTreeScreen())
 
     def action_geo_map(self) -> None:
         """Open the connection map view."""
         from tui.screens.connection_map_screen import ConnectionMapScreen
+
         self.app.push_screen(ConnectionMapScreen())
 
     def on_data_table_row_selected(self, event) -> None:
@@ -312,6 +322,7 @@ class MainScreen(Screen):
         entry = port_table.get_selected_entry()
         if entry:
             from tui.screens.detail_screen import DetailScreen
+
             self.app.push_screen(DetailScreen(entry))
 
     def action_refresh(self) -> None:
@@ -322,8 +333,6 @@ class MainScreen(Screen):
     def action_search(self) -> None:
         """Show the search bar and focus it."""
         self._show_search()
-
-
 
     def action_clear_filter(self) -> None:
         """Clear the search filter and hide the bar."""
@@ -340,10 +349,10 @@ class MainScreen(Screen):
             pass
 
     def action_proto_filter_cycle(self) -> None:
-        """Cycle the port table protocol filter: ALL → TCP → UDP → ICMP → ALL."""
+        """Cycle the port table protocol filter: ALL → TCP → UDP → ALL."""
         try:
             port_table = self.query_one("#port-table", PortTable)
-            proto_cycle = ["ALL", "TCP", "UDP", "ICMP"]
+            proto_cycle = ["ALL", "TCP", "UDP"]
             current = port_table.filter_proto
             idx = proto_cycle.index(current) if current in proto_cycle else -1
             next_proto = proto_cycle[(idx + 1) % len(proto_cycle)]
@@ -433,8 +442,11 @@ class MainScreen(Screen):
                 cell_key = table.coordinate_to_cell_key((table.cursor_row, 0))
                 entry = table._row_entries.get(cell_key.row_key.value)
                 if entry:
-                    addr = (f"{entry.local_ip}:{entry.local_port}" if entry.state == "LISTEN"
-                            else f"{entry.local_ip}:{entry.local_port} -> {entry.remote_ip}:{entry.remote_port}")
+                    addr = (
+                        f"{entry.local_ip}:{entry.local_port}"
+                        if entry.state == "LISTEN"
+                        else f"{entry.local_ip}:{entry.local_port} -> {entry.remote_ip}:{entry.remote_port}"
+                    )
                     text = f"{entry.process_name or 'unknown'} (PID: {entry.pid or '-'}) | {entry.proto} {addr} | State: {entry.state}"
                     safe_copy_to_clipboard(self.app, text)
         except Exception as e:

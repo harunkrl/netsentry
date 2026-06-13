@@ -4,6 +4,7 @@ All project-wide constants live here. Import via ``shared`` package::
 
     from shared import DATA_FILE, AlertLevel, MALICIOUS_PORTS
 """
+
 import os
 from enum import StrEnum
 
@@ -32,41 +33,55 @@ ALERT_POLL_INTERVAL: float = 1.0
 IDLE_POLL_INTERVAL: float = 10.0
 IDLE_THRESHOLD_SECS: float = 300.0  # 5 min no changes → idle
 
+
 # ── Alert levels ───────────────────────────────────────────────
 class AlertLevel(StrEnum):
     INFO = "INFO"
     WARNING = "WARNING"
     CRITICAL = "CRITICAL"
 
+
 # ── Known malicious ports (common malware C2 / backdoor ports) ─
-MALICIOUS_PORTS: frozenset[int] = frozenset({
-    4444,   # Metasploit default
-    5555,   # Common backdoor
-    31337,  # Back Orifice
-    12345,  # NetBus
-    12346,  # NetBus
-    6666,   # IRC botnet
-    6667,   # IRC botnet
-    6668,   # IRC botnet
-    6669,   # IRC botnet
-    27374,  # SubSeven
-    33270,  # Trinity
-    33567,  # Backdoor
-    65000,  # DevPoint
-})
+MALICIOUS_PORTS: frozenset[int] = frozenset(
+    {
+        4444,  # Metasploit default
+        5555,  # Common backdoor
+        31337,  # Back Orifice
+        12345,  # NetBus
+        12346,  # NetBus
+        6666,  # IRC botnet
+        6667,  # IRC botnet
+        6668,  # IRC botnet
+        6669,  # IRC botnet
+        27374,  # SubSeven
+        33270,  # Trinity
+        33567,  # Backdoor
+        65000,  # DevPoint
+    }
+)
 
 # ── Privileged port range ──────────────────────────────────────
 PRIVILEGED_PORT_MAX: int = 1023
 
+# ── Security ───────────────────────────────────────────────────
+# Number of connection events within the scan window that triggers a
+# "port scan detected" alert.
+DEFAULT_SCAN_THRESHOLD: int = 5
+
+# ── TUI theme ──────────────────────────────────────────────────
+# Default TUI color theme key (kept here, not in tui/themes.py, so that
+# shared.config can load the persisted theme without a circular import).
+DEFAULT_THEME: str = "cyberpunk"
+
 # ── Default known-safe ports {port: service_name} ─────────────
 KNOWN_SAFE_PORTS: dict[int, str] = {
-    22:    "sshd",
-    80:    "httpd",
-    443:   "https",
-    631:   "cups",
-    5353:  "avahi",
-    1716:  "kdeconnectd",
-    4500:  "kdeconnect",
+    22: "sshd",
+    80: "httpd",
+    443: "https",
+    631: "cups",
+    5353: "avahi",
+    1716: "kdeconnectd",
+    4500: "kdeconnect",
     17600: "kdeconnect",
     17601: "kdeconnect",
 }
@@ -99,6 +114,7 @@ def _get_version() -> str:
     """Read version from pyproject.toml (single source of truth)."""
     import tomllib
     from pathlib import Path
+
     try:
         pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
         with open(pyproject, "rb") as f:

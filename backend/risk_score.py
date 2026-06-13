@@ -21,6 +21,7 @@ Usage::
     score = calculate_risk_score(entry, engine)
     # score = {"score": 45, "factors": ["privileged", "not_baseline"]}
 """
+
 from __future__ import annotations
 
 from shared.constants import (
